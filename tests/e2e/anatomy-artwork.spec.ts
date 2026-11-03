@@ -22,6 +22,35 @@ test("whole sections, chart selection, muscle guide and posed project round trip
   await expect(
     page.getByRole("spinbutton", { name: "Elbow flex" }),
   ).toHaveValue("90");
+  for (const [name, value] of [
+    ["Shoulder elevation", "65"],
+    ["Forearm rotation", "-45"],
+  ]) {
+    await page.getByRole("spinbutton", { name }).fill(value);
+    await page.getByRole("spinbutton", { name }).press("Enter");
+  }
+  await page
+    .getByRole("button", { name: "Pose right arm", exact: true })
+    .click();
+  await expect(
+    page.getByRole("spinbutton", { name: "Elbow flex" }),
+  ).toHaveValue("0");
+  for (const [name, value] of [
+    ["Elbow flex", "25"],
+    ["Shoulder elevation", "30"],
+    ["Forearm rotation", "60"],
+  ]) {
+    await page.getByRole("spinbutton", { name }).fill(value);
+    await page.getByRole("spinbutton", { name }).press("Enter");
+  }
+  await page
+    .getByRole("button", { name: "Pose left arm", exact: true })
+    .click();
+  await expect(
+    page.getByRole("spinbutton", { name: "Elbow flex" }),
+  ).toHaveValue("90");
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await page.screenshot({ path: info.outputPath("independent-arm-poses.png") });
   await page.getByRole("button", { name: "Artwork", exact: true }).click();
   await page.getByLabel("Placement surface").selectOption("right-arm");
   const download = page.waitForEvent("download");
@@ -29,11 +58,15 @@ test("whole sections, chart selection, muscle guide and posed project round trip
   const file = info.outputPath("posed.formstudio");
   await (await download).saveAs(file);
   const p = JSON.parse(await fs.readFile(file, "utf8"));
-  expect(p.version).toBe(3);
+  expect(p.version).toBe(4);
   expect(p.body).toMatchObject({
     kind: "human-v1",
     section: "upper-body",
-    flex: 90,
+    flex: 0,
+    armPose: {
+      left: { flex: 90, raise: 65, twist: -45 },
+      right: { flex: 25, raise: 30, twist: 60 },
+    },
     anatomy: true,
   });
   expect(p.layers[0].zone).toBe("right-arm");
@@ -54,6 +87,12 @@ test("whole sections, chart selection, muscle guide and posed project round trip
   await expect(
     page.getByRole("spinbutton", { name: "Elbow flex" }),
   ).toHaveValue("90");
+  await expect(
+    page.getByRole("spinbutton", { name: "Shoulder elevation" }),
+  ).toHaveValue("65");
+  await expect(
+    page.getByRole("spinbutton", { name: "Forearm rotation" }),
+  ).toHaveValue("-45");
   await expect(
     page.getByRole("switch", { name: "Muscle anatomy guide" }),
   ).toBeChecked();
@@ -89,13 +128,11 @@ test("image studio background removal, erase/restore, undo, transparent export a
     }),
     "base64",
   );
-  await page
-    .getByLabel("Artwork file", { exact: true })
-    .setInputFiles({
-      name: "Cleanup.png",
-      mimeType: "image/png",
-      buffer: original,
-    });
+  await page.getByLabel("Artwork file", { exact: true }).setInputFiles({
+    name: "Cleanup.png",
+    mimeType: "image/png",
+    buffer: original,
+  });
   await page
     .getByRole("button", { name: "Edit source in image studio", exact: false })
     .click();

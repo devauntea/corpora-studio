@@ -1,4 +1,5 @@
 import { ProjectSchema as LegacyV2ProjectSchema } from "./legacy-v2";
+import { ProjectSchema as LegacyV3ProjectSchema } from "./legacy-v3";
 import { z } from "zod";
 
 const finite = (min: number, max: number) =>
@@ -84,6 +85,14 @@ export const surfaceZones = [
   "right-leg",
 ] as const;
 export type SurfaceZone = (typeof surfaceZones)[number];
+const ArmPoseSchema = z
+  .object({
+    flex: finite(0, 110),
+    raise: finite(0, 120),
+    twist: finite(-90, 90),
+  })
+  .strict();
+export type ArmPose = z.infer<typeof ArmPoseSchema>;
 const HumanBodySchema = z
   .object({
     kind: z.literal("human-v1"),
@@ -93,12 +102,36 @@ const HumanBodySchema = z
     build: finite(0.75, 1.35),
     muscularity: finite(0, 1),
     flex: finite(0, 110),
+    armPose: z
+      .object({ left: ArmPoseSchema, right: ArmPoseSchema })
+      .strict()
+      .optional(),
     anatomy: z.boolean(),
     skin: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   })
   .strict();
+const CropSchema = z
+  .object({
+    x: finite(0, 0.99),
+    y: finite(0, 0.99),
+    width: finite(0.01, 1),
+    height: finite(0.01, 1),
+  })
+  .strict()
+  .refine(
+    (c) => c.x + c.width <= 1 + 1e-9 && c.y + c.height <= 1 + 1e-9,
+    "Crop must stay inside the source image",
+  );
+export type ArtworkCrop = z.infer<typeof CropSchema>;
+export const fullCrop = (): ArtworkCrop => ({
+  x: 0,
+  y: 0,
+  width: 1,
+  height: 1,
+});
 export const ArtworkEditsSchema = z
   .object({
+    crop: CropSchema.optional(),
     background: z.enum(["none", "white", "black", "color"]),
     color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
     tolerance: finite(0, 180),
@@ -110,7 +143,7 @@ export const ArtworkEditsSchema = z
         z
           .object({
             mode: z.enum(["erase", "restore"]),
-            radius: finite(0.001, 0.2),
+            radius: finite(0.000001, 0.2),
             points: z
               .array(z.tuple([finite(0, 1), finite(0, 1)]))
               .min(1)
@@ -219,7 +252,7 @@ export const PhotoSchema = z
 export const ProjectSchema = z
   .object({
     format: z.literal("form-studio"),
-    version: z.literal(3),
+    version: z.literal(4),
     units: z.literal("mm"),
     id: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -291,7 +324,7 @@ export type Asset = Project["assets"][number];
 export function blankProject(): Project {
   return {
     format: "form-studio",
-    version: 3,
+    version: 4,
     units: "mm",
     id: crypto.randomUUID(),
     name: "Untitled composition",
@@ -378,17 +411,13 @@ export function placementSize(body: Body, layer: Layer, asset: Asset) {
     return {
       u: layer.width / chart.width,
       v:
-        (layer.width * asset.height * (layer.stretch ?? 1)) /
-        asset.width /
+        (layer.width * artworkRatio(asset) * (layer.stretch ?? 1)) /
         chart.height,
     };
   }
   return {
     u: layer.width / circumference(body, layer.v),
-    v:
-      (layer.width * asset.height * (layer.stretch ?? 1)) /
-      asset.width /
-      body.length,
+    v: (layer.width * artworkRatio(asset) * (layer.stretch ?? 1)) / body.length,
   };
 }
 export function newLayer(asset: Asset): Layer {
@@ -433,6 +462,11 @@ export async function parseProject(text: string): Promise<Project> {
     const old = LegacyV2ProjectSchema.safeParse(json);
     if (!old.success) throw new Error("Unsupported or damaged v2 project.");
     json = { ...old.data, version: 3 };
+  }
+  if ((json as { version?: number })?.version === 3) {
+    const old = LegacyV3ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Unsupported or damaged v3 project.");
+    json = { ...old.data, version: 4 };
   }
   const result = ProjectSchema.safeParse(json);
   if (!result.success)
@@ -694,4 +728,33 @@ export function humanChartSize(body: HumanBody, zone = bodyZones(body)[0]) {
       body.build,
     height: (zone === "trunk" ? 5.5 : zone?.endsWith("leg") ? 9 : 7.9) * scale,
   };
+}
+
+// Crop bounds are rounded once in original pixels, keeping exports, brushes and placements consistent.
+export function artworkBounds(
+  width: number,
+  height: number,
+  crop = fullCrop(),
+) {
+  const x = Math.min(width - 1, Math.round(crop.x * width));
+  const y = Math.min(height - 1, Math.round(crop.y * height));
+  return {
+    x,
+    y,
+    width: Math.max(
+      1,
+      Math.min(width, Math.round((crop.x + crop.width) * width)) - x,
+    ),
+    height: Math.max(
+      1,
+      Math.min(height, Math.round((crop.y + crop.height) * height)) - y,
+    ),
+  };
+}
+export function artworkRatio(a: Asset) {
+  const size = artworkBounds(a.width, a.height, a.edits?.crop);
+  return size.height / size.width;
+}
+export function armPose(body: HumanBody, side = body.side): ArmPose {
+  return body.armPose?.[side] ?? { flex: body.flex, raise: 0, twist: 0 };
 }

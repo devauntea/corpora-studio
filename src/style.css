@@ -1737,3 +1737,9 @@ select:focus-visible {
   box-shadow: 0 0 0 1px #fff;
   z-index: 110;
 }
+
+.art-tools .wide-button.active {
+  background: #242424;
+  color: #fff;
+  border-color: #242424;
+}

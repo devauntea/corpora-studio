@@ -39,10 +39,13 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import {
   blankProject,
+  artworkRatio,
   bodyLabel,
   regionBody,
   regions,
   humanBody,
+  armPose,
+  type ArmPose,
   humanChartSize,
   humanSections,
   bodyZones,
@@ -429,7 +432,7 @@ export function App() {
         }
         dispatch({ type: "reset", value: p });
         setSaved(p);
-        setPath(JSON.parse(text).version < 3 ? null : filePath);
+        setPath(JSON.parse(text).version < 4 ? null : filePath);
         setPhotoId(p.photos[0]?.id);
         setWorkspace(p.photos.length ? "photo" : "surface");
         setSelected(
@@ -442,8 +445,8 @@ export function App() {
         scene.current?.view("front", p.body.length);
         setView("front");
         alert(
-          JSON.parse(text).version < 3
-            ? "Legacy project opened without changing placement. Save creates a new v3 copy."
+          JSON.parse(text).version < 4
+            ? "Legacy project opened without changing placement. Save creates a new v4 copy."
             : "Project opened. All original image integrity checks passed.",
         );
       } catch (error) {
@@ -781,9 +784,24 @@ export function App() {
       setBusy(false);
     }
   };
+  const editPose = (patch: Partial<ArmPose>) => {
+    const body = project.body;
+    if (body.kind !== "human-v1") return;
+    if (body.section === "full-leg") {
+      editBody({ flex: patch.flex ?? body.flex });
+      return;
+    }
+    const poses = {
+      left: armPose(body, "left"),
+      right: armPose(body, "right"),
+    };
+    editBody({
+      armPose: { ...poses, [body.side]: { ...poses[body.side], ...patch } },
+    });
+  };
   const truncated =
     layer && asset
-      ? (layer.width * asset.height * (layer.stretch ?? 1)) / asset.width >
+      ? layer.width * artworkRatio(asset) * (layer.stretch ?? 1) >
         placementHeight
         ? "Artwork extends beyond the model. Scale it down to see the full composition."
         : null
@@ -1864,23 +1882,68 @@ export function App() {
                             })
                           }
                         />
+                        {project.body.section === "upper-body" && (
+                          <div className="segmented" aria-label="Arm to pose">
+                            {(["left", "right"] as const).map((side) => (
+                              <button
+                                key={side}
+                                className={
+                                  project.body.side === side ? "active" : ""
+                                }
+                                onClick={() => editBody({ side })}
+                              >
+                                {side === "left"
+                                  ? "Pose left arm"
+                                  : "Pose right arm"}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                         <NumberField
                           label={
                             project.body.section === "full-leg"
                               ? "Knee flex"
                               : "Elbow flex"
                           }
-                          value={project.body.flex}
+                          value={
+                            project.body.section === "full-leg"
+                              ? project.body.flex
+                              : armPose(project.body).flex
+                          }
                           min={0}
                           max={110}
                           unit="°"
-                          onChange={(flex) => editBody({ flex })}
+                          onChange={(flex) => editPose({ flex })}
                         />
+                        {project.body.section !== "full-leg" && (
+                          <>
+                            <NumberField
+                              label="Shoulder elevation"
+                              value={armPose(project.body).raise}
+                              min={0}
+                              max={120}
+                              unit="°"
+                              onChange={(raise) => editPose({ raise })}
+                            />
+                            <NumberField
+                              label="Forearm rotation"
+                              value={armPose(project.body).twist}
+                              min={-90}
+                              max={90}
+                              unit="°"
+                              onChange={(twist) => editPose({ twist })}
+                            />
+                          </>
+                        )}
                         <div className="segmented">
-                          <button onClick={() => editBody({ flex: 0 })}>
+                          <button
+                            onClick={() =>
+                              editPose({ flex: 0, raise: 0, twist: 0 })
+                            }
+                          >
                             Relaxed
                           </button>
-                          <button onClick={() => editBody({ flex: 90 })}>
+                          <button onClick={() => editPose({ flex: 90 })}>
                             Bent 90°
                           </button>
                         </div>
@@ -1897,7 +1960,9 @@ export function App() {
                           </div>
                         )}
                         <p className="field-note">
-                          Schematic superficial muscle guide. Flex bends the
+                          {project.body.section === "upper-body" &&
+                            "Pose each arm independently. Use Fit model to frame a raised pose. "}
+                          Schematic superficial muscle guide. Motion bends the
                           mesh and attached ink; it does not calculate muscle
                           contraction or skin strain.
                         </p>
@@ -2042,7 +2107,7 @@ export function App() {
               ? `p95 ${stats.p95.toFixed(1)} ms · ${stats.frames} frames · ${stats.triangles.toLocaleString()} triangles`
               : "WebGL 2 · Surface mapping"}
           </button>
-          <span className="status-separator">/</span>FORM STUDIO 0.3
+          <span className="status-separator">/</span>FORM STUDIO 0.4
         </span>
       </footer>
       {notice && (
@@ -2140,12 +2205,12 @@ export function App() {
             </p>
             <div className="accuracy-note">
               <span>
-                <ShieldCheck size={16} /> This first build
+                <ShieldCheck size={16} /> In this build
               </span>
               <p>
-                Photo overlays, protection masks, and five 3D templates are
-                available. Connected bodies, photo reconstruction, and fashion
-                drafting remain later phases.
+                Complete arms, upper bodies and legs, independent arm poses,
+                image cleanup and photo protection masks are available. Personal
+                reconstruction and fashion drafting remain later phases.
               </p>
               <p>
                 The companion website will showcase finished work exported from

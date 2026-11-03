@@ -132,7 +132,7 @@ test("photo composition: transforms, protection, undo, locking, export and porta
     file = info.outputPath("photo.formstudio");
   await download.saveAs(file);
   const p = JSON.parse(await fs.readFile(file, "utf8"));
-  expect(p.version).toBe(3);
+  expect(p.version).toBe(4);
   expect(p.photos).toHaveLength(2);
   expect(p.photos[0].masks).toHaveLength(1);
   expect(p.layers.at(-1).flipX).toBe(true);

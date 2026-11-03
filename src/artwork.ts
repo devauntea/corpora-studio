@@ -1,4 +1,4 @@
-import { clamp, type ArtworkEdits } from "./domain";
+import { clamp, artworkBounds, type ArtworkEdits } from "./domain";
 
 export function backgroundAlpha(
   r: number,
@@ -33,15 +33,27 @@ export function renderArtwork(
   edits: ArtworkEdits | undefined,
   maxEdge = 2048,
 ) {
+  const bounds = artworkBounds(image.width, image.height, edits?.crop);
   const c = document.createElement("canvas"),
-    scale = Math.min(1, maxEdge / Math.max(image.width, image.height));
-  c.width = Math.max(1, Math.round(image.width * scale));
-  c.height = Math.max(1, Math.round(image.height * scale));
+    scale = Math.min(1, maxEdge / Math.max(bounds.width, bounds.height));
+  c.width = Math.max(1, Math.round(bounds.width * scale));
+  c.height = Math.max(1, Math.round(bounds.height * scale));
   const ctx = c.getContext("2d", { willReadFrequently: true })!;
-  ctx.drawImage(image, 0, 0, c.width, c.height);
+  ctx.drawImage(
+    image,
+    bounds.x,
+    bounds.y,
+    bounds.width,
+    bounds.height,
+    0,
+    0,
+    c.width,
+    c.height,
+  );
   if (!edits) return c;
   const cacheKey = JSON.stringify([
     maxEdge,
+    bounds,
     edits.background,
     edits.color,
     edits.tolerance,
@@ -104,22 +116,25 @@ export function renderArtwork(
   mask.height = c.height;
   const m = mask.getContext("2d")!;
   m.drawImage(cached.mask, 0, 0);
+  const px = (x: number) =>
+    ((x * image.width - bounds.x) / bounds.width) * c.width;
+  const py = (y: number) =>
+    ((y * image.height - bounds.y) / bounds.height) * c.height;
+  const unit = (image.width / bounds.width) * c.width;
   for (const stroke of edits.strokes) {
     m.globalCompositeOperation =
       stroke.mode === "erase" ? "destination-out" : "source-over";
     m.strokeStyle = m.fillStyle = "#fff";
     m.lineCap = m.lineJoin = "round";
-    m.lineWidth = stroke.radius * c.width * 2;
+    m.lineWidth = stroke.radius * unit * 2;
     m.beginPath();
     stroke.points.forEach(([x, y], i) =>
-      i
-        ? m.lineTo(x * c.width, y * c.height)
-        : m.moveTo(x * c.width, y * c.height),
+      i ? m.lineTo(px(x), py(y)) : m.moveTo(px(x), py(y)),
     );
     m.stroke();
     const [x, y] = stroke.points[0];
     m.beginPath();
-    m.arc(x * c.width, y * c.height, stroke.radius * c.width, 0, Math.PI * 2);
+    m.arc(px(x), py(y), stroke.radius * unit, 0, Math.PI * 2);
     m.fill();
   }
   ctx.globalCompositeOperation = "destination-in";

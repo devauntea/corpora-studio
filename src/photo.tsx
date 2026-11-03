@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import {
   clamp,
+  artworkRatio,
   type Asset,
   type Layer,
   type Photo,
@@ -36,7 +37,7 @@ export async function paintPhoto(
         image = await cache.get(a, l),
         p = l.photo!;
       const w = p.width * c.width,
-        h = ((w * a.height) / a.width) * (l.stretch ?? 1);
+        h = w * artworkRatio(a) * (l.stretch ?? 1);
       x.clearRect(0, 0, c.width, c.height);
       x.save();
       x.translate(p.x * c.width, p.y * c.height);
@@ -111,7 +112,7 @@ export async function exportPhoto(project: Project, photo: Photo) {
 function corners(l: Layer, a: Asset, aspect: number) {
   const p = l.photo!,
     w = p.width * 1000,
-    h = ((w * a.height) / a.width) * (l.stretch ?? 1),
+    h = w * artworkRatio(a) * (l.stretch ?? 1),
     t = (l.rotation * Math.PI) / 180;
   const point = (x: number, y: number) => {
     x += p.skew * y;
@@ -244,8 +245,7 @@ export function PhotoStage({
           rx = dx * Math.cos(t) - dy * Math.sin(t) - ph.skew * ry;
         return (
           Math.abs(rx) <= ph.width / 2 &&
-          Math.abs(ry) <=
-            (((ph.width * a.height) / a.width) * (l.stretch ?? 1)) / 2
+          Math.abs(ry) <= (ph.width * artworkRatio(a) * (l.stretch ?? 1)) / 2
         );
       });
     }

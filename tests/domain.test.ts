@@ -164,7 +164,7 @@ describe("expanded project compatibility", () => {
       ),
     );
     const p = await parseProject(JSON.stringify(old));
-    expect(p.version).toBe(3);
+    expect(p.version).toBe(4);
     expect(p.photos).toEqual([]);
     expect(p.assets).toEqual(old.assets);
     expect(p.body).toEqual(old.body);
@@ -275,14 +275,14 @@ describe("anatomical sections and image recipes", () => {
     const p = await fixture();
     const old = { ...p, version: 2 };
     const next = await parseProject(JSON.stringify(old));
-    expect(next).toEqual({ ...old, version: 3 });
+    expect(next).toEqual({ ...old, version: 4 });
     await expect(
       parseProject(
         JSON.stringify({ ...old, body: { ...old.body, kind: "human-v1" } }),
       ),
     ).rejects.toThrow();
   });
-  test("v3 preserves anatomical settings and nondestructive strokes; budgets reject malformed edits", async () => {
+  test("current format preserves anatomical settings and nondestructive strokes; budgets reject malformed edits", async () => {
     const { humanBody, cleanArtwork } = await import("../src/domain");
     const p = await fixture();
     p.body = { ...humanBody("upper-body"), flex: 90, anatomy: true };
@@ -376,4 +376,127 @@ describe("anatomical sections and image recipes", () => {
     left.dispose();
     right.dispose();
   });
+});
+
+describe("pose and crop compatibility", () => {
+  test("v3 migration retains the prior simultaneous elbow pose and source recipes", async () => {
+    const { humanBody, armPose, cleanArtwork } = await import("../src/domain");
+    const p = await fixture();
+    p.body = { ...humanBody("upper-body"), flex: 73 };
+    p.assets[0].edits = cleanArtwork();
+    const old = { ...p, version: 3 };
+    const next = await parseProject(JSON.stringify(old));
+    expect(next).toEqual({ ...old, version: 4 });
+    if (next.body.kind !== "human-v1")
+      throw new Error("Expected human surface");
+    expect(armPose(next.body, "left")).toEqual({
+      flex: 73,
+      raise: 0,
+      twist: 0,
+    });
+    expect(armPose(next.body, "right")).toEqual(armPose(next.body, "left"));
+    old.assets[0].edits!.crop = { x: 0, y: 0, width: 0.5, height: 1 };
+    await expect(parseProject(JSON.stringify(old))).rejects.toThrow("v3");
+  });
+  test("crop bounds, dimensions and both surface placement paths agree; invalid crops and poses are rejected", async () => {
+    const { cleanArtwork, artworkBounds, artworkRatio, humanBody, armPose } =
+      await import("../src/domain");
+    const p = await fixture();
+    const a = p.assets[0];
+    a.edits = {
+      ...cleanArtwork(),
+      crop: { x: 0.25, y: 0.1, width: 0.5, height: 0.8 },
+    };
+    expect(artworkBounds(a.width, a.height, a.edits.crop)).toEqual({
+      x: 25,
+      y: 20,
+      width: 50,
+      height: 160,
+    });
+    expect(artworkRatio(a)).toBe(3.2);
+    expect(placementSize(p.body, p.layers[0], a).v).toBeCloseTo(
+      (p.layers[0].width * 3.2) / p.body.length,
+    );
+    p.body = humanBody("full-arm");
+    expect(placementSize(p.body, p.layers[0], a).v).toBeCloseTo(
+      (p.layers[0].width * 3.2) / p.body.length,
+    );
+    p.body.armPose = {
+      left: { flex: 45, raise: 75, twist: -90 },
+      right: armPose(p.body, "right"),
+    };
+    expect(await parseProject(JSON.stringify(p))).toEqual(p);
+    a.edits.crop!.width = 0.9;
+    await expect(parseProject(JSON.stringify(p))).rejects.toThrow();
+    a.edits.crop!.width = 0.5;
+    p.body.armPose.left.twist = 91;
+    await expect(parseProject(JSON.stringify(p))).rejects.toThrow();
+    expect(
+      artworkBounds(1, 1, { x: 0.99, y: 0.99, width: 0.01, height: 0.01 }),
+    ).toEqual({ x: 0, y: 0, width: 1, height: 1 });
+  });
+  test("arm poses keep UVs fixed and the opposite arm unchanged, with finite normals at maximum pose", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const { humanGeometries } = await import("../src/anatomy");
+    const { humanBody, armPose } = await import("../src/domain");
+    const data = JSON.parse(
+      await readFile(
+        new URL("../public/anatomy/human-v1.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const body = humanBody("upper-body");
+    const a = humanGeometries(data, body),
+      b = humanGeometries(data, {
+        ...body,
+        armPose: {
+          left: { flex: 110, raise: 120, twist: 90 },
+          right: armPose(body, "right"),
+        },
+      });
+    for (let i = 0; i < a.length; i++) {
+      expect([...a[i].geometry.getAttribute("uv").array]).toEqual([
+        ...b[i].geometry.getAttribute("uv").array,
+      ]);
+      expect(
+        [...b[i].geometry.getAttribute("normal").array].every(Number.isFinite),
+      ).toBe(true);
+      expect(
+        [...b[i].geometry.getAttribute("position").array].every(
+          Number.isFinite,
+        ),
+      ).toBe(true);
+    }
+    expect([...a[1].geometry.getAttribute("position").array]).not.toEqual([
+      ...b[1].geometry.getAttribute("position").array,
+    ]);
+    expect([...a[2].geometry.getAttribute("position").array]).toEqual([
+      ...b[2].geometry.getAttribute("position").array,
+    ]);
+    [...a, ...b].forEach((x) => x.geometry.dispose());
+  });
+});
+
+test("Fit model contains every posed bound in all preset views and narrow viewports", async () => {
+  const THREE = await import("three");
+  const { frameBounds } = await import("../src/scene");
+  const bounds = new THREE.Box3(
+    new THREE.Vector3(-900, -450, -150),
+    new THREE.Vector3(600, 650, 400),
+  );
+  for (const view of ["front", "back", "left", "right"] as const)
+    for (const aspect of [0.6, 1.2, 2]) {
+      const frame = frameBounds(bounds, aspect, 35, view),
+        camera = new THREE.PerspectiveCamera(35, aspect, 1, 20000);
+      camera.position.copy(frame.position);
+      camera.lookAt(frame.target);
+      camera.updateMatrixWorld();
+      for (const x of [bounds.min.x, bounds.max.x])
+        for (const y of [bounds.min.y, bounds.max.y])
+          for (const z of [bounds.min.z, bounds.max.z]) {
+            const p = new THREE.Vector3(x, y, z).project(camera);
+            expect(Math.abs(p.x)).toBeLessThan(1);
+            expect(Math.abs(p.y)).toBeLessThan(1);
+          }
+    }
 });

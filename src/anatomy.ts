@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {
   bodyZones,
+  armPose,
   humanChartSize,
   layerZone,
   type HumanBody,
@@ -63,6 +64,16 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
       const armAxis = elbow.clone().sub(shoulder).normalize();
       const flexAxis = new THREE.Vector3(armAxis.y, -armAxis.x, 0).normalize();
       const isLeg = body.section === "full-leg";
+      const pose = armPose(body, side === "L" ? "left" : "right");
+      if (!isLeg && pose.twist) {
+        // Rotate the lower arm about its rest axis before elbow and shoulder motion.
+        const spun = p
+          .clone()
+          .sub(elbow)
+          .applyAxisAngle(armAxis, THREE.MathUtils.degToRad(sign * pose.twist))
+          .add(elbow);
+        p.lerp(spun, v[k + 1]);
+      }
       const pivot = isLeg ? knee : elbow;
       const weight = isLeg ? v[k + 2] : v[k + 1];
       const q = p
@@ -70,16 +81,19 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
         .sub(pivot)
         .applyAxisAngle(
           isLeg ? new THREE.Vector3(-1, 0, 0) : flexAxis,
-          THREE.MathUtils.degToRad(body.flex),
+          THREE.MathUtils.degToRad(isLeg ? body.flex : pose.flex),
         )
         .add(pivot);
       p.lerp(q, weight);
-      // Rest arms hang 20 degrees closer to the body, using the original rig's blended shoulder weights.
+      // Raise in the frontal plane from the existing relaxed pose. Shoulder weights blend the trunk attachment.
       if (!isLeg) {
         const relaxed = p
           .clone()
           .sub(shoulder)
-          .applyAxisAngle(new THREE.Vector3(0, 0, 1), (-sign * Math.PI) / 9)
+          .applyAxisAngle(
+            new THREE.Vector3(0, 0, 1),
+            sign * THREE.MathUtils.degToRad(pose.raise - 20),
+          )
           .add(shoulder);
         p.lerp(relaxed, v[k]);
       }

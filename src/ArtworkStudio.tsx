@@ -8,9 +8,13 @@ import {
   Download,
   Check,
   Eye,
+  Crop,
 } from "lucide-react";
 import {
   cleanArtwork,
+  fullCrop,
+  artworkBounds,
+  type ArtworkCrop,
   clamp,
   imageSource,
   type Asset,
@@ -36,7 +40,7 @@ export function ArtworkStudio({
   );
   const [past, setPast] = useState<ArtworkEdits[]>([]),
     [future, setFuture] = useState<ArtworkEdits[]>([]);
-  const [tool, setTool] = useState<"erase" | "restore">("erase"),
+  const [tool, setTool] = useState<"erase" | "restore" | "crop">("erase"),
     [radius, setRadius] = useState(0.025),
     [original, setOriginal] = useState(false);
   const [zoom, setZoom] = useState(1),
@@ -45,6 +49,28 @@ export function ArtworkStudio({
   const canvas = useRef<HTMLCanvasElement>(null),
     image = useRef<HTMLImageElement | null>(null),
     gesture = useRef<ArtworkEdits | null>(null);
+  const adjustment = useRef<ArtworkEdits | null>(null);
+  const cropDrag = useRef<{
+    start: [number, number];
+    crop: ArtworkCrop;
+    fixed?: [number, number];
+    move: boolean;
+  } | null>(null);
+  const scroll = useRef<HTMLDivElement>(null);
+  const [viewport, setViewport] = useState({ width: 1, height: 1 });
+  useEffect(() => {
+    const element = scroll.current;
+    if (!element) return;
+    const resize = () =>
+      setViewport({
+        width: Math.max(1, element.clientWidth - 56),
+        height: Math.max(1, element.clientHeight - 56),
+      });
+    const observer = new ResizeObserver(resize);
+    observer.observe(element);
+    resize();
+    return () => observer.disconnect();
+  }, []);
   const [loaded, setLoaded] = useState(false);
   const [cursor, setCursor] = useState<{ x: number; y: number; r: number }>();
   useEffect(() => {
@@ -56,11 +82,52 @@ export function ArtworkStudio({
   const live = useRef({ edits, past, future, tool, radius });
   live.current = { edits, past, future, tool, radius };
   const update = (next: ArtworkEdits) => {
-    setPast((p) => [...p.slice(-49), live.current.edits]);
-    setFuture([]);
+    if (JSON.stringify(next) === JSON.stringify(live.current.edits)) return;
+    if (!adjustment.current) {
+      setPast((p) => [...p.slice(-49), live.current.edits]);
+      setFuture([]);
+    }
     setEdits(next);
   };
+  const beginAdjustment = () => {
+    adjustment.current ??= live.current.edits;
+  };
+  const endAdjustment = () => {
+    const before = adjustment.current;
+    adjustment.current = null;
+    if (
+      !before ||
+      JSON.stringify(before) === JSON.stringify(live.current.edits)
+    )
+      return;
+    setPast((p) => [...p.slice(-49), before]);
+    setFuture([]);
+  };
+  const rangeGesture = {
+    onPointerDown: beginAdjustment,
+    onPointerUp: endAdjustment,
+    onPointerCancel: endAdjustment,
+    onLostPointerCapture: endAdjustment,
+    onBlur: endAdjustment,
+    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (
+        [
+          "ArrowLeft",
+          "ArrowRight",
+          "ArrowUp",
+          "ArrowDown",
+          "Home",
+          "End",
+          "PageUp",
+          "PageDown",
+        ].includes(e.key)
+      )
+        beginAdjustment();
+    },
+    onKeyUp: endAdjustment,
+  };
   const undo = () => {
+    if (gesture.current || adjustment.current) return;
     const s = live.current;
     if (!s.past.length) return;
     setFuture([s.edits, ...s.future]);
@@ -68,6 +135,7 @@ export function ArtworkStudio({
     setPast(s.past.slice(0, -1));
   };
   const redo = () => {
+    if (gesture.current || adjustment.current) return;
     const s = live.current;
     if (!s.future.length) return;
     setPast([...s.past, s.edits]);
@@ -90,11 +158,49 @@ export function ArtworkStudio({
   }, [asset]);
   useEffect(() => {
     if (!image.current || !canvas.current) return;
-    const rendered = renderArtwork(image.current, original ? undefined : edits);
-    canvas.current.width = rendered.width;
-    canvas.current.height = rendered.height;
-    canvas.current.getContext("2d")!.drawImage(rendered, 0, 0);
-  }, [edits, original, loaded]);
+    const rendered = renderArtwork(
+      image.current,
+      original
+        ? undefined
+        : tool === "crop"
+          ? { ...edits, crop: undefined }
+          : edits,
+    );
+    const c = canvas.current;
+    c.width = rendered.width;
+    c.height = rendered.height;
+    const ctx = c.getContext("2d")!;
+    ctx.drawImage(rendered, 0, 0);
+    if (tool === "crop" && !original) {
+      const r = edits.crop ?? fullCrop(),
+        x = r.x * c.width,
+        y = r.y * c.height,
+        w = r.width * c.width,
+        h = r.height * c.height;
+      ctx.fillStyle = "#0008";
+      ctx.beginPath();
+      ctx.rect(0, 0, c.width, c.height);
+      ctx.rect(x, y, w, h);
+      ctx.fill("evenodd");
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = Math.max(2, c.width / 500);
+      ctx.strokeRect(x, y, w, h);
+      ctx.lineWidth /= 2;
+      for (const f of [1 / 3, 2 / 3]) {
+        ctx.beginPath();
+        ctx.moveTo(x + w * f, y);
+        ctx.lineTo(x + w * f, y + h);
+        ctx.moveTo(x, y + h * f);
+        ctx.lineTo(x + w, y + h * f);
+        ctx.stroke();
+      }
+      const handle = Math.max(5, c.width / 100);
+      ctx.fillStyle = "#fff";
+      for (const px of [x, x + w])
+        for (const py of [y, y + h])
+          ctx.fillRect(px - handle / 2, py - handle / 2, handle, handle);
+    }
+  }, [edits, original, loaded, tool]);
   useEffect(() => {
     if (!native) return;
     let dispose: (() => void) | undefined;
@@ -111,21 +217,65 @@ export function ArtworkStudio({
       dispose?.();
     };
   }, []);
+  const viewCrop = () => {
+    if (tool === "crop" || original) return fullCrop();
+    const b = artworkBounds(asset.width, asset.height, live.current.edits.crop);
+    return {
+      x: b.x / asset.width,
+      y: b.y / asset.height,
+      width: b.width / asset.width,
+      height: b.height / asset.height,
+    };
+  };
   const point = (
     e: React.PointerEvent<HTMLCanvasElement>,
   ): [number, number] => {
     const b = e.currentTarget.getBoundingClientRect();
+    const crop = viewCrop();
     return [
-      clamp((e.clientX - b.left) / b.width, 0, 1),
-      clamp((e.clientY - b.top) / b.height, 0, 1),
+      crop.x + clamp((e.clientX - b.left) / b.width, 0, 1) * crop.width,
+      crop.y + clamp((e.clientY - b.top) / b.height, 0, 1) * crop.height,
     ];
   };
   const end = () => {
     if (!gesture.current) return;
     const before = gesture.current;
-    setPast((p) => [...p.slice(-49), before]);
-    setFuture([]);
+    if (JSON.stringify(before) !== JSON.stringify(live.current.edits)) {
+      setPast((p) => [...p.slice(-49), before]);
+      setFuture([]);
+    }
     gesture.current = null;
+    cropDrag.current = null;
+  };
+  const outputSize = artworkBounds(asset.width, asset.height, edits.crop);
+  const displayed = original || tool === "crop" ? asset : outputSize;
+  const displayScale =
+    Math.min(
+      viewport.width / displayed.width,
+      viewport.height / displayed.height,
+    ) * zoom;
+  const displayWidth = displayed.width * displayScale,
+    displayHeight = displayed.height * displayScale;
+  const crop = edits.crop ?? fullCrop();
+  const cropMargins = {
+    Left: crop.x,
+    Top: crop.y,
+    Right: 1 - crop.x - crop.width,
+    Bottom: 1 - crop.y - crop.height,
+  };
+  const setMargin = (side: keyof typeof cropMargins, value: number) => {
+    const next = { ...crop };
+    if (side === "Left") {
+      next.x = Math.min(value, crop.x + crop.width - 0.01);
+      next.width = Math.max(0.01, crop.width + crop.x - next.x);
+    }
+    if (side === "Top") {
+      next.y = Math.min(value, crop.y + crop.height - 0.01);
+      next.height = Math.max(0.01, crop.height + crop.y - next.y);
+    }
+    if (side === "Right") next.width = Math.max(0.01, 1 - value - crop.x);
+    if (side === "Bottom") next.height = Math.max(0.01, 1 - value - crop.y);
+    update({ ...edits, crop: next });
   };
   const count = edits.strokes.reduce((n, s) => n + s.points.length, 0);
   const exportPNG = async () => {
@@ -189,7 +339,58 @@ export function ArtworkStudio({
         </header>
         <div className="art-studio-body">
           <aside className="art-tools">
-            <h3>01 / Background</h3>
+            <h3>01 / Crop</h3>
+            <button
+              className={`wide-button ${tool === "crop" ? "active" : ""}`}
+              aria-pressed={tool === "crop"}
+              onClick={() => {
+                setTool(tool === "crop" ? "erase" : "crop");
+                setOriginal(false);
+                setCursor(undefined);
+              }}
+            >
+              <Crop size={15} />{" "}
+              {tool === "crop" ? "Finish crop" : "Crop image"}
+            </button>
+            {tool === "crop" && (
+              <>
+                <p>
+                  Drag a corner to resize, or drag inside to move. Drag outside
+                  to draw a new crop.
+                </p>
+                {(Object.keys(cropMargins) as (keyof typeof cropMargins)[]).map(
+                  (side) => (
+                    <label key={side}>
+                      {side} trim{" "}
+                      <output>
+                        {Number((cropMargins[side] * 100).toFixed(1))}%
+                      </output>
+                      <input
+                        type="range"
+                        aria-label={`${side} crop trim`}
+                        min="0"
+                        max="99"
+                        step="0.1"
+                        value={Number((cropMargins[side] * 100).toFixed(1))}
+                        {...rangeGesture}
+                        onChange={(e) => setMargin(side, +e.target.value / 100)}
+                      />
+                    </label>
+                  ),
+                )}
+                <button
+                  className="wide-button"
+                  onClick={() => update({ ...edits, crop: undefined })}
+                >
+                  Reset crop
+                </button>
+              </>
+            )}
+            <p>
+              {outputSize.width} × {outputSize.height} px · Cropping keeps the
+              placed width and center.
+            </p>
+            <h3>02 / Background</h3>
             <label>
               Remove background
               <select
@@ -223,6 +424,7 @@ export function ArtworkStudio({
               Tolerance <output>{edits.tolerance}</output>
               <input
                 aria-label="Background tolerance"
+                {...rangeGesture}
                 type="range"
                 min="0"
                 max="180"
@@ -237,6 +439,7 @@ export function ArtworkStudio({
               Edge softness <output>{edits.feather}</output>
               <input
                 aria-label="Edge softness"
+                {...rangeGesture}
                 type="range"
                 min="1"
                 max="100"
@@ -249,7 +452,7 @@ export function ArtworkStudio({
               Removes matching colors across the image. Use Restore to recover
               light details.
             </p>
-            <h3>02 / Refine</h3>
+            <h3>03 / Refine</h3>
             <div className="segmented">
               <button
                 className={tool === "erase" ? "active" : ""}
@@ -283,7 +486,7 @@ export function ArtworkStudio({
               />
             </label>
             <p>Paint directly on the image. Each stroke is one undo step.</p>
-            <h3>03 / Tone</h3>
+            <h3>04 / Tone</h3>
             <label className="art-checkbox">
               <input
                 type="checkbox"
@@ -298,6 +501,7 @@ export function ArtworkStudio({
               Contrast <output>{edits.contrast.toFixed(2)}</output>
               <input
                 aria-label="Image contrast"
+                {...rangeGesture}
                 type="range"
                 min=".25"
                 max="3"
@@ -339,20 +543,66 @@ export function ArtworkStudio({
               </label>
               <span>{original ? "ORIGINAL" : "TRANSPARENCY PREVIEW"}</span>
             </div>
-            <div className="art-canvas-scroll">
+            <div className="art-canvas-scroll" ref={scroll}>
               <div
                 className="art-canvas-fit"
-                style={{ width: `${zoom * 100}%`, height: `${zoom * 100}%` }}
+                style={{
+                  width: Math.max(viewport.width, displayWidth),
+                  height: Math.max(viewport.height, displayHeight),
+                }}
               >
                 <canvas
                   ref={canvas}
                   aria-label="Artwork cleanup canvas"
                   style={{
-                    aspectRatio: `${asset.width}/${asset.height}`,
+                    width: displayWidth,
+                    height: displayHeight,
+                    maxWidth: "none",
+                    maxHeight: "none",
+                    aspectRatio:
+                      original || tool === "crop"
+                        ? `${asset.width}/${asset.height}`
+                        : `${outputSize.width}/${outputSize.height}`,
                     cursor: original ? "default" : "crosshair",
                   }}
                   onPointerDown={(e) => {
                     if (original || !loaded || e.button !== 0) return;
+                    if (tool === "crop") {
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                      gesture.current = edits;
+                      const start = point(e),
+                        r = edits.crop ?? fullCrop(),
+                        b = e.currentTarget.getBoundingClientRect();
+                      const corners: [number, number][] = [
+                        [r.x, r.y],
+                        [r.x + r.width, r.y],
+                        [r.x, r.y + r.height],
+                        [r.x + r.width, r.y + r.height],
+                      ];
+                      const corner = corners.findIndex(
+                        (p) =>
+                          Math.hypot(
+                            (p[0] - start[0]) * b.width,
+                            (p[1] - start[1]) * b.height,
+                          ) < 18,
+                      );
+                      const inside =
+                        start[0] > r.x &&
+                        start[0] < r.x + r.width &&
+                        start[1] > r.y &&
+                        start[1] < r.y + r.height;
+                      // A full-image frame has nowhere to move: dragging inside starts a fresh crop.
+                      cropDrag.current = {
+                        start,
+                        crop: r,
+                        move:
+                          corner < 0 &&
+                          inside &&
+                          (r.width < 0.999 || r.height < 0.999),
+                        fixed: corner >= 0 ? corners[3 - corner] : undefined,
+                      };
+                      return;
+                    }
                     if (edits.strokes.length >= 200 || count >= pointBudget) {
                       setError(
                         "Cleanup limit reached. Undo or reset strokes before adding more.",
@@ -365,7 +615,11 @@ export function ArtworkStudio({
                       ...edits,
                       strokes: [
                         ...edits.strokes,
-                        { mode: tool, radius, points: [point(e)] },
+                        {
+                          mode: tool,
+                          radius: radius * viewCrop().width,
+                          points: [point(e)],
+                        },
                       ],
                     });
                   }}
@@ -378,6 +632,40 @@ export function ArtworkStudio({
                     });
                     if (!gesture.current) return;
                     const p = point(e);
+                    if (cropDrag.current) {
+                      const d = cropDrag.current;
+                      let next: ArtworkCrop;
+                      if (d.move)
+                        next = {
+                          ...d.crop,
+                          x: clamp(
+                            d.crop.x + p[0] - d.start[0],
+                            0,
+                            1 - d.crop.width,
+                          ),
+                          y: clamp(
+                            d.crop.y + p[1] - d.start[1],
+                            0,
+                            1 - d.crop.height,
+                          ),
+                        };
+                      else {
+                        const a = d.fixed ?? d.start;
+                        if (
+                          Math.abs(p[0] - a[0]) < 0.01 ||
+                          Math.abs(p[1] - a[1]) < 0.01
+                        )
+                          return;
+                        next = {
+                          x: Math.min(p[0], a[0]),
+                          y: Math.min(p[1], a[1]),
+                          width: Math.abs(p[0] - a[0]),
+                          height: Math.abs(p[1] - a[1]),
+                        };
+                      }
+                      setEdits((current) => ({ ...current, crop: next }));
+                      return;
+                    }
                     setEdits((current) => {
                       const strokes = [...current.strokes],
                         last = strokes.at(-1)!;
@@ -413,7 +701,7 @@ export function ArtworkStudio({
             )}
           </div>
         </div>
-        {cursor && !original && (
+        {cursor && !original && tool !== "crop" && (
           <span
             aria-hidden="true"
             className="art-brush-cursor"

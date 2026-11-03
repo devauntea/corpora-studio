@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
   circumference,
+  artworkRatio,
   bodyLabel,
   surfacePoint,
   type Body,
@@ -62,11 +63,40 @@ export function forearmGeometry(body: Body) {
   return geometry;
 }
 
+export function frameBounds(
+  bounds: THREE.Box3,
+  aspect: number,
+  fov: number,
+  view: View,
+) {
+  const size = bounds.getSize(new THREE.Vector3()),
+    target = bounds.getCenter(new THREE.Vector3());
+  const side = view === "left" || view === "right";
+  const tan = Math.tan(THREE.MathUtils.degToRad(fov / 2));
+  const distance =
+    Math.max(
+      size.y / (2 * tan),
+      (side ? size.z : size.x) / (2 * tan * aspect),
+    ) *
+      1.2 +
+    (side ? size.x : size.z) / 2;
+  const direction = new THREE.Vector3(
+    view === "left" ? -1 : view === "right" ? 1 : 0,
+    0,
+    view === "back" ? -1 : view === "front" ? 1 : 0,
+  );
+  return {
+    target,
+    position: target
+      .clone()
+      .addScaledVector(direction, Math.max(180, distance)),
+  };
+}
 const ATLAS = 2048;
 export class StudioScene {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(35, 1, 1, 7000);
+  camera = new THREE.PerspectiveCamera(35, 1, 1, 20000);
   controls: OrbitControls;
   surface: THREE.Mesh;
   human?: HumanSurface;
@@ -120,7 +150,7 @@ export class StudioScene {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.1;
     this.controls.minDistance = 180;
-    this.controls.maxDistance = 4000;
+    this.controls.maxDistance = 12000;
     this.controls.maxPolarAngle = Math.PI * 0.88;
     this.controls.minPolarAngle = Math.PI * 0.12;
     this.controls.target.set(0, 0, 0);
@@ -274,6 +304,20 @@ export class StudioScene {
       mode === "place" ? "crosshair" : "grab";
   }
   view(view: View, length = this.project?.body.length ?? 270) {
+    if (this.human) {
+      const bounds = new THREE.Box3().setFromObject(this.human.group);
+      const frame = frameBounds(
+        bounds,
+        this.camera.aspect,
+        this.camera.fov,
+        view,
+      );
+      this.controls.target.copy(frame.target);
+      this.camera.position.copy(frame.position);
+      this.controls.update();
+      this.renderer.render(this.scene, this.camera);
+      return;
+    }
     const d = length * 2.6;
     const positions: Record<View, [number, number, number]> = {
       front: [0, 25, d],
@@ -284,6 +328,7 @@ export class StudioScene {
     this.controls.target.set(0, 0, 0);
     this.camera.position.set(...positions[view]);
     this.controls.update();
+    this.renderer.render(this.scene, this.camera);
   }
   zoom(factor: number) {
     const d = this.camera.position.clone().sub(this.controls.target);
@@ -307,14 +352,12 @@ export class StudioScene {
       !this.project ||
       JSON.stringify(this.project.body) !== JSON.stringify(project.body)
     ) {
-      if (
+      const reframe =
         !this.project ||
         this.project.body.kind !== project.body.kind ||
         ("section" in this.project.body &&
           "section" in project.body &&
-          this.project.body.section !== project.body.section)
-      )
-        this.view("front", project.body.length);
+          this.project.body.section !== project.body.section);
       this.surface.geometry.dispose();
       this.human?.dispose();
       if (this.human) this.scene.remove(this.human.group);
@@ -359,6 +402,13 @@ export class StudioScene {
         ? new THREE.Box3().setFromObject(this.human.group).min.y - 12
         : -project.body.length / 2 - 12;
       this.grid.position.y = this.floor.position.y - 0.1;
+      if (reframe)
+        this.view(
+          project.body.kind === "region-v1" && project.body.region === "torso"
+            ? "back"
+            : "front",
+          project.body.length,
+        );
     }
     this.project = project;
     try {
@@ -372,7 +422,7 @@ export class StudioScene {
         items.push({
           layer,
           image: processed,
-          ratio: (asset.height / asset.width) * (layer.stretch ?? 1),
+          ratio: artworkRatio(asset) * (layer.stretch ?? 1),
         });
       }
       if (this.disposed || version !== this.paintVersion) return false;
