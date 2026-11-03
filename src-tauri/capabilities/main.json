@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Only core window events are needed; native file dialogs are mediated by Rust commands.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

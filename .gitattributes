@@ -1,0 +1,2 @@
+# Preserve upstream license text exactly as distributed.
+THIRD_PARTY_NOTICES.txt -whitespace linguist-vendored
