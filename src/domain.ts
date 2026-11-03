@@ -1,3 +1,4 @@
+import { ProjectSchema as LegacyV5ProjectSchema } from "./legacy-v5";
 import { ProjectSchema as LegacyV4ProjectSchema } from "./legacy-v4";
 import { ProjectSchema as LegacyV2ProjectSchema } from "./legacy-v2";
 import { ProjectSchema as LegacyV3ProjectSchema } from "./legacy-v3";
@@ -110,7 +111,7 @@ const HumanBodySchema = z
     anatomy: z.boolean(),
     model: z
       .object({
-        revision: z.literal(2),
+        revision: z.union([z.literal(2), z.literal(3)]),
         sex: z.enum(["male", "female"]),
         physique: z.enum(["fit", "average"]),
         anatomyOpacity: finite(0, 1),
@@ -262,7 +263,7 @@ export const PhotoSchema = z
 export const ProjectSchema = z
   .object({
     format: z.literal("form-studio"),
-    version: z.literal(5),
+    version: z.literal(6),
     units: z.literal("mm"),
     id: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -334,7 +335,7 @@ export type Asset = Project["assets"][number];
 export function blankProject(): Project {
   return {
     format: "form-studio",
-    version: 5,
+    version: 6,
     units: "mm",
     id: crypto.randomUUID(),
     name: "Untitled composition",
@@ -482,6 +483,11 @@ export async function parseProject(text: string): Promise<Project> {
     const old = LegacyV4ProjectSchema.safeParse(json);
     if (!old.success) throw new Error("Unsupported or damaged v4 project.");
     json = { ...old.data, version: 5 };
+  }
+  if ((json as { version?: number })?.version === 5) {
+    const old = LegacyV5ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Unsupported or damaged v5 project.");
+    json = { ...old.data, version: 6 };
   }
   const result = ProjectSchema.safeParse(json);
   if (!result.success)
@@ -716,7 +722,7 @@ export function humanBody(
     model:
       previous?.kind === "human-v1" && previous.model
         ? { ...previous.model }
-        : { revision: 2, sex: "male", physique: "fit", anatomyOpacity: 0.85 },
+        : { revision: 3, sex: "male", physique: "fit", anatomyOpacity: 0.85 },
     flex: 0,
     anatomy: false,
   };

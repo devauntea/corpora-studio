@@ -435,7 +435,7 @@ export function App() {
         }
         dispatch({ type: "reset", value: p });
         setSaved(p);
-        setPath(JSON.parse(text).version < 5 ? null : filePath);
+        setPath(JSON.parse(text).version < 6 ? null : filePath);
         setPhotoId(p.photos[0]?.id);
         setWorkspace(p.photos.length ? "photo" : "surface");
         setSelected(
@@ -448,8 +448,8 @@ export function App() {
         scene.current?.view("front", p.body.length);
         setView("front");
         alert(
-          JSON.parse(text).version < 5
-            ? "Legacy project opened without changing placement. Save creates a new v5 copy."
+          JSON.parse(text).version < 6
+            ? "Legacy project opened without changing placement. Save creates a new v6 copy."
             : "Project opened. All original image integrity checks passed.",
         );
       } catch (error) {
@@ -1903,10 +1903,10 @@ export function App() {
                         <div className="section-label">
                           <span>BODY LIBRARY</span>
                         </div>
-                        {!project.body.model && (
+                        {project.body.model?.revision !== 3 && (
                           <p className="field-note">
-                            Original surface preserved. Choose a new body below
-                            to move to the detailed model.
+                            Saved surface preserved. Choose a body preset below
+                            to use the latest sculpt.
                           </p>
                         )}
                         <div className="segmented" aria-label="Body type">
@@ -1923,7 +1923,7 @@ export function App() {
                                 if (project.body.kind !== "human-v1") return;
                                 editBody({
                                   model: {
-                                    revision: 2,
+                                    revision: 3,
                                     sex,
                                     physique:
                                       project.body.model?.physique ?? "fit",
@@ -1957,7 +1957,7 @@ export function App() {
                                   muscularity: physique === "fit" ? 1 : 0,
                                   build: 1,
                                   model: {
-                                    revision: 2,
+                                    revision: 3,
                                     sex: project.body.model?.sex ?? "male",
                                     physique,
                                     anatomyOpacity:
@@ -2281,7 +2281,7 @@ export function App() {
               ? `Orbit p95 ${stats.p95.toFixed(1)} ms · ${stats.frames} frames · ${stats.triangles.toLocaleString()} triangles`
               : "WebGL 2 · Surface mapping"}
           </button>
-          <span className="status-separator">/</span>FORM STUDIO 0.5
+          <span className="status-separator">/</span>FORM STUDIO 0.6
         </span>
       </footer>
       {notice && (
@@ -2383,9 +2383,10 @@ export function App() {
               </span>
               <p>
                 Fit and average male and female bodies, complete arms and legs,
-                a colored muscle filter, independent arm poses, image cleanup
-                and photo protection masks are available. Personal
-                reconstruction and fashion drafting remain later phases.
+                a detailed muscle filter with directional fibers, independent
+                arm poses, image cleanup and photo protection masks are
+                available. Personal reconstruction and fashion drafting remain
+                later phases.
               </p>
               <p>
                 The companion website will showcase finished work exported from

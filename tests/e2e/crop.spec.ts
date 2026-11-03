@@ -167,7 +167,7 @@ test("crop preserves source masks, exports exact dimensions and updates photo pr
   await (await save).saveAs(file);
   const project = JSON.parse(await fs.readFile(file, "utf8"));
   const a = project.assets.find((x: { name: string }) => x.name === "Crop.png");
-  expect(project.version).toBe(5);
+  expect(project.version).toBe(6);
   expect(a.sha256).toBe(createHash("sha256").update(art).digest("hex"));
   expect(Buffer.from(a.data.split(",")[1], "base64")).toEqual(art);
   expect(a.edits.strokes).toHaveLength(2);

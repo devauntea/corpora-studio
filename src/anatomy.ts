@@ -1,5 +1,9 @@
 import * as THREE from "three";
 import {
+  addSculptedSurfaceDetail,
+  type DetailLandmarks,
+} from "./surface-detail";
+import {
   bodyZones,
   armPose,
   humanChartSize,
@@ -13,6 +17,8 @@ export type HumanMeshData = {
   vertices: number[][];
   muscleColors?: Uint8Array;
   muscleIds?: Uint8Array;
+  muscleInfluences?: Uint8Array;
+  detailLandmarks?: DetailLandmarks;
   parts: number[][];
   joints: Record<
     "L" | "R",
@@ -21,7 +27,9 @@ export type HumanMeshData = {
 };
 const sources = new Map<string, Promise<HumanMeshData>>();
 export function loadHuman(body?: HumanBody): Promise<HumanMeshData> {
-  const name = body?.model ? `human-v2-${body.model.sex}` : "human-v1";
+  const name = body?.model
+    ? `human-v${body.model.revision}-${body.model.sex}`
+    : "human-v1";
   if (!sources.has(name))
     sources.set(
       name,
@@ -46,19 +54,24 @@ export function loadHuman(body?: HumanBody): Promise<HumanMeshData> {
           return p;
         });
         const fieldResponse = await fetch(
-          `/anatomy/muscle-field-v2-${body!.model!.sex}.bin`,
+          `/anatomy/muscle-field-v${body!.model!.revision}-${body!.model!.sex}.bin`,
         );
         if (!fieldResponse.ok)
           throw new Error("The muscle atlas could not load.");
         const field = new Uint8Array(await fieldResponse.arrayBuffer());
-        if (field.length !== meta.vertexCount * 4)
+        const sculpted = body!.model!.revision === 3;
+        if (field.length !== meta.vertexCount * (sculpted ? 12 : 4))
           throw new Error("The muscle atlas does not match this body.");
         return {
           vertices,
           parts,
           joints: meta.joints,
           muscleColors: field.subarray(0, meta.vertexCount * 3),
-          muscleIds: field.subarray(meta.vertexCount * 3),
+          muscleIds: field.subarray(meta.vertexCount * 3, meta.vertexCount * 4),
+          muscleInfluences: sculpted
+            ? field.subarray(meta.vertexCount * 4)
+            : undefined,
+          detailLandmarks: meta.detailLandmarks,
         };
       })().catch((e) => {
         sources.delete(name);
@@ -76,6 +89,41 @@ const zones: SurfaceZone[] = [
 ];
 const vector = (p: number[]) =>
   new THREE.Vector3(...(p as [number, number, number]));
+
+/** Match the categorical muscle selected by the shader at the hit point. */
+export function muscleAtHit(hit: THREE.Intersection): number | undefined {
+  if (!hit.face) return undefined;
+  const mesh = hit.object as THREE.Mesh,
+    geometry = mesh.geometry;
+  const palette = geometry.getAttribute("musclePalette"),
+    weights = geometry.getAttribute("muscleWeights");
+  if (!palette || !weights)
+    return geometry.getAttribute("muscleId")?.getX(hit.face.a);
+  const position = geometry.getAttribute("position"),
+    { a, b, c } = hit.face;
+  const bary = THREE.Triangle.getBarycoord(
+    mesh.worldToLocal(hit.point.clone()),
+    new THREE.Vector3().fromBufferAttribute(position, a),
+    new THREE.Vector3().fromBufferAttribute(position, b),
+    new THREE.Vector3().fromBufferAttribute(position, c),
+    new THREE.Vector3(),
+  );
+  if (!bary) return undefined;
+  let best = 0,
+    maximum = -1;
+  for (let k = 0; k < 4; k++) {
+    const weight =
+      weights.getComponent(a, k) * bary.x +
+      weights.getComponent(b, k) * bary.y +
+      weights.getComponent(c, k) * bary.z;
+    if (weight > maximum) {
+      maximum = weight;
+      best = k;
+    }
+  }
+  const group = palette.getComponent(a, best);
+  return group < 36 ? group : undefined;
+}
 
 export function humanGeometries(data: HumanMeshData, body: HumanBody) {
   const scale =
@@ -202,7 +250,9 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
       ns: number[] = [],
       colors: number[] = [],
       restPositions: number[] = [],
-      muscleIds: number[] = [];
+      muscleIds: number[] = [],
+      musclePalette: number[] = [],
+      muscleWeights: number[] = [];
     const indices = data.parts[zones.indexOf(zone)];
     const side = zone.startsWith("right") ? "R" : "L",
       j = joints[side];
@@ -237,6 +287,20 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
     for (let t = 0; t < indices.length; t += 3) {
       const ids = indices.slice(t, t + 3),
         tex = ids.map(chart);
+      const influences = data.muscleInfluences;
+      const candidates = new Map<number, number>();
+      if (influences)
+        for (const i of ids)
+          for (let k = 0; k < 4; k++) {
+            const id = influences[i * 8 + k],
+              weight = influences[i * 8 + 4 + k];
+            if (weight) candidates.set(id, (candidates.get(id) ?? 0) + weight);
+          }
+      const palette = [...candidates]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4)
+        .map(([id]) => id);
+      while (palette.length < 4) palette.push(36);
       const seam =
         Math.max(...tex.map((t) => t[0])) - Math.min(...tex.map((t) => t[0])) >
         0.5;
@@ -251,8 +315,31 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
             THREE.SRGBColorSpace,
           );
           colors.push(color.r, color.g, color.b);
-          restPositions.push(...rests[i].toArray());
+          restPositions.push(
+            ...rests[i]
+              .toArray()
+              .map(
+                (v, c) =>
+                  v +
+                  (body.model?.revision === 3
+                    ? data.vertices[i][c + 3] * 0.6
+                    : 0),
+              ),
+          );
           muscleIds.push(data.muscleIds![i]);
+          if (influences) {
+            const weights = palette.map((id, slot) => {
+              if (palette.indexOf(id) !== slot) return 0;
+              let weight = 0;
+              for (let k = 0; k < 4; k++)
+                if (influences[i * 8 + k] === id)
+                  weight += influences[i * 8 + 4 + k];
+              return weight;
+            });
+            const total = weights.reduce((sum, w) => sum + w, 0) || 1;
+            musclePalette.push(...palette);
+            muscleWeights.push(...weights.map((w) => w / total));
+          }
         }
         ns.push(normals.getX(i), normals.getY(i), normals.getZ(i));
         uv.push(tex[c][0] + (seam && tex[c][0] < 0.5 ? 1 : 0), tex[c][1]);
@@ -272,6 +359,16 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
         "muscleId",
         new THREE.Float32BufferAttribute(muscleIds, 1),
       );
+      if (musclePalette.length) {
+        g.setAttribute(
+          "musclePalette",
+          new THREE.Float32BufferAttribute(musclePalette, 4),
+        );
+        g.setAttribute(
+          "muscleWeights",
+          new THREE.Float32BufferAttribute(muscleWeights, 4),
+        );
+      }
     }
     g.computeBoundingSphere();
     return { zone, geometry: g };
@@ -444,11 +541,18 @@ export class HumanSurface {
         new THREE.MeshStandardMaterial({
           map: texture,
           vertexColors: !!body.model,
-          roughness: 0.78,
+          roughness: body.model?.revision === 3 ? 0.66 : 0.78,
           side: THREE.DoubleSide,
         }),
       );
-      if (body.model)
+      if (body.model?.revision === 3)
+        addSculptedSurfaceDetail(
+          mesh.material as THREE.MeshStandardMaterial,
+          body,
+          data.joints.L,
+          data.detailLandmarks!,
+        );
+      else if (body.model)
         addSurfaceDetail(
           mesh.material as THREE.MeshStandardMaterial,
           body,

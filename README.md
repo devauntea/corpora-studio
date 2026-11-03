@@ -1,17 +1,17 @@
-# Form Studio 0.5.0
+# Form Studio 0.6.0
 
 A local desktop tattoo-planning studio with complete anatomical sections and an image cleanup workspace.
 
-Open **`releases/Form Studio 0.5.0.app`** on this Mac. Save and quit an older Form Studio session before switching versions; the previous app bundle is preserved.
+Open **`releases/Form Studio 0.6.0.app`** on this Mac. Save and quit an older Form Studio session before switching versions; the previous app bundle is preserved.
 
-- **Body model → Template:** full arm, connected upper body, or full leg. Choose male or female and **Fit / Average**, refine build and definition, then use **Skin / Muscles** and filter opacity to compare the tattoo against muscle flow. Point at a colored region for its name and direction. Each arm has independent elbow flex, shoulder elevation and forearm rotation; legs retain knee flex. Use **Fit model** after raising an arm.
+- **Body model → Template:** full arm, connected upper body, or full leg. Choose male or female and **Fit / Average**, refine build and definition, then use **Skin / Muscles** and filter opacity to compare the tattoo against muscle flow. The latest sculpt adds joint and tendon landmarks, skin folds, and muscle-specific fibers with clean connective borders. Point at a colored region for its name and direction. Each arm has independent elbow flex, shoulder elevation and forearm rotation; legs retain knee flex. Use **Fit model** after raising an arm.
 - **Tattoo image studio:** crop the image; remove a light, black or chosen-color background; erase/restore details; adjust tone; compare with the original; export a transparent PNG; then apply edits to the composition.
 - **Photograph → Add body photos:** the existing direct-photo workflow, protection masks and HEIC import remain available.
-- **Save:** v5 projects embed unchanged original images plus editing recipes. v1/v2/v3/v4 projects open with their old surfaces and placements; their first save creates a new copy.
+- **Save:** v6 projects embed unchanged original images plus editing recipes. v1/v2/v3/v4/v5 projects open with their old surfaces and placements; their first save creates a new copy.
 
 The colored muscle map is registered from a superficial anatomy atlas to an adjustable skin surface. It is a placement reference, and flex is an approximate pose preview. This is not a clinical anatomy model, personal body reconstruction, calibrated skin-stretch simulation or validated tattoo stencil. Upper-body artwork uses separate trunk and arm charts.
 
-See [the detailed body update and asset provenance](docs/detailed-body-update.md), [verification evidence](docs/detailed-body-verification.md), and [the preceding pose and crop update](docs/pose-crop-update.md).
+See [the surface-detail update and verification](docs/surface-detail-update.md), [the body library and asset provenance](docs/detailed-body-update.md), and [the preceding pose and crop update](docs/pose-crop-update.md).
 
 ## Run and develop
 

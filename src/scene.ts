@@ -1,4 +1,4 @@
-import { HumanSurface, loadHuman } from "./anatomy";
+import { HumanSurface, loadHuman, muscleAtHit } from "./anatomy";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
@@ -314,11 +314,7 @@ export class StudioScene {
     )[0];
     return hit?.uv
       ? {
-          muscle: hit.face
-            ? (hit.object as THREE.Mesh).geometry
-                .getAttribute("muscleId")
-                ?.getX(hit.face.a)
-            : undefined,
+          muscle: muscleAtHit(hit),
           x: hit.uv.x,
           y: hit.uv.y,
           zone: hit.object.userData.zone as SurfaceZone | undefined,

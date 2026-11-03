@@ -53,13 +53,9 @@ test("detailed body library, registered muscle filter and saved choices", async 
         await page
           .getByRole("button", { name: view.toLowerCase(), exact: true })
           .click();
-        await page
-          .locator(".viewport")
-          .screenshot({
-            path: info.outputPath(
-              `${sex}-${physique}-${view.toLowerCase()}.png`,
-            ),
-          });
+        await page.locator(".viewport").screenshot({
+          path: info.outputPath(`${sex}-${physique}-${view.toLowerCase()}.png`),
+        });
       }
     }
   }
@@ -83,11 +79,9 @@ test("detailed body library, registered muscle filter and saved choices", async 
     await page
       .getByRole("button", { name: view.toLowerCase(), exact: true })
       .click();
-    await page
-      .locator(".viewport")
-      .screenshot({
-        path: info.outputPath(`anatomy-${view.toLowerCase()}.png`),
-      });
+    await page.locator(".viewport").screenshot({
+      path: info.outputPath(`anatomy-${view.toLowerCase()}.png`),
+    });
   }
   await page.getByRole("button", { name: "Bent 90°", exact: true }).click();
   await ready({ armPose: { left: { flex: 90 } } });
@@ -100,9 +94,9 @@ test("detailed body library, registered muscle filter and saved choices", async 
   const file = info.outputPath("detailed.formstudio");
   await (await downloading).saveAs(file);
   const saved = JSON.parse(await fs.readFile(file, "utf8"));
-  expect(saved.version).toBe(5);
+  expect(saved.version).toBe(6);
   expect(saved.body.model).toEqual({
-    revision: 2,
+    revision: 3,
     sex: "male",
     physique: "fit",
     anatomyOpacity: 1,
