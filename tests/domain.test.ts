@@ -49,7 +49,7 @@ describe("project integrity", () => {
     const p = await fixture();
     await expect(parseProject("{")).rejects.toThrow("valid");
     await expect(
-      parseProject(JSON.stringify({ ...p, version: 2 })),
+      parseProject(JSON.stringify({ ...p, version: 99 })),
     ).rejects.toThrow("Unsupported");
     await expect(
       parseProject(JSON.stringify({ ...p, assets: [] })),
@@ -85,6 +85,7 @@ describe("surface geometry", () => {
   });
   test("end measurements match model circumference within 0.02 mm", () => {
     const body = blankProject().body;
+    if (body.kind !== "forearm-v1") throw new Error("Expected legacy forearm");
     for (const v of [0, 1]) {
       let perimeter = 0,
         previous = surfacePoint(body, 0, v);
@@ -150,5 +151,121 @@ describe("command history", () => {
     expect(s.present).toBe(0);
     s = historyReducer(s, { type: "change", value: 99 });
     expect(s.future).toEqual([]);
+  });
+});
+
+describe("expanded project compatibility", () => {
+  test("opens a real v1 saved project without changing sources, body, or layer transforms", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const old = JSON.parse(
+      await readFile(
+        new URL("./fixtures/legacy-v1.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const p = await parseProject(JSON.stringify(old));
+    expect(p.version).toBe(2);
+    expect(p.photos).toEqual([]);
+    expect(p.assets).toEqual(old.assets);
+    expect(p.body).toEqual(old.body);
+    expect(p.layers).toEqual(old.layers);
+    expect(await parseProject(JSON.stringify(p))).toEqual(p);
+  });
+  test("photo transforms, protection and image sources survive round trip; dangling references and excess budgets fail", async () => {
+    const { layerForPhoto } = await import("../src/domain");
+    const p = await fixture();
+    const body = {
+      ...p.assets[0],
+      id: crypto.randomUUID(),
+      role: "body" as const,
+    };
+    p.assets.push(body);
+    const photo = {
+      id: crypto.randomUUID(),
+      assetId: body.id,
+      masks: [
+        {
+          radius: 0.02,
+          points: [
+            [0.2, 0.3],
+            [0.4, 0.5],
+          ] as [number, number][],
+        },
+      ],
+    };
+    p.photos.push(photo);
+    p.layers.push({
+      ...layerForPhoto(p.assets[0], photo.id),
+      stretch: 1.4,
+      flipX: true,
+      ink: "custom",
+      inkColor: "#246125",
+      locked: true,
+    });
+    expect(await parseProject(JSON.stringify(p))).toEqual(p);
+    await expect(
+      parseProject(JSON.stringify({ ...p, photos: [] })),
+    ).rejects.toThrow();
+    await expect(
+      parseProject(
+        JSON.stringify({
+          ...p,
+          assets: p.assets.map((a) => ({ ...a, width: 8192, height: 8192 })),
+        }),
+      ),
+    ).rejects.toThrow();
+    p.photos[0].masks[0].points[0] = [2, 0];
+    await expect(parseProject(JSON.stringify(p))).rejects.toThrow();
+  });
+  test("HEIC preview is required and hash checked separately from original bytes", async () => {
+    const p = await fixture();
+    const a = p.assets[0];
+    a.preview = a.data;
+    a.previewSha256 = a.sha256;
+    a.mime = "image/heic";
+    a.data = "data:image/heic;base64,aGVpYw==";
+    a.sha256 = await sha256(a.data);
+    expect((await parseProject(JSON.stringify(p))).assets[0].data).toBe(a.data);
+    a.previewSha256 = "0".repeat(64);
+    await expect(parseProject(JSON.stringify(p))).rejects.toThrow(
+      "preview integrity",
+    );
+    delete a.preview;
+    await expect(parseProject(JSON.stringify(p))).rejects.toThrow();
+  });
+});
+describe("region templates", () => {
+  test("all region measurements, seams, deformation and placements remain coherent", async () => {
+    const { regions, regionBody } = await import("../src/domain");
+    const p = await fixture();
+    for (const region of regions) {
+      const body = regionBody(region, p.body);
+      if (body.kind !== "region-v1") throw new Error("template");
+      for (const v of [0, 0.5, 1]) {
+        let total = 0,
+          prev = surfacePoint(body, 0, v);
+        for (let i = 1; i <= 2048; i++) {
+          const next = surfacePoint(body, i / 2048, v);
+          total += Math.hypot(...next.map((x, j) => x - prev[j]));
+          prev = next;
+        }
+        expect(Math.abs(total - circumference(body, v))).toBeLessThan(0.05);
+        const a = surfacePoint(body, 0, v),
+          b = surfacePoint(body, 1, v);
+        a.forEach((x, j) => expect(x).toBeCloseTo(b[j], 8));
+      }
+      const smooth = surfacePoint({ ...body, muscularity: 0 }, 0.31, 0.5),
+        muscle = surfacePoint({ ...body, muscularity: 1 }, 0.31, 0.5);
+      expect(
+        Math.hypot(...smooth.map((x, i) => x - muscle[i])),
+      ).toBeGreaterThan(1);
+      p.body = body;
+      expect(await parseProject(JSON.stringify(p))).toEqual(p);
+      const g = forearmGeometry(body);
+      expect([...g.getAttribute("normal").array].every(Number.isFinite)).toBe(
+        true,
+      );
+      g.dispose();
+    }
   });
 });

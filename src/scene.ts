@@ -2,12 +2,13 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
   circumference,
+  bodyLabel,
   surfacePoint,
   type Body,
   type Layer,
   type Project,
 } from "./domain";
-import { loadImage } from "./io";
+import { InkCache } from "./ink";
 
 export type View = "front" | "back" | "left" | "right";
 export type SceneEvents = {
@@ -79,10 +80,10 @@ export class StudioScene {
   dragging = false;
   project?: Project;
   selected?: string;
-  images = new Map<string, Promise<HTMLImageElement>>();
-  processed = new Map<string, HTMLCanvasElement>();
+  ink = new InkCache();
   paintVersion = 0;
   disposed = false;
+  active = true;
   ray = new THREE.Raycaster();
   floor: THREE.Mesh;
   grid: THREE.GridHelper;
@@ -116,7 +117,7 @@ export class StudioScene {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.1;
     this.controls.minDistance = 180;
-    this.controls.maxDistance = 1100;
+    this.controls.maxDistance = 2200;
     this.controls.maxPolarAngle = Math.PI * 0.88;
     this.controls.minPolarAngle = Math.PI * 0.12;
     this.controls.target.set(0, 0, 0);
@@ -223,6 +224,11 @@ export class StudioScene {
       if (this.frameTimes.length > 600) this.frameTimes.shift();
     }
     this.lastFrame = time;
+    if (!this.active) {
+      this.lastFrame = 0;
+      this.frame = requestAnimationFrame(this.animate);
+      return;
+    }
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
     if (time - this.lastStats > 1000) {
@@ -319,49 +325,14 @@ export class StudioScene {
       const items: { layer: Layer; image: HTMLCanvasElement; ratio: number }[] =
         [];
       for (const layer of project.layers) {
-        if (!layer.visible) continue;
+        if (!layer.visible || layer.photoId) continue;
         const asset = project.assets.find((a) => a.id === layer.assetId)!;
-        if (!this.images.has(asset.sha256))
-          this.images.set(asset.sha256, loadImage(asset.data));
-        const key = `${asset.sha256}:${layer.removePaper}:${layer.monochrome}`;
-        let processed = this.processed.get(key);
-        if (!processed) {
-          const image = await this.images.get(asset.sha256)!;
-          if (this.disposed || version !== this.paintVersion) return false;
-          processed = document.createElement("canvas");
-          const scale = Math.min(1, 2048 / Math.max(image.width, image.height));
-          processed.width = Math.max(1, Math.round(image.width * scale));
-          processed.height = Math.max(1, Math.round(image.height * scale));
-          const ctx = processed.getContext("2d", { willReadFrequently: true })!;
-          ctx.drawImage(image, 0, 0, processed.width, processed.height);
-          if (layer.removePaper || layer.monochrome) {
-            const pixels = ctx.getImageData(
-              0,
-              0,
-              processed.width,
-              processed.height,
-            );
-            for (let i = 0; i < pixels.data.length; i += 4) {
-              const p = pixels.data,
-                luminance =
-                  0.2126 * p[i] + 0.7152 * p[i + 1] + 0.0722 * p[i + 2];
-              if (layer.removePaper)
-                p[i + 3] = Math.round(
-                  p[i + 3] * (1 - Math.min(p[i], p[i + 1], p[i + 2]) / 255),
-                );
-              if (layer.monochrome) {
-                const ink = layer.removePaper ? 28 : luminance;
-                p[i] = p[i + 1] = p[i + 2] = ink;
-              }
-            }
-            ctx.putImageData(pixels, 0, 0);
-          }
-          this.processed.set(key, processed);
-        }
+        const processed = await this.ink.get(asset, layer);
+        if (this.disposed || version !== this.paintVersion) return false;
         items.push({
           layer,
           image: processed,
-          ratio: asset.height / asset.width,
+          ratio: (asset.height / asset.width) * (layer.stretch ?? 1),
         });
       }
       if (this.disposed || version !== this.paintVersion) return false;
@@ -379,9 +350,11 @@ export class StudioScene {
         for (let repeat = -copies; repeat <= copies; repeat++) {
           ctx.save();
           ctx.globalAlpha = layer.opacity;
+          ctx.globalCompositeOperation = layer.blend ?? "multiply";
           ctx.translate((layer.u + repeat) * ATLAS, (1 - layer.v) * ATLAS);
           ctx.scale(ATLAS / c, ATLAS / project.body.length);
           ctx.rotate((layer.rotation * Math.PI) / 180);
+          ctx.scale(layer.flipX ? -1 : 1, layer.flipY ? -1 : 1);
           ctx.drawImage(
             image,
             -layer.width / 2,
@@ -393,20 +366,10 @@ export class StudioScene {
         }
       }
       this.texture.needsUpdate = true;
-      // Remove unused cache entries when documents change, keeping memory bounded.
-      const active = new Set(project.assets.map((a) => a.sha256));
-      for (const key of this.images.keys())
-        if (!active.has(key)) this.images.delete(key);
-      const visibleVariants = new Set(
-        project.layers
-          .filter((l) => l.visible)
-          .map((l) => {
-            const a = project.assets.find((a) => a.id === l.assetId)!;
-            return `${a.sha256}:${l.removePaper}:${l.monochrome}`;
-          }),
+      this.ink.prune(
+        project.assets,
+        project.layers.filter((l) => !l.photoId && l.visible),
       );
-      for (const key of this.processed.keys())
-        if (!visibleVariants.has(key)) this.processed.delete(key);
       return true;
     } catch {
       this.events.error(
@@ -444,7 +407,7 @@ export class StudioScene {
     x.stroke();
     x.font = "24px sans-serif";
     x.fillText(
-      `${project.body.side === "left" ? "Left" : "Right"} forearm · ${project.revision} · ${project.body.length} mm length`,
+      `${bodyLabel(project.body)} · ${project.revision} · ${project.body.length} mm length`,
       80,
       1710,
     );
@@ -473,6 +436,7 @@ export class StudioScene {
         (Array.isArray(m) ? m : [m]).forEach((material) => material.dispose());
       }
     });
+    this.ink.clear();
     this.texture.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();

@@ -2,6 +2,8 @@
 
 Date: 2026-11-03. Scope: first implementation task F01.
 
+Historical baseline. [F02 design and research](advanced-studio-plan.md) documents the current v2 schema, photo workspace and additional templates.
+
 ## Product boundary
 
 The user's latest decision supersedes the earlier proposal for selected browser editing: the website will display finished work created in the desktop application. It does not need account management, project editing, cloud inference, or parity with the desktop studio. Portfolio implementation follows useful desktop exports. No website was deployed in this task.

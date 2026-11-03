@@ -9,17 +9,28 @@ export async function loadImage(src: string): Promise<HTMLImageElement> {
   return image;
 }
 export async function assetFromFile(file: File): Promise<Asset> {
-  if (!["image/png", "image/jpeg"].includes(file.type))
-    throw new Error("Choose a PNG or JPEG image.");
+  const heic = /\.heic$/i.test(file.name) || file.type === "image/heic";
+  if (!heic && !["image/png", "image/jpeg"].includes(file.type))
+    throw new Error("Choose a PNG, JPEG, or HEIC image.");
   if (file.size > 15_000_000)
     throw new Error("Choose an image smaller than 15 MB.");
-  const data = await new Promise<string>((resolve, reject) => {
+  let data = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = () => reject(new Error("This image could not be read."));
     reader.readAsDataURL(file);
   });
-  const image = await loadImage(data);
+  if (heic) data = `data:image/heic;base64,${data.split(",")[1]}`;
+  const preview = heic
+    ? native
+      ? await invoke<string>("decode_heic", { data: data.split(",")[1] })
+      : undefined
+    : undefined;
+  if (heic && !preview)
+    throw new Error(
+      "Import HEIC in the desktop app, or choose PNG / JPEG in the browser preview.",
+    );
+  const image = await loadImage(preview ?? data);
   if (
     image.width > 8192 ||
     image.height > 8192 ||
@@ -31,7 +42,8 @@ export async function assetFromFile(file: File): Promise<Asset> {
   return {
     id: crypto.randomUUID(),
     name: file.name.slice(0, 180),
-    mime: file.type as Asset["mime"],
+    mime: heic ? "image/heic" : (file.type as Asset["mime"]),
+    ...(preview ? { preview, previewSha256: await sha256(preview) } : {}),
     data,
     sha256: await sha256(data),
     width: image.width,

@@ -56,20 +56,17 @@ test("editing, local round trip, invalid-file recovery, import and review export
   await expect(page.getByLabel("Project name", { exact: true })).toHaveValue(
     "Untitled composition",
   );
-  await page.locator("input[type=file]").nth(1).setInputFiles(file);
+  await page.getByLabel("Project file", { exact: true }).setInputFiles(file);
   await expect(page.getByLabel("Project name", { exact: true })).toHaveValue(
     "Solar study",
   );
   await page.getByRole("button", { name: "Artwork", exact: true }).click();
   await expect(width).toHaveValue("120");
-  await page
-    .locator("input[type=file]")
-    .nth(1)
-    .setInputFiles({
-      name: "corrupt.formstudio",
-      mimeType: "application/json",
-      buffer: Buffer.from('{"version":99}'),
-    });
+  await page.getByLabel("Project file", { exact: true }).setInputFiles({
+    name: "corrupt.formstudio",
+    mimeType: "application/json",
+    buffer: Buffer.from('{"version":99}'),
+  });
   await expect(page.getByRole("alert")).toContainText("Unsupported or damaged");
   await expect(width).toHaveValue("120");
   await page.getByLabel("Dismiss notification").click();
@@ -84,14 +81,11 @@ test("editing, local round trip, invalid-file recovery, import and review export
     ctx.fillRect(40, 40, 120, 220);
     return c.toDataURL().split(",")[1];
   });
-  await page
-    .locator("input[type=file]")
-    .first()
-    .setInputFiles({
-      name: "Placement test.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(png, "base64"),
-    });
+  await page.getByLabel("Artwork file", { exact: true }).setInputFiles({
+    name: "Placement test.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(png, "base64"),
+  });
   await expect(
     page.getByRole("heading", { name: "Placement test" }),
   ).toBeVisible();

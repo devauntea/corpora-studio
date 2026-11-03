@@ -1,10 +1,23 @@
-# Form Studio
+# Form Studio 0.2.1
 
-A local desktop workspace for composing tattoos on an adjustable 3D forearm. This is the first working slice of the tattoo and fashion platform, version 0.1. It is an early development build, not the completed platform.
+A local desktop tattoo-planning studio for photographic compositions and approximate 3D surfaces.
+
+Save and quit any currently open Form Studio session, then open `releases/Form Studio 0.2.1.app` on this Mac. The older app bundle was left in place to avoid interrupting active work. Choose **Photograph → Add body photos** for PNG/JPEG or native HEIC import. Import artwork or reuse the source library, drag its handles, and paint **Protect existing ink** over areas new artwork must avoid. Save includes unchanged originals.
+
+Choose **3D surface → Body model** for forearm, upper arm, calf, thigh or torso templates. These are adjustable planning surfaces; automatic photo reconstruction and connected/full-body modeling are not implemented.
+
+Existing v1 projects open with unchanged sources and placements. Saving an opened v1 document prompts for a new v2 copy. Older app versions cannot open v2 files.
+
+- [Audit, research, priorities, design and roadmap](docs/advanced-studio-plan.md)
+- [Current verification and limitations](docs/advanced-verification.md)
+
+## Original implementation notes
+
+A local desktop workspace for composing tattoos on an adjustable 3D forearm. This is the first working slice of the tattoo and fashion platform, version 0.1 at that milestone. The current release extends this foundation as described above.
 
 ## Run the desktop application
 
-On this Mac, open `releases/Form Studio.app` in Finder. It runs without the development server or an internet connection. The build is local and unsigned for distribution; it has not been notarized. Subsequent builds are produced in `src-tauri/target/release/bundle/macos/`.
+On this Mac, open `releases/Form Studio 0.2.1.app` in Finder. It runs without the development server or an internet connection. The build is local and unsigned for distribution; it has not been notarized. Subsequent builds are produced in `src-tauri/target/release/bundle/macos/`.
 
 For development, install Node 24, stable Rust, and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/). Then:
 
@@ -41,10 +54,10 @@ Undo/redo is `Cmd+Z` / `Shift+Cmd+Z` (Ctrl on Windows). Each surface drag or opa
 
 ## Current boundaries
 
-- Only approximate forearms are implemented. No scan, anatomical reconstruction, other body regions, distortion handles, pattern drafting, garment simulation, or AI inference is implemented yet.
-- A procedural elliptical surface avoids restricted body-model assets. Measurements control its proportions; this does not make it a personal anatomical reconstruction.
+- Five approximate 3D templates and direct photo overlays are implemented. No automatic reconstruction, connected body, joint articulation, pattern drafting, garment simulation, or AI inference is implemented yet.
+- Authored procedural surfaces avoid restricted body-model assets. Measurements control its proportions; this does not make it a personal anatomical reconstruction.
 - A UV atlas wraps artwork around the surface, including across the seam. Width is defined in the tangent chart at its center. Tapering stretches the design away from its center. Overlapping wraps can blend; the model ends clip artwork. This is visual planning, not a validated stencil or physical fit guarantee.
-- Ink uses a multiply blend and approximate preview lighting. Color is not calibrated to skin or healed tattoos. Light-paper removal is a luminance/color heuristic, not semantic background segmentation.
+- Ink uses selectable multiply/normal blending and approximate preview lighting. Color is not calibrated to skin or healed tattoos. Light-paper removal is a luminance/color heuristic, not semantic background segmentation.
 - The display atlas is 2048 × 2048. Original images stay at their imported resolution. Review PNGs include the viewport image fitted inside the review sheet; a 1800-pixel sheet is not a guarantee of that much source detail.
 - Limits: 24 assets/layers, 15 MB and 32 megapixels per image, 8192 pixels per side, 64 megapixels total source imagery, 70 MB import data budget, 80 MB project file.
 - Saves replace the destination atomically using a same-directory temporary file. There is no autosave or crash recovery yet. Save before quitting; unsaved edits are guarded on New/Open/window close.

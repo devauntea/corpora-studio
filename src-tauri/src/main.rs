@@ -30,7 +30,7 @@ fn validate_envelope(content: &str) -> Result<(), String> {
     }
     let v: serde_json::Value =
         serde_json::from_str(content).map_err(|_| "Invalid project JSON.")?;
-    if v["format"] != "form-studio" || v["version"] != 1 {
+    if v["format"] != "form-studio" || (v["version"] != 1 && v["version"] != 2) {
         return Err("Unsupported project format or version.".into());
     }
     Ok(())
@@ -172,6 +172,68 @@ fn close_app(app: tauri::AppHandle, approval: State<ExitApproval>) {
     app.exit(0);
 }
 
+#[tauri::command]
+async fn decode_heic(data: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || decode_heic_local(&data))
+        .await
+        .map_err(|e| e.to_string())?
+}
+fn decode_heic_local(data: &str) -> Result<String, String> {
+    if !cfg!(target_os = "macos") {
+        return Err(
+            "HEIC import currently requires macOS. Export a PNG or JPEG for this platform.".into(),
+        );
+    }
+    if data.len() > 20_000_000 {
+        return Err("HEIC exceeds 15 MB.".into());
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|_| "Invalid HEIC bytes.")?;
+    if bytes.len() < 12 || &bytes[4..8] != b"ftyp" {
+        return Err("Invalid HEIC header.".into());
+    }
+    let dir = tempfile::tempdir().map_err(|e| e.to_string())?;
+    let input = dir.path().join("source.heic");
+    let output = dir.path().join("preview.png");
+    fs::write(&input, bytes).map_err(|e| e.to_string())?;
+    let metadata = std::process::Command::new("/usr/bin/sips")
+        .args(["-g", "pixelWidth", "-g", "pixelHeight"])
+        .arg(&input)
+        .output()
+        .map_err(|e| e.to_string())?;
+    let info = String::from_utf8_lossy(&metadata.stdout);
+    let dimension = |key: &str| -> Option<u64> {
+        info.lines()
+            .find(|l| l.trim_start().starts_with(key))
+            .and_then(|l| l.split(':').nth(1))
+            .and_then(|v| v.trim().parse().ok())
+    };
+    let w = dimension("pixelWidth").ok_or("HEIC dimensions unavailable.")?;
+    let h = dimension("pixelHeight").ok_or("HEIC dimensions unavailable.")?;
+    if w == 0 || h == 0 || w > 8192 || h > 8192 || w * h > 32_000_000 {
+        return Err("HEIC exceeds 8192 pixels or 32 megapixels.".into());
+    }
+    let result = std::process::Command::new("/usr/bin/sips")
+        .args(["-s", "format", "png"])
+        .arg(&input)
+        .arg("--out")
+        .arg(&output)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !result.status.success() {
+        return Err("HEIC could not be decoded.".into());
+    }
+    if fs::metadata(&output).map_err(|e| e.to_string())?.len() > 16_500_000 {
+        return Err("Decoded HEIC preview is too large. Import a JPEG copy instead.".into());
+    }
+    let png = fs::read(output).map_err(|e| e.to_string())?;
+    Ok(format!(
+        "data:image/png;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(png)
+    ))
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(Files::default())
@@ -251,7 +313,8 @@ fn main() {
             open_project,
             save_project,
             save_review,
-            close_app
+            close_app,
+            decode_heic
         ])
         .build(tauri::generate_context!())
         .expect("Form Studio could not start")
@@ -288,9 +351,39 @@ mod tests {
         assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
     }
     #[test]
+    fn malformed_heic_is_rejected() {
+        assert!(decode_heic_local("garbage").is_err());
+        assert!(decode_heic_local("aGVsbG8=").is_err());
+    }
+    #[test]
+    #[ignore = "Local reference files are deliberately not bundled"]
+    fn supplied_heic_references_decode() {
+        let directory =
+            std::env::var("FORM_STUDIO_REFERENCE_DIR").expect("Set local reference folder");
+        for name in ["IMG_5426.HEIC", "IMG_5456.HEIC"] {
+            let path = std::path::Path::new(&directory).join(name);
+            let original = fs::read(&path).unwrap();
+            let encoded = base64::engine::general_purpose::STANDARD.encode(&original);
+            let decoded = decode_heic_local(&encoded).unwrap();
+            let png = base64::engine::general_purpose::STANDARD
+                .decode(decoded.split(',').nth(1).unwrap())
+                .unwrap();
+            assert!(png.starts_with(b"\x89PNG\r\n\x1a\n"));
+            assert_eq!(u32::from_be_bytes(png[16..20].try_into().unwrap()), 4032);
+            assert_eq!(u32::from_be_bytes(png[20..24].try_into().unwrap()), 3024);
+            assert_eq!(fs::read(&path).unwrap(), original);
+            println!(
+                "{name}: {} original bytes, {} preview bytes",
+                original.len(),
+                png.len()
+            );
+        }
+    }
+    #[test]
     fn invalid_projects_are_rejected() {
         assert!(validate_envelope("not json").is_err());
         assert!(validate_envelope(r#"{"format":"form-studio","version":99}"#).is_err());
         assert!(validate_envelope(r#"{"format":"form-studio","version":1}"#).is_ok());
+        assert!(validate_envelope(r#"{"format":"form-studio","version":2}"#).is_ok());
     }
 }
