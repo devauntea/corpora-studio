@@ -1743,3 +1743,64 @@ select:focus-visible {
   color: #fff;
   border-color: #242424;
 }
+
+.anatomy-caption {
+  position: absolute;
+  z-index: 2;
+  left: 24px;
+  bottom: 94px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  max-width: 320px;
+  padding: 12px 14px;
+  border: 1px solid #d0d0d0;
+  border-radius: 7px;
+  background: #fafafaf0;
+  pointer-events: none;
+  box-shadow: 0 3px 14px #00000009;
+}
+.anatomy-caption strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+}
+.anatomy-caption small {
+  display: block;
+  margin-top: 5px;
+  color: #666;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.muscle-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 11px;
+  height: 11px;
+  margin: 2px 7px 0 0;
+  border: 1px solid #00000018;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+
+.surface-filter {
+  position: absolute;
+  top: 64px;
+  right: 24px;
+  width: 160px;
+  z-index: 3;
+  background: #fafafaf0;
+}
+.model-credits {
+  margin-top: 18px;
+  color: #666;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.model-credits summary {
+  cursor: pointer;
+  color: #333;
+}
+.model-credits p {
+  margin: 10px 0 0;
+}

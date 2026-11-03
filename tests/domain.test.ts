@@ -164,7 +164,7 @@ describe("expanded project compatibility", () => {
       ),
     );
     const p = await parseProject(JSON.stringify(old));
-    expect(p.version).toBe(4);
+    expect(p.version).toBe(5);
     expect(p.photos).toEqual([]);
     expect(p.assets).toEqual(old.assets);
     expect(p.body).toEqual(old.body);
@@ -275,7 +275,7 @@ describe("anatomical sections and image recipes", () => {
     const p = await fixture();
     const old = { ...p, version: 2 };
     const next = await parseProject(JSON.stringify(old));
-    expect(next).toEqual({ ...old, version: 4 });
+    expect(next).toEqual({ ...old, version: 5 });
     await expect(
       parseProject(
         JSON.stringify({ ...old, body: { ...old.body, kind: "human-v1" } }),
@@ -341,8 +341,9 @@ describe("anatomical sections and image recipes", () => {
       ),
     );
     for (const section of ["full-arm", "upper-body", "full-leg"] as const) {
-      const body = humanBody(section),
-        relaxed = humanGeometries(data, body),
+      const body = humanBody(section);
+      delete body.model;
+      const relaxed = humanGeometries(data, body),
         bent = humanGeometries(data, { ...body, flex: 90, build: 1.2 });
       expect(relaxed.length).toBe(section === "upper-body" ? 3 : 1);
       for (let i = 0; i < relaxed.length; i++) {
@@ -362,9 +363,11 @@ describe("anatomical sections and image recipes", () => {
         b.dispose();
       }
     }
-    const left = humanGeometries(data, humanBody("full-arm"))[0].geometry,
+    const legacyArm = humanBody("full-arm");
+    delete legacyArm.model;
+    const left = humanGeometries(data, legacyArm)[0].geometry,
       right = humanGeometries(data, {
-        ...humanBody("full-arm"),
+        ...legacyArm,
         side: "right",
       })[0].geometry;
     left.computeBoundingBox();
@@ -383,10 +386,11 @@ describe("pose and crop compatibility", () => {
     const { humanBody, armPose, cleanArtwork } = await import("../src/domain");
     const p = await fixture();
     p.body = { ...humanBody("upper-body"), flex: 73 };
+    delete p.body.model;
     p.assets[0].edits = cleanArtwork();
     const old = { ...p, version: 3 };
     const next = await parseProject(JSON.stringify(old));
-    expect(next).toEqual({ ...old, version: 4 });
+    expect(next).toEqual({ ...old, version: 5 });
     if (next.body.kind !== "human-v1")
       throw new Error("Expected human surface");
     expect(armPose(next.body, "left")).toEqual({
@@ -446,6 +450,7 @@ describe("pose and crop compatibility", () => {
       ),
     );
     const body = humanBody("upper-body");
+    delete body.model;
     const a = humanGeometries(data, body),
       b = humanGeometries(data, {
         ...body,
@@ -499,4 +504,178 @@ test("Fit model contains every posed bound in all preset views and narrow viewpo
             expect(Math.abs(p.y)).toBeLessThan(1);
           }
     }
+});
+
+describe("detailed anatomy assets", () => {
+  test("v4 migration keeps the original body and never opts into new geometry", async () => {
+    const { humanBody } = await import("../src/domain");
+    const p = await fixture();
+    p.body = humanBody("upper-body");
+    delete p.body.model;
+    p.body.muscularity = 0.65;
+    const old = { ...p, version: 4 };
+    const migrated = await parseProject(JSON.stringify(old));
+    expect(migrated.body).toEqual(old.body);
+    expect(migrated.version).toBe(5);
+    const invalidOld = {
+      ...old,
+      body: {
+        ...old.body,
+        model: { revision: 2, sex: "male", physique: "fit", anatomyOpacity: 1 },
+      },
+    };
+    await expect(parseProject(JSON.stringify(invalidOld))).rejects.toThrow(
+      "v4",
+    );
+  });
+  test("both detailed meshes have complete attributes, finite posed geometry and immutable UV/identity fields", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const { createHash } = await import("node:crypto");
+    const { humanGeometries } = await import("../src/anatomy");
+    const { humanBody } = await import("../src/domain");
+    for (const sex of ["male", "female"] as const) {
+      const meta = JSON.parse(
+        await readFile(
+          new URL(`../public/anatomy/human-v2-${sex}.json`, import.meta.url),
+          "utf8",
+        ),
+      );
+      const raw = await readFile(
+        new URL(`../public/anatomy/human-v2-${sex}.bin`, import.meta.url),
+      );
+      expect(createHash("sha256").update(raw).digest("hex")).toBe(meta.sha256);
+      const buffer = raw.buffer.slice(
+        raw.byteOffset,
+        raw.byteOffset + raw.byteLength,
+      );
+      const values = new Float32Array(buffer, 0, meta.vertexCount * 12);
+      const indices = new Uint32Array(buffer, meta.vertexCount * 48);
+      const vertices = Array.from({ length: meta.vertexCount }, (_, i) =>
+        Array.from(values.subarray(i * 12, i * 12 + 12)),
+      );
+      let offset = 0;
+      const parts: number[][] = meta.partCounts.map((n: number) => {
+        const p = Array.from(indices.subarray(offset, offset + n));
+        offset += n;
+        return p;
+      });
+      expect(offset).toBe(indices.length);
+      expect(indices.every((i) => i < vertices.length)).toBe(true);
+      const field = new Uint8Array(
+        await readFile(
+          new URL(
+            `../public/anatomy/muscle-field-v2-${sex}.bin`,
+            import.meta.url,
+          ),
+        ),
+      );
+      expect(field.length).toBe(meta.vertexCount * 4);
+      const fieldMeta = JSON.parse(
+        await readFile(
+          new URL(
+            `../public/anatomy/muscle-field-v2-${sex}.json`,
+            import.meta.url,
+          ),
+          "utf8",
+        ),
+      );
+      expect(createHash("sha256").update(field).digest("hex")).toBe(
+        fieldMeta.sha256,
+      );
+      expect(fieldMeta.vertexCount).toBe(meta.vertexCount);
+      expect(fieldMeta.groups.length).toBe(36);
+      expect(
+        field
+          .subarray(meta.vertexCount * 3)
+          .every((id) => id < 36 || id === 255),
+      ).toBe(true);
+      const edges = new Map<string, { a: number; b: number; count: number }>();
+      for (const part of parts.slice(0, 3))
+        for (let i = 0; i < part.length; i += 3)
+          for (let j = 0; j < 3; j++) {
+            const a = part[i + j],
+              b = part[i + ((j + 1) % 3)],
+              key = a < b ? `${a}:${b}` : `${b}:${a}`;
+            const edge = edges.get(key);
+            if (edge) edge.count++;
+            else edges.set(key, { a, b, count: 1 });
+          }
+      // The connected upper body is open only at its neck and waist, never at the shoulders.
+      for (const edge of edges.values())
+        if (edge.count === 1) {
+          const a = vertices[edge.a],
+            b = vertices[edge.b];
+          expect(
+            [1.2, 6.9].some(
+              (y) => Math.abs(a[1] - y) < 1e-5 && Math.abs(b[1] - y) < 1e-5,
+            ),
+          ).toBe(true);
+          expect(a[4]).toBe(0);
+          expect(b[4]).toBe(0);
+        }
+      const data = {
+        vertices,
+        parts,
+        joints: meta.joints,
+        muscleColors: field.subarray(0, meta.vertexCount * 3),
+        muscleIds: field.subarray(meta.vertexCount * 3),
+      };
+      const body = humanBody("upper-body");
+      body.model!.sex = sex;
+      const a = humanGeometries(data, body);
+      const b = humanGeometries(data, {
+        ...body,
+        anatomy: true,
+        muscularity: 0,
+        armPose: {
+          left: { flex: 90, raise: 75, twist: -45 },
+          right: { flex: 20, raise: 0, twist: 30 },
+        },
+      });
+      for (let i = 0; i < a.length; i++) {
+        const g = a[i].geometry,
+          h = b[i].geometry;
+        for (const attr of Object.values(g.attributes))
+          expect(attr.count).toBe(g.getAttribute("position").count);
+        for (const attr of Object.values(h.attributes))
+          expect(Array.from(attr.array).every(Number.isFinite)).toBe(true);
+        expect(
+          Buffer.from(g.getAttribute("uv").array.buffer).equals(
+            Buffer.from(h.getAttribute("uv").array.buffer),
+          ),
+        ).toBe(true);
+        expect(
+          Buffer.from(g.getAttribute("muscleId").array.buffer).equals(
+            Buffer.from(h.getAttribute("muscleId").array.buffer),
+          ),
+        ).toBe(true);
+        expect(
+          Buffer.from(g.getAttribute("position").array.buffer).equals(
+            Buffer.from(h.getAttribute("position").array.buffer),
+          ),
+        ).toBe(false);
+        g.dispose();
+        h.dispose();
+      }
+    }
+  }, 30_000);
+});
+
+test("joint blend preserves radial distance through partial weights and keeps legacy bending available", async () => {
+  const { blendJoint } = await import("../src/anatomy");
+  const { Vector3 } = await import("three");
+  const pivot = new Vector3(3, 4, 5),
+    axis = new Vector3(0, 0, 1),
+    source = new Vector3(7, 4, 5);
+  for (const w of [0, 0.25, 0.5, 0.75, 1])
+    expect(
+      blendJoint(source.clone(), pivot, axis, Math.PI / 2, w, true).distanceTo(
+        pivot,
+      ),
+    ).toBeCloseTo(4, 8);
+  expect(
+    blendJoint(source.clone(), pivot, axis, Math.PI / 2, 0.5, false).distanceTo(
+      pivot,
+    ),
+  ).toBeCloseTo(Math.sqrt(8), 8);
 });

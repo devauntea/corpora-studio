@@ -11,23 +11,62 @@ import {
 
 export type HumanMeshData = {
   vertices: number[][];
+  muscleColors?: Uint8Array;
+  muscleIds?: Uint8Array;
   parts: number[][];
   joints: Record<
     "L" | "R",
     Record<"shoulder" | "elbow" | "wrist" | "hip" | "knee" | "ankle", number[]>
   >;
 };
-let source: Promise<HumanMeshData> | undefined;
-export const loadHuman = () =>
-  (source ??= fetch("/anatomy/human-v1.json")
-    .then((r) => {
-      if (!r.ok) throw new Error("The bundled human mesh could not load.");
-      return r.json() as Promise<HumanMeshData>;
-    })
-    .catch((e) => {
-      source = undefined;
-      throw e;
-    }));
+const sources = new Map<string, Promise<HumanMeshData>>();
+export function loadHuman(body?: HumanBody): Promise<HumanMeshData> {
+  const name = body?.model ? `human-v2-${body.model.sex}` : "human-v1";
+  if (!sources.has(name))
+    sources.set(
+      name,
+      (async () => {
+        const r = await fetch(`/anatomy/${name}.json`);
+        if (!r.ok) throw new Error("The bundled human mesh could not load.");
+        const meta = await r.json();
+        if (!meta.buffer) return meta as HumanMeshData;
+        const response = await fetch(`/anatomy/${meta.buffer}`);
+        if (!response.ok)
+          throw new Error("The detailed body buffer could not load.");
+        const buffer = await response.arrayBuffer();
+        const floats = new Float32Array(buffer, 0, meta.vertexCount * 12);
+        const indices = new Uint32Array(buffer, meta.vertexCount * 12 * 4);
+        const vertices = Array.from({ length: meta.vertexCount }, (_, i) =>
+          Array.from(floats.subarray(i * 12, i * 12 + 12)),
+        );
+        let offset = 0;
+        const parts = meta.partCounts.map((n: number) => {
+          const p = Array.from(indices.subarray(offset, offset + n));
+          offset += n;
+          return p;
+        });
+        const fieldResponse = await fetch(
+          `/anatomy/muscle-field-v2-${body!.model!.sex}.bin`,
+        );
+        if (!fieldResponse.ok)
+          throw new Error("The muscle atlas could not load.");
+        const field = new Uint8Array(await fieldResponse.arrayBuffer());
+        if (field.length !== meta.vertexCount * 4)
+          throw new Error("The muscle atlas does not match this body.");
+        return {
+          vertices,
+          parts,
+          joints: meta.joints,
+          muscleColors: field.subarray(0, meta.vertexCount * 3),
+          muscleIds: field.subarray(meta.vertexCount * 3),
+        };
+      })().catch((e) => {
+        sources.delete(name);
+        throw e;
+      }),
+    );
+  return sources.get(name)!;
+}
 const zones: SurfaceZone[] = [
   "trunk",
   "left-arm",
@@ -42,61 +81,86 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
   const scale =
     body.length /
     (body.section === "upper-body"
-      ? 5.5
+      ? body.model
+        ? 5.7
+        : 5.5
       : body.section === "full-arm"
         ? 7.9
         : 9.0);
   const points: THREE.Vector3[] = [],
     rests: THREE.Vector3[] = [];
   const joints = data.joints;
+  const isLeg = body.section === "full-leg";
+  const rigs = (
+    [
+      ["L", 6, 1],
+      ["R", 9, -1],
+    ] as const
+  ).map(([side, k, sign]) => {
+    const j = joints[side],
+      shoulder = vector(j.shoulder),
+      elbow = vector(j.elbow),
+      knee = vector(j.knee);
+    const armAxis = elbow.clone().sub(shoulder).normalize();
+    const pose = armPose(body, side === "L" ? "left" : "right");
+    return {
+      k,
+      shoulder,
+      elbow,
+      knee,
+      armAxis,
+      upperLength: elbow.distanceTo(shoulder),
+      flexAxis: isLeg
+        ? new THREE.Vector3(-1, 0, 0)
+        : new THREE.Vector3(armAxis.y, -armAxis.x, 0).normalize(),
+      flex: THREE.MathUtils.degToRad(isLeg ? body.flex : pose.flex),
+      twist: THREE.MathUtils.degToRad(sign * pose.twist),
+      raise: THREE.MathUtils.degToRad(sign * (pose.raise - 20)),
+    };
+  });
+  const zAxis = new THREE.Vector3(0, 0, 1);
   for (const v of data.vertices) {
     const rest = vector(v),
       p = rest.clone().addScaledVector(vector(v.slice(3, 6)), body.muscularity);
     rests.push(rest);
-    for (const [side, k, sign] of [
-      ["L", 6, 1],
-      ["R", 9, -1],
-    ] as const) {
-      const j = joints[side],
-        shoulder = vector(j.shoulder),
-        elbow = vector(j.elbow),
-        knee = vector(j.knee);
-      const armAxis = elbow.clone().sub(shoulder).normalize();
-      const flexAxis = new THREE.Vector3(armAxis.y, -armAxis.x, 0).normalize();
-      const isLeg = body.section === "full-leg";
-      const pose = armPose(body, side === "L" ? "left" : "right");
-      if (!isLeg && pose.twist) {
-        // Rotate the lower arm about its rest axis before elbow and shoulder motion.
-        const spun = p
-          .clone()
-          .sub(elbow)
-          .applyAxisAngle(armAxis, THREE.MathUtils.degToRad(sign * pose.twist))
-          .add(elbow);
-        p.lerp(spun, v[k + 1]);
+    for (const rig of rigs) {
+      const {
+        k,
+        shoulder,
+        elbow,
+        knee,
+        armAxis,
+        flexAxis,
+        flex,
+        twist,
+        raise,
+      } = rig;
+      if (body.model && !isLeg && v[k] > 0.1 && flex > 0) {
+        // Small artistic pose corrective, not a force/skin-strain simulation.
+        const offset = p.clone().sub(shoulder),
+          along = offset.dot(armAxis),
+          t = along / rig.upperLength;
+        const radial = offset.addScaledVector(armAxis, -along);
+        if (t > 0 && t < 1 && radial.z > 0)
+          p.addScaledVector(
+            radial,
+            Math.sin(flex) *
+              0.055 *
+              body.muscularity *
+              Math.exp(-(((t - 0.55) / 0.25) ** 2)) *
+              v[k],
+          );
       }
-      const pivot = isLeg ? knee : elbow;
-      const weight = isLeg ? v[k + 2] : v[k + 1];
-      const q = p
-        .clone()
-        .sub(pivot)
-        .applyAxisAngle(
-          isLeg ? new THREE.Vector3(-1, 0, 0) : flexAxis,
-          THREE.MathUtils.degToRad(isLeg ? body.flex : pose.flex),
-        )
-        .add(pivot);
-      p.lerp(q, weight);
-      // Raise in the frontal plane from the existing relaxed pose. Shoulder weights blend the trunk attachment.
-      if (!isLeg) {
-        const relaxed = p
-          .clone()
-          .sub(shoulder)
-          .applyAxisAngle(
-            new THREE.Vector3(0, 0, 1),
-            sign * THREE.MathUtils.degToRad(pose.raise - 20),
-          )
-          .add(shoulder);
-        p.lerp(relaxed, v[k]);
-      }
+      if (!isLeg) blendJoint(p, elbow, armAxis, twist, v[k + 1], !!body.model);
+      blendJoint(
+        p,
+        isLeg ? knee : elbow,
+        flexAxis,
+        flex,
+        v[k + (isLeg ? 2 : 1)],
+        !!body.model,
+      );
+      if (!isLeg) blendJoint(p, shoulder, zAxis, raise, v[k], !!body.model);
     }
     p.x *= body.build;
     p.z *= body.build;
@@ -135,7 +199,10 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
   const result = selected.map((zone) => {
     const positions: number[] = [],
       uv: number[] = [],
-      ns: number[] = [];
+      ns: number[] = [],
+      colors: number[] = [],
+      restPositions: number[] = [],
+      muscleIds: number[] = [];
     const indices = data.parts[zones.indexOf(zone)];
     const side = zone.startsWith("right") ? "R" : "L",
       j = joints[side];
@@ -156,7 +223,7 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
       if (!arm && !leg)
         return [
           0.5 + Math.atan2(p.x, p.z + 0.15) / (Math.PI * 2),
-          (p.y - 1.5) / 5.5,
+          body.model ? (p.y - 1.2) / 5.7 : (p.y - 1.5) / 5.5,
         ];
       const q = p.clone().sub(start),
         along = q.dot(axis),
@@ -176,6 +243,17 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
       for (let c = 0; c < 3; c++) {
         const i = ids[c];
         positions.push(...points[i].toArray());
+        if (data.muscleColors) {
+          const color = new THREE.Color().setRGB(
+            data.muscleColors[i * 3] / 255,
+            data.muscleColors[i * 3 + 1] / 255,
+            data.muscleColors[i * 3 + 2] / 255,
+            THREE.SRGBColorSpace,
+          );
+          colors.push(color.r, color.g, color.b);
+          restPositions.push(...rests[i].toArray());
+          muscleIds.push(data.muscleIds![i]);
+        }
         ns.push(normals.getX(i), normals.getY(i), normals.getZ(i));
         uv.push(tex[c][0] + (seam && tex[c][0] < 0.5 ? 1 : 0), tex[c][1]);
       }
@@ -184,6 +262,17 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
     g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     g.setAttribute("normal", new THREE.Float32BufferAttribute(ns, 3));
     g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    if (colors.length) {
+      g.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+      g.setAttribute(
+        "restPosition",
+        new THREE.Float32BufferAttribute(restPositions, 3),
+      );
+      g.setAttribute(
+        "muscleId",
+        new THREE.Float32BufferAttribute(muscleIds, 1),
+      );
+    }
     g.computeBoundingSphere();
     return { zone, geometry: g };
   });
@@ -354,10 +443,17 @@ export class HumanSurface {
         geometry,
         new THREE.MeshStandardMaterial({
           map: texture,
+          vertexColors: !!body.model,
           roughness: 0.78,
           side: THREE.DoubleSide,
         }),
       );
+      if (body.model)
+        addSurfaceDetail(
+          mesh.material as THREE.MeshStandardMaterial,
+          body,
+          zone,
+        );
       mesh.userData.zone = zone;
       mesh.castShadow = true;
       mesh.receiveShadow = false;
@@ -373,7 +469,7 @@ export class HumanSurface {
     const key = (p: THREE.Vector3) =>
       p
         .toArray()
-        .map((x) => x.toFixed(2))
+        .map((x) => (body.model ? x.toString() : x.toFixed(2)))
         .join(",");
     for (const { mesh } of this.charts.values()) {
       const p = mesh.geometry.getAttribute("position");
@@ -391,7 +487,8 @@ export class HumanSurface {
         }
     }
     const remaining = [...edges.values()].filter((e) => e.count === 1),
-      capPositions: number[] = [];
+      capPositions: number[] = [],
+      capNormals: number[] = [];
     while (remaining.length) {
       const first = remaining.pop()!,
         loop = [first.a, first.b];
@@ -409,19 +506,35 @@ export class HumanSurface {
         .slice(0, -1)
         .reduce((s, p) => s.add(p), new THREE.Vector3())
         .divideScalar(loop.length - 1);
+      const normal = new THREE.Vector3();
       for (let i = 0; i < loop.length - 1; i++)
+        normal.add(
+          new THREE.Vector3().crossVectors(
+            loop[i].clone().sub(center),
+            loop[i + 1].clone().sub(center),
+          ),
+        );
+      normal.normalize();
+      for (let i = 0; i < loop.length - 1; i++) {
         capPositions.push(
           ...center.toArray(),
           ...loop[i].toArray(),
           ...loop[i + 1].toArray(),
         );
+        for (let c = 0; c < 3; c++) capNormals.push(...normal.toArray());
+      }
     }
     const caps = new THREE.BufferGeometry();
     caps.setAttribute(
       "position",
       new THREE.Float32BufferAttribute(capPositions, 3),
     );
-    caps.computeVertexNormals();
+    if (body.model)
+      caps.setAttribute(
+        "normal",
+        new THREE.Float32BufferAttribute(capNormals, 3),
+      );
+    else caps.computeVertexNormals();
     const cap = new THREE.Mesh(
       caps,
       new THREE.MeshStandardMaterial({
@@ -433,6 +546,28 @@ export class HumanSurface {
     cap.name = "section-caps";
     this.group.add(cap);
   }
+  appearance(body: HumanBody) {
+    for (const { mesh } of this.charts.values()) {
+      const uniforms = (mesh.material as THREE.Material).userData
+        .surfaceUniforms;
+      if (uniforms) {
+        uniforms.anatomyMix.value = body.anatomy
+          ? body.model!.anatomyOpacity
+          : 0;
+        uniforms.skinTint.value.set(body.skin);
+      }
+    }
+    const cap = this.group.getObjectByName("section-caps") as THREE.Mesh<
+      THREE.BufferGeometry,
+      THREE.MeshStandardMaterial
+    >;
+    cap.material.color
+      .set(body.skin)
+      .lerp(
+        new THREE.Color("#bdb7a7"),
+        body.anatomy ? (body.model?.anatomyOpacity ?? 1) : 0,
+      );
+  }
   paint(
     body: HumanBody,
     items: { layer: Layer; image: HTMLCanvasElement; ratio: number }[],
@@ -442,9 +577,13 @@ export class HumanSurface {
         size = canvas.width;
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = "source-over";
-      ctx.fillStyle = body.anatomy ? "#e5e5e5" : body.skin;
+      ctx.fillStyle = body.model
+        ? "#ffffff"
+        : body.anatomy
+          ? "#e5e5e5"
+          : body.skin;
       ctx.fillRect(0, 0, size, size);
-      if (body.anatomy) drawMuscleGuide(ctx, zone, size);
+      if (body.anatomy && !body.model) drawMuscleGuide(ctx, zone, size);
       const chart = humanChartSize(body, zone);
       for (const { layer: l, image, ratio } of items) {
         if (layerZone(body, l) !== zone) continue;
@@ -486,4 +625,83 @@ export class HumanSurface {
       (cap.material as THREE.Material).dispose();
     }
   }
+}
+
+function addSurfaceDetail(
+  material: THREE.MeshStandardMaterial,
+  body: HumanBody,
+  zone: SurfaceZone,
+) {
+  const uniforms = {
+    anatomyMix: { value: body.anatomy ? body.model!.anatomyOpacity : 0 },
+    skinTint: { value: new THREE.Color(body.skin) },
+  };
+  material.userData.surfaceUniforms = uniforms;
+  material.customProgramCacheKey = () => `surface-v2-${zone}`;
+  material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.vertexShader =
+      "attribute vec3 restPosition; attribute float muscleId; varying vec3 vRest; varying float vMuscle;\n" +
+      shader.vertexShader;
+    shader.vertexShader = shader.vertexShader.replace(
+      "#include <begin_vertex>",
+      "#include <begin_vertex>\nvRest = restPosition; vMuscle = muscleId;",
+    );
+    shader.fragmentShader =
+      `varying vec3 vRest; varying float vMuscle; uniform float anatomyMix; uniform vec3 skinTint;
+      float pore(vec3 p) { return sin(p.x*391.0 + sin(p.z*217.0))*sin(p.y*367.0 + sin(p.x*103.0))*0.5; }
+      ` + shader.fragmentShader;
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "#include <color_fragment>",
+      `
+      diffuseColor.rgb *= mix(skinTint, vColor.rgb, anatomyMix);
+      float fiber = vRest.x * 150.0;
+      ${zone.endsWith("arm") ? "fiber = atan(vRest.z - 0.18, abs(vRest.x) - (1.9 + (5.8-vRest.y)*.87)) * 85.0;" : ""}
+      ${zone.endsWith("leg") ? "fiber = atan(vRest.z - 0.15, abs(vRest.x) - (1.12 + (1.15-vRest.y)*.1)) * 95.0;" : ""}
+      if (vMuscle < 0.5) fiber = atan(vRest.y - 5.75, abs(vRest.x) - 2.0) * 220.0;
+      if (vMuscle > 1.5 && vMuscle < 2.5) fiber = (abs(vRest.x) + vRest.y*.65)*100.0;
+      if (vMuscle > 4.5 && vMuscle < 5.5) fiber = atan(vRest.y-5.6,abs(vRest.x)-2.0)*180.0;
+      float striation = pow(0.5+0.5*sin(fiber + 0.12*sin(fiber*.37)), 12.0);
+      float resolvedFiber = 1.0 - smoothstep(0.35, 1.1, fwidth(fiber));
+      float resolvedPore = 1.0 - smoothstep(0.25, 0.9, length(fwidth(vRest)) * 180.0);
+      float detail = 1.0 - anatomyMix * (vMuscle < 200.0 ? striation*.07*resolvedFiber : 0.0);
+      detail += pore(vRest) * .018 * resolvedPore;
+      diffuseColor.rgb *= detail;
+    `,
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "#include <normal_fragment_maps>",
+      `#include <normal_fragment_maps>
+      float microHeight = anatomyMix * (vMuscle < 200.0 ? striation * 0.10 * resolvedFiber : 0.0);
+      microHeight += pore(vRest) * 0.018 * resolvedPore;
+      vec3 tangentX = dFdx(-vViewPosition), tangentY = dFdy(-vViewPosition);
+      vec3 gradientX = cross(tangentY, normal), gradientY = cross(normal, tangentX);
+      float determinant = dot(tangentX, gradientX);
+      vec3 detailGradient = (dFdx(microHeight)*gradientX + dFdy(microHeight)*gradientY) * sign(determinant) / max(abs(determinant), 0.000001);
+      normal = normalize(normal - detailGradient);
+    `,
+    );
+  };
+}
+
+export function blendJoint(
+  p: THREE.Vector3,
+  pivot: THREE.Vector3,
+  axis: THREE.Vector3,
+  angle: number,
+  weight: number,
+  preserveVolume: boolean,
+) {
+  if (weight <= 0 || angle === 0) return p;
+  if (preserveVolume) {
+    const half = angle / 2;
+    const blended =
+      2 *
+      Math.atan2(weight * Math.sin(half), 1 - weight + weight * Math.cos(half));
+    return p.sub(pivot).applyAxisAngle(axis, blended).add(pivot);
+  }
+  return p.lerp(
+    p.clone().sub(pivot).applyAxisAngle(axis, angle).add(pivot),
+    weight,
+  );
 }

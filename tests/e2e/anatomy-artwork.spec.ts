@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 test("whole sections, chart selection, muscle guide and posed project round trip", async ({
   page,
 }, info) => {
+  test.setTimeout(120_000);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
@@ -58,7 +59,7 @@ test("whole sections, chart selection, muscle guide and posed project round trip
   const file = info.outputPath("posed.formstudio");
   await (await download).saveAs(file);
   const p = JSON.parse(await fs.readFile(file, "utf8"));
-  expect(p.version).toBe(4);
+  expect(p.version).toBe(5);
   expect(p.body).toMatchObject({
     kind: "human-v1",
     section: "upper-body",

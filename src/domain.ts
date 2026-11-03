@@ -1,3 +1,4 @@
+import { ProjectSchema as LegacyV4ProjectSchema } from "./legacy-v4";
 import { ProjectSchema as LegacyV2ProjectSchema } from "./legacy-v2";
 import { ProjectSchema as LegacyV3ProjectSchema } from "./legacy-v3";
 import { z } from "zod";
@@ -107,6 +108,15 @@ const HumanBodySchema = z
       .strict()
       .optional(),
     anatomy: z.boolean(),
+    model: z
+      .object({
+        revision: z.literal(2),
+        sex: z.enum(["male", "female"]),
+        physique: z.enum(["fit", "average"]),
+        anatomyOpacity: finite(0, 1),
+      })
+      .strict()
+      .optional(),
     skin: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   })
   .strict();
@@ -252,7 +262,7 @@ export const PhotoSchema = z
 export const ProjectSchema = z
   .object({
     format: z.literal("form-studio"),
-    version: z.literal(4),
+    version: z.literal(5),
     units: z.literal("mm"),
     id: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -324,7 +334,7 @@ export type Asset = Project["assets"][number];
 export function blankProject(): Project {
   return {
     format: "form-studio",
-    version: 4,
+    version: 5,
     units: "mm",
     id: crypto.randomUUID(),
     name: "Untitled composition",
@@ -467,6 +477,11 @@ export async function parseProject(text: string): Promise<Project> {
     const old = LegacyV3ProjectSchema.safeParse(json);
     if (!old.success) throw new Error("Unsupported or damaged v3 project.");
     json = { ...old.data, version: 4 };
+  }
+  if ((json as { version?: number })?.version === 4) {
+    const old = LegacyV4ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Unsupported or damaged v4 project.");
+    json = { ...old.data, version: 5 };
   }
   const result = ProjectSchema.safeParse(json);
   if (!result.success)
@@ -694,7 +709,14 @@ export function humanBody(
     length:
       section === "upper-body" ? 620 : section === "full-arm" ? 760 : 1000,
     build: 1,
-    muscularity: 0.65,
+    muscularity:
+      previous?.kind === "human-v1" && previous.model
+        ? previous.muscularity
+        : 1,
+    model:
+      previous?.kind === "human-v1" && previous.model
+        ? { ...previous.model }
+        : { revision: 2, sex: "male", physique: "fit", anatomyOpacity: 0.85 },
     flex: 0,
     anatomy: false,
   };
@@ -717,7 +739,9 @@ export function humanChartSize(body: HumanBody, zone = bodyZones(body)[0]) {
   const scale =
     body.length /
     (body.section === "upper-body"
-      ? 5.5
+      ? body.model
+        ? 5.7
+        : 5.5
       : body.section === "full-arm"
         ? 7.9
         : 9.0);
@@ -726,7 +750,14 @@ export function humanChartSize(body: HumanBody, zone = bodyZones(body)[0]) {
       (zone === "trunk" ? 9.4 : zone?.endsWith("leg") ? 4.1 : 2.65) *
       scale *
       body.build,
-    height: (zone === "trunk" ? 5.5 : zone?.endsWith("leg") ? 9 : 7.9) * scale,
+    height:
+      (zone === "trunk"
+        ? body.model
+          ? 5.7
+          : 5.5
+        : zone?.endsWith("leg")
+          ? 9
+          : 7.9) * scale,
   };
 }
 

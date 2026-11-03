@@ -1,6 +1,6 @@
 # Dependency inventory
 
-Generated from package-lock.json and Cargo metadata for aarch64-apple-darwin. Lockfiles pin the resolved graph. This inventory includes build/development dependencies; it is a conservative superset of the shipped code. Runtime core dependencies use MIT, Apache-2.0, ISC, or permissive dual licensing. The application does not include Seamly, SMPL, third-party model checkpoints, or any supplied reference imagery.
+Generated from package-lock.json and Cargo metadata for aarch64-apple-darwin. Lockfiles pin the resolved graph. This inventory includes build/development dependencies; it is a conservative superset of the shipped code. Runtime core dependencies use MIT, Apache-2.0, ISC, or permissive dual licensing. The application does not include Seamly, SMPL, third-party model checkpoints, or any supplied reference imagery. Body bases and morph targets derive from MakeHuman CC0 graphical assets. The registered muscle color/identity fields are adapted from Z-Anatomy / BodyParts3D and distributed under CC BY-SA 4.0; their source, modifications, attribution and full license are in assets/anatomy/atlas/.
 
 Full available license texts are in `THIRD_PARTY_NOTICES.txt`, bundled with the Mac application. Some crates put notices in source headers or external license references rather than top-level files; review the missing-file list before public distribution. Windows and other targets require their own notice collection.
 

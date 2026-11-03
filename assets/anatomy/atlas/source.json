@@ -1,0 +1,21 @@
+{
+  "source": "Z-Anatomy / BodyParts3D",
+  "repository": "https://github.com/Z-Anatomy/Models-of-human-anatomy",
+  "revision": "679bc9bf746fdc2671398aa3857a8acff263a0fb",
+  "download": "https://raw.githubusercontent.com/Z-Anatomy/Models-of-human-anatomy/679bc9bf746fdc2671398aa3857a8acff263a0fb/Z-Anatomy.zip",
+  "sha256": "e029688545627bd0214b269e1063143abb580aad72b2c2445d6d8a9a0d9da736",
+  "license": "CC-BY-SA-4.0",
+  "attribution": [
+    "BodyParts3D \u2014 The Database Center for Life Science \u2014 CC-BY-SA 2.1 Japan",
+    "Z-Anatomy \u2014 The libre 3D atlas of anatomy \u2014 CC-BY-SA 4.0",
+    "Original model: Kousaku Okubo; Z-Anatomy design, 3D and anatomy: Gauthier Kervyn and contributors"
+  ],
+  "adaptations": "Selected superficial muscle meshes registered to male/female skin landmarks and projected into a per-vertex color and identity field. Original palette and connective-tissue masks. No source definitions, organs, brain, ear or kidney models included.",
+  "derivedFiles": [
+    "public/anatomy/muscle-field-v2-male.bin",
+    "public/anatomy/muscle-field-v2-male.json",
+    "public/anatomy/muscle-field-v2-female.bin",
+    "public/anatomy/muscle-field-v2-female.json"
+  ],
+  "regeneration": "scripts/bake-muscle-atlas.py; input surfaces from scripts/build-detailed-anatomy.py"
+}

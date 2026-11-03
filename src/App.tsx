@@ -1,3 +1,4 @@
+import { muscleGroups } from "./muscles";
 import { ArtworkStudio } from "./ArtworkStudio";
 import { muscleGuide } from "./anatomy";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
@@ -275,6 +276,7 @@ export function App() {
     },
     [change],
   );
+  const [hoveredMuscle, setHoveredMuscle] = useState<number | undefined>();
   const editBody = (patch: Partial<Body>) =>
     change({ ...project, body: { ...project.body, ...patch } as Body });
 
@@ -316,6 +318,7 @@ export function App() {
           }),
         end: () => dispatch({ type: "commit" }),
         stats: setStats,
+        hoverMuscle: setHoveredMuscle,
         error: (message) => alert(message, true),
       });
       return () => {
@@ -432,7 +435,7 @@ export function App() {
         }
         dispatch({ type: "reset", value: p });
         setSaved(p);
-        setPath(JSON.parse(text).version < 4 ? null : filePath);
+        setPath(JSON.parse(text).version < 5 ? null : filePath);
         setPhotoId(p.photos[0]?.id);
         setWorkspace(p.photos.length ? "photo" : "surface");
         setSelected(
@@ -445,8 +448,8 @@ export function App() {
         scene.current?.view("front", p.body.length);
         setView("front");
         alert(
-          JSON.parse(text).version < 4
-            ? "Legacy project opened without changing placement. Save creates a new v4 copy."
+          JSON.parse(text).version < 5
+            ? "Legacy project opened without changing placement. Save creates a new v5 copy."
             : "Project opened. All original image integrity checks passed.",
         );
       } catch (error) {
@@ -1194,6 +1197,36 @@ export function App() {
                 <small>PNG / JPEG / HEIC on macOS · Kept on this device</small>
               </div>
             ))}
+          {workspace === "surface" &&
+            project.body.kind === "human-v1" &&
+            project.body.model &&
+            project.body.anatomy &&
+            hoveredMuscle !== undefined &&
+            muscleGroups[hoveredMuscle] && (
+              <div className="anatomy-caption">
+                <span
+                  className="muscle-dot"
+                  style={{
+                    background:
+                      hoveredMuscle !== undefined && muscleGroups[hoveredMuscle]
+                        ? muscleGroups[hoveredMuscle].color
+                        : "#c4b7a4",
+                  }}
+                />
+                <div>
+                  <strong>
+                    {hoveredMuscle !== undefined && muscleGroups[hoveredMuscle]
+                      ? muscleGroups[hoveredMuscle].name
+                      : "Muscle anatomy"}
+                  </strong>
+                  <small>
+                    {hoveredMuscle !== undefined && muscleGroups[hoveredMuscle]
+                      ? muscleGroups[hoveredMuscle].flow
+                      : "Point at a muscle to identify its group and flow."}
+                  </small>
+                </div>
+              </div>
+            )}
           <div className="viewport-heading">
             <div>
               <span className="eyebrow">SURFACE STUDY / 001</span>
@@ -1240,6 +1273,29 @@ export function App() {
               <Maximize size={18} />
             </IconButton>
           </div>
+          {workspace === "surface" &&
+            project.body.kind === "human-v1" &&
+            project.body.model && (
+              <div
+                className="surface-filter segmented"
+                aria-label="Surface filter"
+              >
+                <button
+                  aria-pressed={!project.body.anatomy}
+                  className={!project.body.anatomy ? "active" : ""}
+                  onClick={() => editBody({ anatomy: false })}
+                >
+                  Skin
+                </button>
+                <button
+                  aria-pressed={project.body.anatomy}
+                  className={project.body.anatomy ? "active" : ""}
+                  onClick={() => editBody({ anatomy: true })}
+                >
+                  Muscles
+                </button>
+              </div>
+            )}
           <div className="axis-indicator">
             <span className="axis-y">Y</span>
             <span className="axis-z">Z</span>
@@ -1724,7 +1780,7 @@ export function App() {
                     {project.body.kind === "forearm-v1"
                       ? "FOREARM / V1"
                       : project.body.kind === "human-v1"
-                        ? "ANATOMICAL SURFACE / V1"
+                        ? "ANATOMICAL SURFACE"
                         : "LEGACY REGION / V1"}
                   </span>
                 </div>
@@ -1798,7 +1854,7 @@ export function App() {
                     (project.body.kind === "human-v1" &&
                       project.body.section === "upper-body")
                   ) && (
-                    <div className="segmented">
+                    <div className="segmented" aria-label="Body side">
                       {(["left", "right"] as const).map((side) => (
                         <button
                           className={project.body.side === side ? "active" : ""}
@@ -1844,6 +1900,77 @@ export function App() {
                     />
                     {project.body.kind === "human-v1" ? (
                       <>
+                        <div className="section-label">
+                          <span>BODY LIBRARY</span>
+                        </div>
+                        {!project.body.model && (
+                          <p className="field-note">
+                            Original surface preserved. Choose a new body below
+                            to move to the detailed model.
+                          </p>
+                        )}
+                        <div className="segmented" aria-label="Body type">
+                          {(["male", "female"] as const).map((sex) => (
+                            <button
+                              key={sex}
+                              className={
+                                project.body.kind === "human-v1" &&
+                                project.body.model?.sex === sex
+                                  ? "active"
+                                  : ""
+                              }
+                              onClick={() => {
+                                if (project.body.kind !== "human-v1") return;
+                                editBody({
+                                  model: {
+                                    revision: 2,
+                                    sex,
+                                    physique:
+                                      project.body.model?.physique ?? "fit",
+                                    anatomyOpacity:
+                                      project.body.model?.anatomyOpacity ??
+                                      0.85,
+                                  },
+                                });
+                              }}
+                            >
+                              {sex === "male" ? "Male" : "Female"}
+                            </button>
+                          ))}
+                        </div>
+                        <div
+                          className="segmented"
+                          aria-label="Body build preset"
+                        >
+                          {(["fit", "average"] as const).map((physique) => (
+                            <button
+                              key={physique}
+                              className={
+                                project.body.kind === "human-v1" &&
+                                project.body.model?.physique === physique
+                                  ? "active"
+                                  : ""
+                              }
+                              onClick={() => {
+                                if (project.body.kind !== "human-v1") return;
+                                editBody({
+                                  muscularity: physique === "fit" ? 1 : 0,
+                                  build: 1,
+                                  model: {
+                                    revision: 2,
+                                    sex: project.body.model?.sex ?? "male",
+                                    physique,
+                                    anatomyOpacity:
+                                      project.body.model?.anatomyOpacity ??
+                                      0.85,
+                                  },
+                                });
+                              }}
+                            >
+                              {physique === "fit" ? "Fit" : "Average"}
+                            </button>
+                          ))}
+                        </div>
                         <NumberField
                           label="Build"
                           value={project.body.build * 100}
@@ -1882,6 +2009,27 @@ export function App() {
                             })
                           }
                         />
+                        {project.body.model && project.body.anatomy && (
+                          <NumberField
+                            label="Anatomy filter opacity"
+                            value={project.body.model.anatomyOpacity * 100}
+                            min={0}
+                            max={100}
+                            unit="%"
+                            onChange={(v) => {
+                              if (
+                                project.body.kind === "human-v1" &&
+                                project.body.model
+                              )
+                                editBody({
+                                  model: {
+                                    ...project.body.model,
+                                    anatomyOpacity: v / 100,
+                                  },
+                                });
+                            }}
+                          />
+                        )}
                         {project.body.section === "upper-body" && (
                           <div className="segmented" aria-label="Arm to pose">
                             {(["left", "right"] as const).map((side) => (
@@ -1949,22 +2097,48 @@ export function App() {
                         </div>
                         {project.body.anatomy && (
                           <div className="muscle-legend">
-                            {muscleGuide[project.body.section].map(
-                              ([name, flow]) => (
-                                <div key={name}>
-                                  <strong>{name}</strong>
-                                  <small>{flow}</small>
-                                </div>
-                              ),
-                            )}
+                            {project.body.model
+                              ? muscleGroups
+                                  .filter(
+                                    (_, i) =>
+                                      project.body.kind === "human-v1" &&
+                                      (project.body.section === "full-arm"
+                                        ? i >= 8 && i <= 21
+                                        : project.body.section === "full-leg"
+                                          ? i >= 22 && i <= 33
+                                          : i <= 21 || i >= 34),
+                                  )
+                                  .map((g) => (
+                                    <div key={g.name}>
+                                      <strong>
+                                        <span
+                                          className="muscle-dot"
+                                          style={{ background: g.color }}
+                                        />
+                                        {g.name}
+                                      </strong>
+                                      <small>{g.flow}</small>
+                                    </div>
+                                  ))
+                              : muscleGuide[project.body.section].map(
+                                  ([name, flow]) => (
+                                    <div key={name}>
+                                      <strong>{name}</strong>
+                                      <small>{flow}</small>
+                                    </div>
+                                  ),
+                                )}
                           </div>
                         )}
                         <p className="field-note">
                           {project.body.section === "upper-body" &&
                             "Pose each arm independently. Use Fit model to frame a raised pose. "}
-                          Schematic superficial muscle guide. Motion bends the
-                          mesh and attached ink; it does not calculate muscle
-                          contraction or skin strain.
+                          {project.body.model
+                            ? "Registered superficial muscle map. Colors identify muscle groups; point at the model for names and flow. "
+                            : "Schematic superficial muscle guide. "}
+                          Posing shows the surface and ink moving together. It
+                          does not simulate individual muscle contraction or
+                          skin strain.
                         </p>
                       </>
                     ) : project.body.kind === "forearm-v1" ? (
@@ -2104,10 +2278,10 @@ export function App() {
             title="Toggle rendering diagnostics"
           >
             {showStats
-              ? `p95 ${stats.p95.toFixed(1)} ms · ${stats.frames} frames · ${stats.triangles.toLocaleString()} triangles`
+              ? `Orbit p95 ${stats.p95.toFixed(1)} ms · ${stats.frames} frames · ${stats.triangles.toLocaleString()} triangles`
               : "WebGL 2 · Surface mapping"}
           </button>
-          <span className="status-separator">/</span>FORM STUDIO 0.4
+          <span className="status-separator">/</span>FORM STUDIO 0.5
         </span>
       </footer>
       {notice && (
@@ -2208,8 +2382,9 @@ export function App() {
                 <ShieldCheck size={16} /> In this build
               </span>
               <p>
-                Complete arms, upper bodies and legs, independent arm poses,
-                image cleanup and photo protection masks are available. Personal
+                Fit and average male and female bodies, complete arms and legs,
+                a colored muscle filter, independent arm poses, image cleanup
+                and photo protection masks are available. Personal
                 reconstruction and fashion drafting remain later phases.
               </p>
               <p>
@@ -2217,6 +2392,23 @@ export function App() {
                 the desktop application.
               </p>
             </div>
+            <details className="model-credits">
+              <summary>Body and anatomy credits</summary>
+              <p>
+                Body surfaces adapt MakeHuman core graphical assets (CC0), with
+                additional surface detail. The muscle map adapts Z-Anatomy /
+                BodyParts3D — The Database Center for Life Science, with
+                registration, color and connective-tissue changes (CC BY-SA
+                4.0). Original BodyParts3D model: Kousaku Okubo; Z-Anatomy:
+                Gauthier Kervyn and contributors.
+              </p>
+              <p>
+                Source: github.com/Z-Anatomy/Models-of-human-anatomy. License:
+                creativecommons.org/licenses/by-sa/4.0/. Full notices are
+                bundled with the app. Reviews exported with the muscle filter
+                include attribution.
+              </p>
+            </details>
             <button
               className="primary"
               autoFocus

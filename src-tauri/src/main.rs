@@ -31,7 +31,11 @@ fn validate_envelope(content: &str) -> Result<(), String> {
     let v: serde_json::Value =
         serde_json::from_str(content).map_err(|_| "Invalid project JSON.")?;
     if v["format"] != "form-studio"
-        || (v["version"] != 1 && v["version"] != 2 && v["version"] != 3 && v["version"] != 4)
+        || (v["version"] != 1
+            && v["version"] != 2
+            && v["version"] != 3
+            && v["version"] != 4
+            && v["version"] != 5)
     {
         return Err("Unsupported project format or version.".into());
     }
@@ -389,5 +393,6 @@ mod tests {
         assert!(validate_envelope(r#"{"format":"form-studio","version":2}"#).is_ok());
         assert!(validate_envelope(r#"{"format":"form-studio","version":3}"#).is_ok());
         assert!(validate_envelope(r#"{"format":"form-studio","version":4}"#).is_ok());
+        assert!(validate_envelope(r#"{"format":"form-studio","version":5}"#).is_ok());
     }
 }

@@ -20,7 +20,14 @@ export type SceneEvents = {
   end: () => void;
   stats: (stats: { p95: number; frames: number; triangles: number }) => void;
   error: (message: string) => void;
+  hoverMuscle?: (id: number | undefined) => void;
 };
+function geometryKey(body: Body) {
+  if (body.kind !== "human-v1" || !body.model) return JSON.stringify(body);
+  const { skin: _skin, anatomy: _anatomy, model, ...shape } = body;
+  const { anatomyOpacity: _opacity, ...modelShape } = model;
+  return JSON.stringify({ ...shape, model: modelShape });
+}
 export function forearmGeometry(body: Body) {
   const positions: number[] = [],
     uvs: number[] = [],
@@ -78,7 +85,7 @@ export function frameBounds(
       size.y / (2 * tan),
       (side ? size.z : size.x) / (2 * tan * aspect),
     ) *
-      1.2 +
+      1.32 +
     (side ? size.x : size.z) / 2;
   const direction = new THREE.Vector3(
     view === "left" ? -1 : view === "right" ? 1 : 0,
@@ -117,6 +124,7 @@ export class StudioScene {
   paintVersion = 0;
   disposed = false;
   active = true;
+  needsRender = true;
   ray = new THREE.Raycaster();
   floor: THREE.Mesh;
   grid: THREE.GridHelper;
@@ -138,7 +146,7 @@ export class StudioScene {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.25;
+    this.renderer.toneMappingExposure = 1.05;
     this.renderer.domElement.setAttribute(
       "aria-label",
       "Interactive 3D body surface. Use the Place tool to position artwork, or Orbit to rotate the view.",
@@ -155,8 +163,8 @@ export class StudioScene {
     this.controls.minPolarAngle = Math.PI * 0.12;
     this.controls.target.set(0, 0, 0);
     this.controls.update();
-    this.scene.add(new THREE.HemisphereLight("#ffffff", "#5b5b5b", 2.0));
-    const key = new THREE.DirectionalLight("#ffffff", 3.0);
+    this.scene.add(new THREE.HemisphereLight("#ffffff", "#777777", 1.15));
+    const key = new THREE.DirectionalLight("#ffffff", 2.2);
     key.position.set(-180, 300, 300);
     key.castShadow = true;
     key.shadow.mapSize.set(2048, 2048);
@@ -166,7 +174,7 @@ export class StudioScene {
     key.shadow.camera.bottom = -230;
     key.shadow.bias = -0.0008;
     this.scene.add(key);
-    const fill = new THREE.DirectionalLight("#ffffff", 1.1);
+    const fill = new THREE.DirectionalLight("#ffffff", 0.75);
     fill.position.set(180, 20, -150);
     this.scene.add(fill);
     this.canvas.width = this.canvas.height = ATLAS;
@@ -210,7 +218,18 @@ export class StudioScene {
       this.events.begin();
       this.events.move(hit.x, hit.y, hit.zone);
     };
+    let lastHover = 0;
+    const leave = () => this.events.hoverMuscle?.(undefined);
     const move = (e: PointerEvent) => {
+      if (
+        this.project?.body.kind === "human-v1" &&
+        this.project.body.model &&
+        this.project.body.anatomy &&
+        performance.now() - lastHover > 80
+      ) {
+        lastHover = performance.now();
+        this.events.hoverMuscle?.(this.hit(e)?.muscle);
+      }
       if (this.dragging) {
         const h = this.hit(e);
         if (h) this.events.move(h.x, h.y, h.zone);
@@ -232,12 +251,14 @@ export class StudioScene {
     el.addEventListener("pointermove", move);
     el.addEventListener("pointerup", up);
     el.addEventListener("pointercancel", up);
+    el.addEventListener("pointerleave", leave);
     el.addEventListener("webglcontextlost", lost);
     this.cleanups.push(() => {
       el.removeEventListener("pointerdown", down);
       el.removeEventListener("pointermove", move);
       el.removeEventListener("pointerup", up);
       el.removeEventListener("pointercancel", up);
+      el.removeEventListener("pointerleave", leave);
       el.removeEventListener("webglcontextlost", lost);
     });
     this.frame = requestAnimationFrame(this.animate);
@@ -248,22 +269,25 @@ export class StudioScene {
     this.renderer.setSize(width, height);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
+    this.needsRender = true;
   }
   animate = (time: number) => {
     if (this.disposed) return;
-    if (this.lastFrame && document.visibilityState === "visible") {
-      const dt = time - this.lastFrame;
-      this.frameTimes.push(dt);
-      if (this.frameTimes.length > 600) this.frameTimes.shift();
-    }
-    this.lastFrame = time;
-    if (!this.active) {
+    if (!this.active || document.visibilityState !== "visible") {
       this.lastFrame = 0;
       this.frame = requestAnimationFrame(this.animate);
       return;
     }
-    this.controls.update();
-    this.renderer.render(this.scene, this.camera);
+    const cameraChanged = this.controls.update();
+    if (cameraChanged || this.needsRender) {
+      if (cameraChanged && this.lastFrame) {
+        this.frameTimes.push(time - this.lastFrame);
+        if (this.frameTimes.length > 600) this.frameTimes.shift();
+      }
+      this.lastFrame = time;
+      this.renderer.render(this.scene, this.camera);
+      this.needsRender = false;
+    } else this.lastFrame = 0;
     if (time - this.lastStats > 1000) {
       const sorted = [...this.frameTimes].sort((a, b) => a - b);
       this.events.stats({
@@ -290,6 +314,11 @@ export class StudioScene {
     )[0];
     return hit?.uv
       ? {
+          muscle: hit.face
+            ? (hit.object as THREE.Mesh).geometry
+                .getAttribute("muscleId")
+                ?.getX(hit.face.a)
+            : undefined,
           x: hit.uv.x,
           y: hit.uv.y,
           zone: hit.object.userData.zone as SurfaceZone | undefined,
@@ -339,9 +368,10 @@ export class StudioScene {
   }
   async update(project: Project) {
     const version = ++this.paintVersion;
+    this.events.hoverMuscle?.(undefined);
     const humanData =
       project.body.kind === "human-v1"
-        ? await loadHuman().catch((e) => {
+        ? await loadHuman(project.body).catch((e) => {
             this.events.error(String(e));
             return null;
           })
@@ -350,7 +380,7 @@ export class StudioScene {
       return false;
     if (
       !this.project ||
-      JSON.stringify(this.project.body) !== JSON.stringify(project.body)
+      geometryKey(this.project.body) !== geometryKey(project.body)
     ) {
       const reframe =
         !this.project ||
@@ -410,6 +440,8 @@ export class StudioScene {
           project.body.length,
         );
     }
+    if (project.body.kind === "human-v1" && project.body.model)
+      this.human?.appearance(project.body);
     this.project = project;
     try {
       const items: { layer: Layer; image: HTMLCanvasElement; ratio: number }[] =
@@ -428,6 +460,8 @@ export class StudioScene {
       if (this.disposed || version !== this.paintVersion) return false;
       if (project.body.kind === "human-v1" && this.human) {
         this.human.paint(project.body, items);
+        this.renderer.render(this.scene, this.camera);
+        this.host.dataset.renderedBody = JSON.stringify(project.body);
         this.ink.prune(
           project.assets,
           project.layers.filter((l) => !l.photoId && l.visible),
@@ -464,6 +498,7 @@ export class StudioScene {
         }
       }
       this.texture.needsUpdate = true;
+      this.needsRender = true;
       this.ink.prune(
         project.assets,
         project.layers.filter((l) => !l.photoId && l.visible),
@@ -513,8 +548,26 @@ export class StudioScene {
     x.fillText(
       "Approximate model · Visual composition only · Not a validated tattoo stencil",
       80,
-      1754,
+      1746,
     );
+    if (
+      project.body.kind === "human-v1" &&
+      project.body.model &&
+      project.body.anatomy &&
+      project.body.model.anatomyOpacity > 0
+    ) {
+      x.font = "15px sans-serif";
+      x.fillText(
+        "Muscle map adapted from Z-Anatomy / BodyParts3D — The Database Center for Life Science · CC BY-SA 4.0",
+        80,
+        1773,
+      );
+      x.fillText(
+        "github.com/Z-Anatomy/Models-of-human-anatomy · creativecommons.org/licenses/by-sa/4.0/",
+        80,
+        1793,
+      );
+    }
     return c.toDataURL("image/png");
   }
   dispose() {
