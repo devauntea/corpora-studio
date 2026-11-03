@@ -1,3 +1,4 @@
+import { ProjectSchema as LegacyV2ProjectSchema } from "./legacy-v2";
 import { z } from "zod";
 
 const finite = (min: number, max: number) =>
@@ -74,8 +75,65 @@ const LegacyProjectSchema = z
         });
   });
 export const regions = ["upper-arm", "calf", "thigh", "torso"] as const;
+export const humanSections = ["full-arm", "upper-body", "full-leg"] as const;
+export const surfaceZones = [
+  "trunk",
+  "left-arm",
+  "right-arm",
+  "left-leg",
+  "right-leg",
+] as const;
+export type SurfaceZone = (typeof surfaceZones)[number];
+const HumanBodySchema = z
+  .object({
+    kind: z.literal("human-v1"),
+    section: z.enum(humanSections),
+    side: z.enum(["left", "right"]),
+    length: finite(350, 1300),
+    build: finite(0.75, 1.35),
+    muscularity: finite(0, 1),
+    flex: finite(0, 110),
+    anatomy: z.boolean(),
+    skin: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  })
+  .strict();
+export const ArtworkEditsSchema = z
+  .object({
+    background: z.enum(["none", "white", "black", "color"]),
+    color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+    tolerance: finite(0, 180),
+    feather: finite(1, 100),
+    grayscale: z.boolean(),
+    contrast: finite(0.25, 3),
+    strokes: z
+      .array(
+        z
+          .object({
+            mode: z.enum(["erase", "restore"]),
+            radius: finite(0.001, 0.2),
+            points: z
+              .array(z.tuple([finite(0, 1), finite(0, 1)]))
+              .min(1)
+              .max(2000),
+          })
+          .strict(),
+      )
+      .max(200),
+  })
+  .strict();
+export type ArtworkEdits = z.infer<typeof ArtworkEditsSchema>;
+export const cleanArtwork = (): ArtworkEdits => ({
+  background: "none",
+  color: "#ffffff",
+  tolerance: 30,
+  feather: 20,
+  grayscale: false,
+  contrast: 1,
+  strokes: [],
+});
 export const BodySchema = z.discriminatedUnion("kind", [
   LegacyBodySchema,
+  HumanBodySchema,
   z
     .object({
       kind: z.literal("region-v1"),
@@ -106,11 +164,13 @@ const AssetSchema = LegacyAssetSchema.extend({
     .regex(/^[a-f0-9]{64}$/)
     .optional(),
   role: z.enum(["artwork", "body"]).optional(),
+  edits: ArtworkEditsSchema.optional(),
 }).superRefine((a, c) => {
   if ((a.mime === "image/heic") !== Boolean(a.preview && a.previewSha256))
     c.addIssue({ code: "custom", message: "HEIC preview required" });
 });
 export const LayerSchema = LegacyLayerSchema.extend({
+  zone: z.enum(surfaceZones).optional(),
   locked: z.boolean().optional(),
   flipX: z.boolean().optional(),
   flipY: z.boolean().optional(),
@@ -159,7 +219,7 @@ export const PhotoSchema = z
 export const ProjectSchema = z
   .object({
     format: z.literal("form-studio"),
-    version: z.literal(2),
+    version: z.literal(3),
     units: z.literal("mm"),
     id: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -179,6 +239,16 @@ export const ProjectSchema = z
       ) > 80_000
     )
       issue("Protection mask exceeds 80,000 points");
+    if (p.assets.some((a) => a.role === "body" && a.edits))
+      issue("Artwork edits cannot be applied to body photographs");
+    if (
+      p.assets.reduce(
+        (n, a) =>
+          n + (a.edits?.strokes.reduce((n, s) => n + s.points.length, 0) ?? 0),
+        0,
+      ) > 80_000
+    )
+      issue("Artwork masks exceed 80,000 points");
     const ids = new Set(p.assets.map((a) => a.id)),
       photoIds = new Set(p.photos.map((a) => a.id));
     if (
@@ -221,7 +291,7 @@ export type Asset = Project["assets"][number];
 export function blankProject(): Project {
   return {
     format: "form-studio",
-    version: 2,
+    version: 3,
     units: "mm",
     id: crypto.randomUUID(),
     name: "Untitled composition",
@@ -243,6 +313,7 @@ export const wrap = (n: number) => ((n % 1) + 1) % 1;
 export const clamp = (n: number, min: number, max: number) =>
   Math.min(max, Math.max(min, n));
 export function circumference(body: Body, v: number) {
+  if (body.kind === "human-v1") return humanChartSize(body).width;
   if (body.kind === "region-v1")
     return (
       body.distal +
@@ -289,6 +360,8 @@ export function surfacePoint(
   u: number,
   v: number,
 ): [number, number, number] {
+  if (body.kind === "human-v1")
+    throw new Error("Human sections use the indexed anatomical mesh.");
   if (body.kind === "region-v1") return regionPoint(body, u, v);
   const theta = surfaceAngle(u);
   const b = circumference(body, v) / ellipsePerimeter;
@@ -300,6 +373,16 @@ export function surfacePoint(
   ];
 }
 export function placementSize(body: Body, layer: Layer, asset: Asset) {
+  if (body.kind === "human-v1") {
+    const chart = humanChartSize(body, layerZone(body, layer));
+    return {
+      u: layer.width / chart.width,
+      v:
+        (layer.width * asset.height * (layer.stretch ?? 1)) /
+        asset.width /
+        chart.height,
+    };
+  }
   return {
     u: layer.width / circumference(body, layer.v),
     v:
@@ -345,6 +428,11 @@ export async function parseProject(text: string): Promise<Project> {
     const old = LegacyProjectSchema.safeParse(json);
     if (!old.success) throw new Error("Unsupported or damaged legacy project.");
     json = { ...old.data, version: 2, photos: [] };
+  }
+  if ((json as { version?: number })?.version === 2) {
+    const old = LegacyV2ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Unsupported or damaged v2 project.");
+    json = { ...old.data, version: 3 };
   }
   const result = ProjectSchema.safeParse(json);
   if (!result.success)
@@ -432,6 +520,10 @@ export function historyReducer<T>(
 }
 
 export function bodyLabel(body: Body) {
+  if (body.kind === "human-v1")
+    return body.section === "upper-body"
+      ? "Upper body"
+      : `${body.side === "left" ? "Left" : "Right"} ${body.section === "full-arm" ? "full arm" : "full leg"}`;
   return body.kind === "forearm-v1"
     ? `${body.side === "left" ? "Left" : "Right"} forearm`
     : body.region === "torso"
@@ -552,5 +644,54 @@ export function layerForPhoto(asset: Asset, photoId?: string): Layer {
     ...(photoId
       ? { photoId, photo: { x: 0.5, y: 0.5, width: 0.25, skew: 0 } }
       : {}),
+  };
+}
+
+export type HumanBody = z.infer<typeof HumanBodySchema>;
+export function humanBody(
+  section: HumanBody["section"],
+  previous?: Body,
+): HumanBody {
+  return {
+    kind: "human-v1",
+    section,
+    side: previous?.side ?? "left",
+    skin: previous?.skin ?? "#d4d0cb",
+    length:
+      section === "upper-body" ? 620 : section === "full-arm" ? 760 : 1000,
+    build: 1,
+    muscularity: 0.65,
+    flex: 0,
+    anatomy: false,
+  };
+}
+export function bodyZones(body: Body): SurfaceZone[] {
+  if (body.kind !== "human-v1") return [];
+  if (body.section === "upper-body") return ["trunk", "left-arm", "right-arm"];
+  return [
+    `${body.side}-${body.section === "full-arm" ? "arm" : "leg"}` as SurfaceZone,
+  ];
+}
+export function layerZone(body: Body, layer: Layer): SurfaceZone {
+  const zones = bodyZones(body);
+  return layer.zone && zones.includes(layer.zone)
+    ? layer.zone
+    : (zones[0] ?? "trunk");
+}
+// Nominal chart sizes scale with the template. They are not tape measurements.
+export function humanChartSize(body: HumanBody, zone = bodyZones(body)[0]) {
+  const scale =
+    body.length /
+    (body.section === "upper-body"
+      ? 5.5
+      : body.section === "full-arm"
+        ? 7.9
+        : 9.0);
+  return {
+    width:
+      (zone === "trunk" ? 9.4 : zone?.endsWith("leg") ? 4.1 : 2.65) *
+      scale *
+      body.build,
+    height: (zone === "trunk" ? 5.5 : zone?.endsWith("leg") ? 9 : 7.9) * scale,
   };
 }

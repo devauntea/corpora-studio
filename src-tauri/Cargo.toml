@@ -1,6 +1,6 @@
 [package]
 name = "form-studio"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "Local 3D tattoo composition workspace"
 

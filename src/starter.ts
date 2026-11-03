@@ -1,5 +1,5 @@
 import { assetFromFile } from "./io";
-import { blankProject, newLayer } from "./domain";
+import { blankProject, newLayer, humanBody } from "./domain";
 
 // Original vector-like study drawn locally. No reference photographs are bundled.
 export async function starterProject() {
@@ -77,6 +77,7 @@ export async function starterProject() {
     new File([blob], "Solar botanical.png", { type: "image/png" }),
   );
   const p = blankProject();
+  p.body = humanBody("full-arm");
   p.name = "Solar study";
   p.assets = [asset];
   p.layers = [{ ...newLayer(asset), width: 95, v: 0.5 }];

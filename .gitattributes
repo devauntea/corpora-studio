@@ -1,2 +1,6 @@
 # Preserve upstream license text exactly as distributed.
-THIRD_PARTY_NOTICES.txt -whitespace linguist-vendored
+THIRD_PARTY_NOTICES.txt -whitespace linguist-vendored conflict-marker-size=32
+
+# Upstream Markdown license headings include seven equals signs.
+assets/anatomy/source/* -whitespace linguist-vendored conflict-marker-size=32
+public/anatomy/*.json linguist-generated

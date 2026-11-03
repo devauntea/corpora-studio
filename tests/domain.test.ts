@@ -164,7 +164,7 @@ describe("expanded project compatibility", () => {
       ),
     );
     const p = await parseProject(JSON.stringify(old));
-    expect(p.version).toBe(2);
+    expect(p.version).toBe(3);
     expect(p.photos).toEqual([]);
     expect(p.assets).toEqual(old.assets);
     expect(p.body).toEqual(old.body);
@@ -267,5 +267,113 @@ describe("region templates", () => {
       );
       g.dispose();
     }
+  });
+});
+
+describe("anatomical sections and image recipes", () => {
+  test("v2 migrates without changing existing geometry, masks, placements or source bytes", async () => {
+    const p = await fixture();
+    const old = { ...p, version: 2 };
+    const next = await parseProject(JSON.stringify(old));
+    expect(next).toEqual({ ...old, version: 3 });
+    await expect(
+      parseProject(
+        JSON.stringify({ ...old, body: { ...old.body, kind: "human-v1" } }),
+      ),
+    ).rejects.toThrow();
+  });
+  test("v3 preserves anatomical settings and nondestructive strokes; budgets reject malformed edits", async () => {
+    const { humanBody, cleanArtwork } = await import("../src/domain");
+    const p = await fixture();
+    p.body = { ...humanBody("upper-body"), flex: 90, anatomy: true };
+    p.layers[0].zone = "left-arm";
+    p.assets[0].edits = {
+      ...cleanArtwork(),
+      background: "white",
+      strokes: [
+        {
+          mode: "erase",
+          radius: 0.02,
+          points: [
+            [0.2, 0.3],
+            [0.3, 0.4],
+          ],
+        },
+        { mode: "restore", radius: 0.03, points: [[0.22, 0.32]] },
+      ],
+    };
+    expect(await parseProject(JSON.stringify(p))).toEqual(p);
+    p.assets[0].edits.strokes[0].points[0] = [-0.1, 0.2];
+    await expect(parseProject(JSON.stringify(p))).rejects.toThrow();
+    p.assets[0].edits.strokes[0].points[0] = [0.1, 0.2];
+    p.assets[0].role = "body";
+    await expect(parseProject(JSON.stringify(p))).rejects.toThrow();
+  });
+  test("background keying keeps saturated detail, provides feathered alpha, and supports arbitrary colors", async () => {
+    const { backgroundAlpha } = await import("../src/artwork");
+    const { cleanArtwork } = await import("../src/domain");
+    const e = {
+      ...cleanArtwork(),
+      background: "white" as const,
+      tolerance: 20,
+      feather: 20,
+    };
+    expect(backgroundAlpha(255, 255, 255, e)).toBe(0);
+    expect(backgroundAlpha(0, 0, 0, e)).toBe(1);
+    expect(backgroundAlpha(255, 255, 0, e)).toBe(1);
+    expect(backgroundAlpha(225, 225, 225, e)).toBe(0.5);
+    expect(
+      backgroundAlpha(18, 52, 86, {
+        ...e,
+        background: "color",
+        color: "#123456",
+      }),
+    ).toBe(0);
+  });
+  test("complete sections have stable UVs under flex and build changes; matching left/right silhouettes", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const { humanGeometries } = await import("../src/anatomy");
+    const { humanBody } = await import("../src/domain");
+    const data = JSON.parse(
+      await readFile(
+        new URL("../public/anatomy/human-v1.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    for (const section of ["full-arm", "upper-body", "full-leg"] as const) {
+      const body = humanBody(section),
+        relaxed = humanGeometries(data, body),
+        bent = humanGeometries(data, { ...body, flex: 90, build: 1.2 });
+      expect(relaxed.length).toBe(section === "upper-body" ? 3 : 1);
+      for (let i = 0; i < relaxed.length; i++) {
+        const a = relaxed[i].geometry,
+          b = bent[i].geometry;
+        expect(a.getAttribute("position").count).toBeGreaterThan(20_000);
+        expect([...a.getAttribute("uv").array]).toEqual([
+          ...b.getAttribute("uv").array,
+        ]);
+        expect([...a.getAttribute("position").array]).not.toEqual([
+          ...b.getAttribute("position").array,
+        ]);
+        expect([...b.getAttribute("normal").array].every(Number.isFinite)).toBe(
+          true,
+        );
+        a.dispose();
+        b.dispose();
+      }
+    }
+    const left = humanGeometries(data, humanBody("full-arm"))[0].geometry,
+      right = humanGeometries(data, {
+        ...humanBody("full-arm"),
+        side: "right",
+      })[0].geometry;
+    left.computeBoundingBox();
+    right.computeBoundingBox();
+    expect(left.boundingBox!.max.y - left.boundingBox!.min.y).toBeCloseTo(
+      right.boundingBox!.max.y - right.boundingBox!.min.y,
+      1,
+    );
+    left.dispose();
+    right.dispose();
   });
 });

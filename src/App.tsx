@@ -1,3 +1,5 @@
+import { ArtworkStudio } from "./ArtworkStudio";
+import { muscleGuide } from "./anatomy";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
@@ -40,6 +42,12 @@ import {
   bodyLabel,
   regionBody,
   regions,
+  humanBody,
+  humanChartSize,
+  humanSections,
+  bodyZones,
+  layerZone,
+  type SurfaceZone,
   imageSource,
   artworkAssets,
   layerForPhoto,
@@ -207,6 +215,7 @@ export function App() {
     error?: boolean;
   } | null>(null);
   const [help, setHelp] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<string>();
   const [pending, setPending] = useState<(() => void) | null>(null);
   const [stats, setStats] = useState({ p95: 0, frames: 0, triangles: 0 });
   const [showStats, setShowStats] = useState(false);
@@ -235,6 +244,10 @@ export function App() {
       : !l.photoId,
   );
   const asset = project.assets.find((a) => a.id === layer?.assetId);
+  const placementHeight =
+    project.body.kind === "human-v1" && layer
+      ? humanChartSize(project.body, layerZone(project.body, layer)).height
+      : project.body.length;
   const alert = useCallback(
     (text: string, error = false) => setNotice({ text, error }),
     [],
@@ -292,7 +305,12 @@ export function App() {
     try {
       scene.current = new StudioScene(stage.current, {
         begin: () => dispatch({ type: "begin" }),
-        move: (u, v) => editLayer({ u: wrap(u), v: clamp(v, 0, 1) }),
+        move: (u, v, zone) =>
+          editLayer({
+            u: wrap(u),
+            v: clamp(v, 0, 1),
+            ...(zone ? { zone } : {}),
+          }),
         end: () => dispatch({ type: "commit" }),
         stats: setStats,
         error: (message) => alert(message, true),
@@ -336,12 +354,12 @@ export function App() {
       setSelected(candidates.at(-1)?.id);
   }, [project, selected, workspace, photoId]);
   useEffect(() => {
-    if (!help && !pending) return;
+    if (!help && !pending && !editingAsset) return;
     const previous = document.activeElement as HTMLElement | null;
     const modal = document.querySelector<HTMLElement>('[role="dialog"]');
     const focusable = () => [
       ...(modal?.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), input, [tabindex="0"]',
+        'button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]',
       ) ?? []),
     ];
     focusable()[0]?.focus();
@@ -363,7 +381,7 @@ export function App() {
       document.removeEventListener("keydown", trap);
       previous?.focus();
     };
-  }, [help, pending]);
+  }, [help, pending, editingAsset]);
 
   const save = useCallback(
     async (as = false) => {
@@ -411,7 +429,7 @@ export function App() {
         }
         dispatch({ type: "reset", value: p });
         setSaved(p);
-        setPath(JSON.parse(text).version === 1 ? null : filePath);
+        setPath(JSON.parse(text).version < 3 ? null : filePath);
         setPhotoId(p.photos[0]?.id);
         setWorkspace(p.photos.length ? "photo" : "surface");
         setSelected(
@@ -424,8 +442,8 @@ export function App() {
         scene.current?.view("front", p.body.length);
         setView("front");
         alert(
-          JSON.parse(text).version === 1
-            ? "Legacy project opened without changing placement. Save creates a new v2 copy."
+          JSON.parse(text).version < 3
+            ? "Legacy project opened without changing placement. Save creates a new v3 copy."
             : "Project opened. All original image integrity checks passed.",
         );
       } catch (error) {
@@ -454,6 +472,7 @@ export function App() {
   const create = () =>
     guard(() => {
       const p = blankProject();
+      p.body = humanBody("full-arm");
       dispatch({ type: "reset", value: p });
       setSaved(p);
       setPath(null);
@@ -641,10 +660,15 @@ export function App() {
     if (!native) return;
     let unlisten: (() => void)[] = [],
       cancelled = false;
-    const requestClose = () =>
+    const requestClose = () => {
+      if (document.querySelector('[aria-label="Tattoo image studio"]')) {
+        window.dispatchEvent(new Event("artwork-close-request"));
+        return;
+      }
       guard(() => {
         void invoke("close_app");
       });
+    };
     Promise.all([
       getCurrentWindow().onCloseRequested((event) => {
         event.preventDefault();
@@ -759,7 +783,8 @@ export function App() {
   };
   const truncated =
     layer && asset
-      ? (layer.width * asset.height) / asset.width > project.body.length
+      ? (layer.width * asset.height * (layer.stretch ?? 1)) / asset.width >
+        placementHeight
         ? "Artwork extends beyond the model. Scale it down to see the full composition."
         : null
       : null;
@@ -1038,6 +1063,19 @@ export function App() {
             </span>
             <Plus size={16} />
           </button>
+          <button
+            className="image-studio-entry"
+            disabled={!artworkAssets(project).length || busy}
+            onClick={() =>
+              setEditingAsset(asset?.id ?? artworkAssets(project)[0]?.id)
+            }
+          >
+            <ImagePlus size={17} />
+            <span>
+              Tattoo image studio
+              <small>Remove background · erase · restore</small>
+            </span>
+          </button>
           <div className="library-bottom">
             <div className="section-label">
               <span>SOURCE LIBRARY</span>
@@ -1260,6 +1298,13 @@ export function App() {
                     />
                     <span>ORIGINAL</span>
                   </div>
+                  <button
+                    className="wide-button edit-source-button"
+                    onClick={() => setEditingAsset(asset.id)}
+                  >
+                    <ImagePlus size={15} />
+                    Edit source in image studio{asset.edits ? " · edited" : ""}
+                  </button>
                   <Toggle
                     label="Lock layer"
                     checked={layer.locked ?? false}
@@ -1273,6 +1318,26 @@ export function App() {
                       <span>PLACEMENT</span>
                       <Move size={14} />
                     </div>
+                    {!layer.photo && project.body.kind === "human-v1" && (
+                      <label className="select-field">
+                        Placement surface
+                        <select
+                          aria-label="Placement surface"
+                          value={layerZone(project.body, layer)}
+                          onChange={(e) =>
+                            editLayer({ zone: e.target.value as SurfaceZone })
+                          }
+                        >
+                          {bodyZones(project.body).map((z) => (
+                            <option key={z} value={z}>
+                              {z === "trunk"
+                                ? "Chest / abdomen / back"
+                                : z.replace("-", " ")}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
                     <div className="field-grid">
                       {layer.photo ? (
                         <>
@@ -1349,11 +1414,11 @@ export function App() {
                                 ? "From wrist"
                                 : "From lower edge"
                             }
-                            value={layer.v * project.body.length}
+                            value={layer.v * placementHeight}
                             min={0}
-                            max={project.body.length}
+                            max={placementHeight}
                             onChange={(v) =>
-                              editLayer({ v: v / project.body.length })
+                              editLayer({ v: v / placementHeight })
                             }
                           />
                           <NumberField
@@ -1614,14 +1679,35 @@ export function App() {
                 <div className="inspector-heading">
                   <span className="eyebrow">ADJUSTABLE FORM</span>
                   <h2>Your starting surface.</h2>
-                  <p>Set proportions in millimeters.</p>
+                  <p>Choose a complete section, then refine its proportions.</p>
                 </div>
                 <div className="model-explainer">
-                  <span className="model-line" />
+                  {project.body.kind === "human-v1" ? (
+                    <svg
+                      className="section-glyph"
+                      viewBox="0 0 80 80"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.3"
+                      aria-hidden="true"
+                    >
+                      {project.body.section === "upper-body" ? (
+                        <path d="M33 8v7l-14 6-7 22-6 25 5 2 10-23 5-14 2 16-3 18h30l-3-18 2-16 5 14 10 23 5-2-6-25-7-22-14-6V8M28 29l12 4 12-4M40 33v26" />
+                      ) : project.body.section === "full-arm" ? (
+                        <path d="M33 8c-10 4-12 15-8 26l8 17 3 18 4 5 2-2-1-12 4 8 3-1-3-18-6-18c2-10 2-20-6-23ZM29 31l8 4M34 49l8-2" />
+                      ) : (
+                        <path d="M28 7h23c1 11-3 21-7 29l-2 10 3 19 8 6c0 4-21 4-23 0l4-8-3-18-4-12c-3-8-3-18 1-26ZM30 35l11 2M35 62l7 1" />
+                      )}
+                    </svg>
+                  ) : (
+                    <span className="model-line" />
+                  )}
                   <span>
                     {project.body.kind === "forearm-v1"
                       ? "FOREARM / V1"
-                      : "REGION TEMPLATE / V1"}
+                      : project.body.kind === "human-v1"
+                        ? "ANATOMICAL SURFACE / V1"
+                        : "LEGACY REGION / V1"}
                   </span>
                 </div>
                 <div className="inspector-section">
@@ -1635,11 +1721,19 @@ export function App() {
                       value={
                         project.body.kind === "forearm-v1"
                           ? "forearm"
-                          : project.body.region
+                          : project.body.kind === "human-v1"
+                            ? project.body.section
+                            : project.body.region
                       }
                       onChange={(e) => {
-                        const body =
-                          e.target.value === "forearm"
+                        const body = humanSections.includes(
+                          e.target.value as (typeof humanSections)[number],
+                        )
+                          ? humanBody(
+                              e.target.value as (typeof humanSections)[number],
+                              project.body,
+                            )
+                          : e.target.value === "forearm"
                             ? {
                                 ...blankProject().body,
                                 side: project.body.side,
@@ -1657,17 +1751,34 @@ export function App() {
                         setView(e.target.value === "torso" ? "back" : "front");
                       }}
                     >
-                      <option value="forearm">Forearm · original</option>
-                      {regions.map((r) => (
-                        <option key={r} value={r}>
-                          {r === "torso" ? "Torso / back" : r.replace("-", " ")}
+                      <optgroup label="Complete anatomical sections">
+                        <option value="full-arm">
+                          Full arm · shoulder to fingertips
                         </option>
-                      ))}
+                        <option value="upper-body">
+                          Upper body · chest, back & arms
+                        </option>
+                        <option value="full-leg">
+                          Full leg · thigh to toes
+                        </option>
+                      </optgroup>
+                      <optgroup label="Legacy surfaces · existing studies">
+                        <option value="forearm">Forearm · original</option>
+                        {regions.map((r) => (
+                          <option key={r} value={r}>
+                            {r === "torso"
+                              ? "Torso / back"
+                              : r.replace("-", " ")}
+                          </option>
+                        ))}
+                      </optgroup>
                     </select>
                   </label>
                   {!(
-                    project.body.kind === "region-v1" &&
-                    project.body.region === "torso"
+                    (project.body.kind === "region-v1" &&
+                      project.body.region === "torso") ||
+                    (project.body.kind === "human-v1" &&
+                      project.body.section === "upper-body")
                   ) && (
                     <div className="segmented">
                       {(["left", "right"] as const).map((side) => (
@@ -1696,14 +1807,102 @@ export function App() {
                       label={
                         project.body.kind === "forearm-v1"
                           ? "Forearm length"
-                          : "Region length"
+                          : project.body.kind === "human-v1"
+                            ? project.body.section === "upper-body"
+                              ? "Neck to waist length"
+                              : "Section length"
+                            : "Region length"
                       }
                       value={project.body.length}
-                      min={160}
-                      max={project.body.kind === "forearm-v1" ? 400 : 800}
+                      min={project.body.kind === "human-v1" ? 350 : 160}
+                      max={
+                        project.body.kind === "forearm-v1"
+                          ? 400
+                          : project.body.kind === "human-v1"
+                            ? 1300
+                            : 800
+                      }
                       onChange={(length) => editBody({ length })}
                     />
-                    {project.body.kind === "forearm-v1" ? (
+                    {project.body.kind === "human-v1" ? (
+                      <>
+                        <NumberField
+                          label="Build"
+                          value={project.body.build * 100}
+                          min={75}
+                          max={135}
+                          unit="%"
+                          onChange={(v) => editBody({ build: v / 100 })}
+                        />
+                        <NumberField
+                          label="Muscle definition"
+                          value={project.body.muscularity * 100}
+                          min={0}
+                          max={100}
+                          unit="%"
+                          onChange={(v) => editBody({ muscularity: v / 100 })}
+                        />
+                        <p className="field-note">
+                          {project.body.section === "full-arm"
+                            ? "Includes shoulder cap, upper arm, elbow, forearm and hand."
+                            : project.body.section === "full-leg"
+                              ? "Includes thigh, knee, calf, ankle and foot."
+                              : "Connected neck, shoulders, chest, abdomen, back and both complete arms."}{" "}
+                          Scale is approximate; local chart distortion varies.
+                        </p>
+                        <div className="section-label">
+                          <span>ANATOMY & MOVEMENT</span>
+                        </div>
+                        <Toggle
+                          label="Muscle anatomy guide"
+                          checked={project.body.anatomy}
+                          onChange={() =>
+                            editBody({
+                              anatomy:
+                                project.body.kind === "human-v1" &&
+                                !project.body.anatomy,
+                            })
+                          }
+                        />
+                        <NumberField
+                          label={
+                            project.body.section === "full-leg"
+                              ? "Knee flex"
+                              : "Elbow flex"
+                          }
+                          value={project.body.flex}
+                          min={0}
+                          max={110}
+                          unit="°"
+                          onChange={(flex) => editBody({ flex })}
+                        />
+                        <div className="segmented">
+                          <button onClick={() => editBody({ flex: 0 })}>
+                            Relaxed
+                          </button>
+                          <button onClick={() => editBody({ flex: 90 })}>
+                            Bent 90°
+                          </button>
+                        </div>
+                        {project.body.anatomy && (
+                          <div className="muscle-legend">
+                            {muscleGuide[project.body.section].map(
+                              ([name, flow]) => (
+                                <div key={name}>
+                                  <strong>{name}</strong>
+                                  <small>{flow}</small>
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        )}
+                        <p className="field-note">
+                          Schematic superficial muscle guide. Flex bends the
+                          mesh and attached ink; it does not calculate muscle
+                          contraction or skin strain.
+                        </p>
+                      </>
+                    ) : project.body.kind === "forearm-v1" ? (
                       <>
                         <NumberField
                           label="Wrist circumference"
@@ -1775,6 +1974,7 @@ export function App() {
                   </div>
                   <div className="skin-swatches">
                     {[
+                      "#d4d0cb",
                       "#e0bfa5",
                       "#c49b7d",
                       "#af805e",
@@ -1842,7 +2042,7 @@ export function App() {
               ? `p95 ${stats.p95.toFixed(1)} ms · ${stats.frames} frames · ${stats.triangles.toLocaleString()} triangles`
               : "WebGL 2 · Surface mapping"}
           </button>
-          <span className="status-separator">/</span>FORM STUDIO 0.2
+          <span className="status-separator">/</span>FORM STUDIO 0.3
         </span>
       </footer>
       {notice && (
@@ -1859,6 +2059,45 @@ export function App() {
             <X size={15} />
           </button>
         </div>
+      )}
+      {editingAsset && project.assets.find((a) => a.id === editingAsset) && (
+        <ArtworkStudio
+          key={editingAsset}
+          asset={project.assets.find((a) => a.id === editingAsset)!}
+          pointBudget={
+            80000 -
+            project.assets
+              .filter((a) => a.id !== editingAsset)
+              .reduce(
+                (n, a) =>
+                  n +
+                  (a.edits?.strokes.reduce((n, s) => n + s.points.length, 0) ??
+                    0),
+                0,
+              )
+          }
+          close={() => setEditingAsset(undefined)}
+          apply={(edits) => {
+            change({
+              ...project,
+              assets: project.assets.map((a) =>
+                a.id === editingAsset ? { ...a, edits } : a,
+              ),
+              layers:
+                edits.background === "none"
+                  ? project.layers
+                  : project.layers.map((l) =>
+                      l.assetId === editingAsset
+                        ? { ...l, removePaper: false }
+                        : l,
+                    ),
+            });
+            setEditingAsset(undefined);
+            alert(
+              "Source edits applied to every instance. Original artwork preserved.",
+            );
+          }}
+        />
       )}
       {help && (
         <div className="modal-backdrop" onClick={() => setHelp(false)}>
@@ -1877,8 +2116,8 @@ export function App() {
             </div>
             <h2 id="help-title">Your first surface study.</h2>
             <p>
-              Import PNG or JPEG artwork, adjust the forearm measurements, then
-              compose from every angle.
+              Import artwork, choose a complete body section, then compose from
+              every angle.
             </p>
             <div className="shortcut-list">
               {[

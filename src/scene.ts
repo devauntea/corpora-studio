@@ -1,3 +1,4 @@
+import { HumanSurface, loadHuman } from "./anatomy";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
@@ -5,6 +6,7 @@ import {
   bodyLabel,
   surfacePoint,
   type Body,
+  type SurfaceZone,
   type Layer,
   type Project,
 } from "./domain";
@@ -13,7 +15,7 @@ import { InkCache } from "./ink";
 export type View = "front" | "back" | "left" | "right";
 export type SceneEvents = {
   begin: () => void;
-  move: (u: number, v: number) => void;
+  move: (u: number, v: number, zone?: SurfaceZone) => void;
   end: () => void;
   stats: (stats: { p95: number; frames: number; triangles: number }) => void;
   error: (message: string) => void;
@@ -64,9 +66,10 @@ const ATLAS = 2048;
 export class StudioScene {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(35, 1, 1, 3000);
+  camera = new THREE.PerspectiveCamera(35, 1, 1, 7000);
   controls: OrbitControls;
   surface: THREE.Mesh;
+  human?: HumanSurface;
   caps = new THREE.Group();
   canvas = document.createElement("canvas");
   texture: THREE.CanvasTexture;
@@ -100,7 +103,7 @@ export class StudioScene {
       alpha: false,
     });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    this.renderer.setClearColor("#e8e6de");
+    this.renderer.setClearColor("#e5e5e5");
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -108,7 +111,7 @@ export class StudioScene {
     this.renderer.toneMappingExposure = 1.25;
     this.renderer.domElement.setAttribute(
       "aria-label",
-      "Interactive 3D forearm. Use the Place tool to position artwork, or Orbit to rotate the view.",
+      "Interactive 3D body surface. Use the Place tool to position artwork, or Orbit to rotate the view.",
     );
     this.renderer.domElement.tabIndex = 0;
     host.appendChild(this.renderer.domElement);
@@ -117,13 +120,13 @@ export class StudioScene {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.1;
     this.controls.minDistance = 180;
-    this.controls.maxDistance = 2200;
+    this.controls.maxDistance = 4000;
     this.controls.maxPolarAngle = Math.PI * 0.88;
     this.controls.minPolarAngle = Math.PI * 0.12;
     this.controls.target.set(0, 0, 0);
     this.controls.update();
-    this.scene.add(new THREE.HemisphereLight("#fff6e6", "#797f79", 2.8));
-    const key = new THREE.DirectionalLight("#fff8ef", 3.1);
+    this.scene.add(new THREE.HemisphereLight("#ffffff", "#5b5b5b", 2.0));
+    const key = new THREE.DirectionalLight("#ffffff", 3.0);
     key.position.set(-180, 300, 300);
     key.castShadow = true;
     key.shadow.mapSize.set(2048, 2048);
@@ -133,7 +136,7 @@ export class StudioScene {
     key.shadow.camera.bottom = -230;
     key.shadow.bias = -0.0008;
     this.scene.add(key);
-    const fill = new THREE.DirectionalLight("#d6e3e4", 1.2);
+    const fill = new THREE.DirectionalLight("#ffffff", 1.1);
     fill.position.set(180, 20, -150);
     this.scene.add(fill);
     this.canvas.width = this.canvas.height = ATLAS;
@@ -160,7 +163,7 @@ export class StudioScene {
     this.floor.rotation.x = -Math.PI / 2;
     this.floor.receiveShadow = true;
     this.scene.add(this.floor);
-    this.grid = new THREE.GridHelper(700, 28, "#c7c9c0", "#d7d9d0");
+    this.grid = new THREE.GridHelper(700, 28, "#bfbfbf", "#d1d1d1");
     (this.grid.material as THREE.Material).transparent = true;
     (this.grid.material as THREE.Material).opacity = 0.35;
     this.scene.add(this.grid);
@@ -175,12 +178,12 @@ export class StudioScene {
       this.dragging = true;
       el.setPointerCapture(e.pointerId);
       this.events.begin();
-      this.events.move(hit.x, hit.y);
+      this.events.move(hit.x, hit.y, hit.zone);
     };
     const move = (e: PointerEvent) => {
       if (this.dragging) {
         const h = this.hit(e);
-        if (h) this.events.move(h.x, h.y);
+        if (h) this.events.move(h.x, h.y, h.zone);
       }
     };
     const up = () => {
@@ -251,7 +254,17 @@ export class StudioScene {
       ),
       this.camera,
     );
-    return this.ray.intersectObject(this.surface)[0]?.uv;
+    const hit = this.ray.intersectObject(
+      this.human?.group ?? this.surface,
+      true,
+    )[0];
+    return hit?.uv
+      ? {
+          x: hit.uv.x,
+          y: hit.uv.y,
+          zone: hit.object.userData.zone as SurfaceZone | undefined,
+        }
+      : undefined;
   }
   setMode(mode: "orbit" | "place", selected?: string) {
     this.mode = mode;
@@ -261,7 +274,7 @@ export class StudioScene {
       mode === "place" ? "crosshair" : "grab";
   }
   view(view: View, length = this.project?.body.length ?? 270) {
-    const d = length * 2.15;
+    const d = length * 2.6;
     const positions: Record<View, [number, number, number]> = {
       front: [0, 25, d],
       back: [0, 25, -d],
@@ -280,47 +293,74 @@ export class StudioScene {
     this.controls.update();
   }
   async update(project: Project) {
+    const version = ++this.paintVersion;
+    const humanData =
+      project.body.kind === "human-v1"
+        ? await loadHuman().catch((e) => {
+            this.events.error(String(e));
+            return null;
+          })
+        : undefined;
+    if (this.disposed || version !== this.paintVersion || humanData === null)
+      return false;
     if (
       !this.project ||
       JSON.stringify(this.project.body) !== JSON.stringify(project.body)
     ) {
+      if (
+        !this.project ||
+        this.project.body.kind !== project.body.kind ||
+        ("section" in this.project.body &&
+          "section" in project.body &&
+          this.project.body.section !== project.body.section)
+      )
+        this.view("front", project.body.length);
       this.surface.geometry.dispose();
-      this.surface.geometry = forearmGeometry(project.body);
+      this.human?.dispose();
+      if (this.human) this.scene.remove(this.human.group);
+      this.human = undefined;
+      this.surface.visible = project.body.kind !== "human-v1";
+      if (project.body.kind === "human-v1" && humanData) {
+        this.human = new HumanSurface(humanData, project.body);
+        this.scene.add(this.human.group);
+      } else this.surface.geometry = forearmGeometry(project.body);
       for (const child of [...this.caps.children]) {
         const mesh = child as THREE.Mesh;
         mesh.geometry.dispose();
         (mesh.material as THREE.Material).dispose();
         this.caps.remove(child);
       }
-      for (const v of [0, 1]) {
-        const points = [
-          new THREE.Vector3(0, (v - 0.5) * project.body.length, 0),
-        ];
-        for (let i = 0; i <= 128; i++)
-          points.push(
-            new THREE.Vector3(...surfacePoint(project.body, i / 128, v)),
+      if (project.body.kind !== "human-v1")
+        for (const v of [0, 1]) {
+          const points = [
+            new THREE.Vector3(0, (v - 0.5) * project.body.length, 0),
+          ];
+          for (let i = 0; i <= 128; i++)
+            points.push(
+              new THREE.Vector3(...surfacePoint(project.body, i / 128, v)),
+            );
+          const g = new THREE.BufferGeometry().setFromPoints(points);
+          const idx: number[] = [];
+          for (let i = 1; i <= 128; i++) idx.push(0, i, i + 1);
+          g.setIndex(idx);
+          g.computeVertexNormals();
+          const cap = new THREE.Mesh(
+            g,
+            new THREE.MeshStandardMaterial({
+              color: project.body.skin,
+              side: THREE.DoubleSide,
+              roughness: 1,
+            }),
           );
-        const g = new THREE.BufferGeometry().setFromPoints(points);
-        const idx: number[] = [];
-        for (let i = 1; i <= 128; i++) idx.push(0, i, i + 1);
-        g.setIndex(idx);
-        g.computeVertexNormals();
-        const cap = new THREE.Mesh(
-          g,
-          new THREE.MeshStandardMaterial({
-            color: project.body.skin,
-            side: THREE.DoubleSide,
-            roughness: 1,
-          }),
-        );
-        cap.castShadow = true;
-        this.caps.add(cap);
-      }
-      this.floor.position.y = -project.body.length / 2 - 12;
+          cap.castShadow = true;
+          this.caps.add(cap);
+        }
+      this.floor.position.y = this.human
+        ? new THREE.Box3().setFromObject(this.human.group).min.y - 12
+        : -project.body.length / 2 - 12;
       this.grid.position.y = this.floor.position.y - 0.1;
     }
     this.project = project;
-    const version = ++this.paintVersion;
     try {
       const items: { layer: Layer; image: HTMLCanvasElement; ratio: number }[] =
         [];
@@ -336,6 +376,14 @@ export class StudioScene {
         });
       }
       if (this.disposed || version !== this.paintVersion) return false;
+      if (project.body.kind === "human-v1" && this.human) {
+        this.human.paint(project.body, items);
+        this.ink.prune(
+          project.assets,
+          project.layers.filter((l) => !l.photoId && l.visible),
+        );
+        return true;
+      }
       const ctx = this.canvas.getContext("2d")!;
       ctx.globalCompositeOperation = "source-over";
       ctx.globalAlpha = 1;
@@ -384,7 +432,7 @@ export class StudioScene {
     c.width = 1800;
     c.height = 1800;
     const x = c.getContext("2d")!;
-    x.fillStyle = "#e8e6de";
+    x.fillStyle = "#e5e5e5";
     x.fillRect(0, 0, 1800, 1800);
     const source = this.renderer.domElement;
     const fit = Math.min(1700 / source.width, 1480 / source.height);
@@ -395,12 +443,12 @@ export class StudioScene {
       source.width * fit,
       source.height * fit,
     );
-    x.fillStyle = "#243c31";
+    x.fillStyle = "#242424";
     x.font = "32px sans-serif";
     x.fillText("FORM / STUDIO", 80, 78);
     x.font = "20px sans-serif";
     x.fillText(project.name.slice(0, 70), 80, 120);
-    x.strokeStyle = "#bfc6ba";
+    x.strokeStyle = "#bfbfbf";
     x.beginPath();
     x.moveTo(80, 1660);
     x.lineTo(1720, 1660);
@@ -422,6 +470,8 @@ export class StudioScene {
   dispose() {
     this.disposed = true;
     this.paintVersion++;
+    this.human?.dispose();
+    if (this.human) this.scene.remove(this.human.group);
     cancelAnimationFrame(this.frame);
     this.resize.disconnect();
     this.cleanups.forEach((fn) => fn());

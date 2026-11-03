@@ -19,6 +19,9 @@ test("editing, local round trip, invalid-file recovery, import and review export
     page.getByRole("heading", { name: "Solar botanical" }),
   ).toBeVisible();
   await expect(page.locator(".loading")).toHaveCount(0);
+  await page.getByRole("button", { name: "Body model", exact: true }).click();
+  await page.getByLabel("Body region").selectOption("forearm");
+  await page.getByRole("button", { name: "Artwork", exact: true }).click();
   const width = page.getByRole("spinbutton", { name: "Width", exact: true });
   await width.fill("77");
   await width.press("Escape");
@@ -117,6 +120,9 @@ test("surface dragging groups history and a full orbit stays interactive", async
   await expect(
     page.getByRole("heading", { name: "Solar botanical" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Body model", exact: true }).click();
+  await page.getByLabel("Body region").selectOption("forearm");
+  await page.getByRole("button", { name: "Artwork", exact: true }).click();
   await page
     .getByRole("button", { name: "Place artwork (G)", exact: true })
     .click();

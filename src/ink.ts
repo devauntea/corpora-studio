@@ -1,9 +1,11 @@
+import { renderArtwork } from "./artwork";
 import { type Asset, type Layer, imageSource, clamp } from "./domain";
 import { loadImage } from "./io";
 
 export function inkKey(a: Asset, l: Layer) {
   return JSON.stringify([
     a.sha256,
+    a.edits,
     l.removePaper,
     l.monochrome,
     l.ink,
@@ -25,12 +27,8 @@ export class InkCache {
     const key = inkKey(a, l);
     if (this.variants.has(key)) return this.variants.get(key)!;
     const img = await this.image(a),
-      c = document.createElement("canvas"),
-      scale = Math.min(1, 2048 / Math.max(img.width, img.height));
-    c.width = Math.max(1, Math.round(img.width * scale));
-    c.height = Math.max(1, Math.round(img.height * scale));
+      c = renderArtwork(img, a.edits);
     const ctx = c.getContext("2d", { willReadFrequently: true })!;
-    ctx.drawImage(img, 0, 0, c.width, c.height);
     const pixels = ctx.getImageData(0, 0, c.width, c.height),
       p = pixels.data,
       mode = l.ink ?? "legacy";
