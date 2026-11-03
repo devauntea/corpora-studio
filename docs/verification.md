@@ -9,7 +9,7 @@ Date: 2026-11-03. Hardware: Apple M4 MacBook Air, 16 GB RAM, Apple silicon. Xcod
 - End-to-end tests run in Chromium and WebKit. They exercise measurement editing, undo/redo, project download/reopen, invalid-file recovery without losing the current composition, generated artwork import, seam placement, 1800 × 1800 export, unsaved-change cancellation, surface dragging, and camera presets. They collect uncaught page errors and external HTTP requests for the main workflow.
 - TypeScript compilation and the Vite production bundle are required before the native build.
 
-An initial concurrent Chromium run exceeded the 5-second startup assertion while Rust release compilation and multiple renderers were running. The test runner was changed to one worker and a 15-second UI readiness assertion. Performance numbers from that loaded run (including 100–400 ms frame intervals) are not steady-state native benchmarks.
+An initial concurrent Chromium run exceeded the 5-second startup assertion while Rust release compilation and multiple renderers were running. The test runner was changed to one worker and a 15-second UI readiness assertion. The development server also excludes native build outputs and QA files from file watching, preventing build-generated HTML from reloading an editing session. Performance numbers from loaded browser runs (including 100–400 ms frame intervals) are not steady-state native benchmarks.
 
 ## Native checks and performance
 
