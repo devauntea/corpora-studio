@@ -94,7 +94,7 @@ test("detailed body library, registered muscle filter and saved choices", async 
   const file = info.outputPath("detailed.formstudio");
   await (await downloading).saveAs(file);
   const saved = JSON.parse(await fs.readFile(file, "utf8"));
-  expect(saved.version).toBe(6);
+  expect(saved.version).toBe(7);
   expect(saved.body.model).toEqual({
     revision: 3,
     sex: "male",

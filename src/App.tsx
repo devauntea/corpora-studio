@@ -1,3 +1,10 @@
+import { newFashion } from "./fashion-model";
+import type { Fashion } from "./fashion-model";
+import { lazy, Suspense } from "react";
+const FashionWorkspace = lazy(() =>
+  import("./FashionWorkspace").then((m) => ({ default: m.FashionWorkspace })),
+);
+const initialFashion = newFashion();
 import { muscleGroups } from "./muscles";
 import { ArtworkStudio } from "./ArtworkStudio";
 import { muscleGuide } from "./anatomy";
@@ -204,6 +211,8 @@ export function App() {
       ({ present: blankProject(), past: [], future: [] }) as History<Project>,
   );
   const project = history.present;
+  const [studio, setStudio] = useState<"tattoo" | "fashion">("tattoo");
+  const patternExporter = useRef<(() => Promise<void>) | null>(null);
   const [workspace, setWorkspace] = useState<"surface" | "photo">("surface");
   const [photoId, setPhotoId] = useState<string>();
   const [selected, setSelected] = useState<string>();
@@ -236,9 +245,19 @@ export function App() {
     path,
     busy,
     workspace,
+    studio,
     photoId,
   });
-  live.current = { project, selected, saved, path, busy, workspace, photoId };
+  live.current = {
+    project,
+    selected,
+    saved,
+    path,
+    busy,
+    workspace,
+    studio,
+    photoId,
+  };
   const dirty = project !== saved;
   const layer = project.layers.find((l) => l.id === selected);
   const photo = project.photos.find((p) => p.id === photoId);
@@ -260,6 +279,12 @@ export function App() {
     (next: Project) => dispatch({ type: "change", value: next }),
     [],
   );
+  const editFashion = useCallback(
+    (fashion: Fashion) => change({ ...live.current.project, fashion }),
+    [change],
+  );
+  const beginFashion = useCallback(() => dispatch({ type: "begin" }), []);
+  const commitFashion = useCallback(() => dispatch({ type: "commit" }), []);
   const editLayer = useCallback(
     (patch: Partial<Layer>) => {
       const p = live.current.project,
@@ -333,15 +358,17 @@ export function App() {
     }
   }, [alert, editLayer]);
   useEffect(() => {
-    if (workspace === "surface") void scene.current?.update(project);
-  }, [project, workspace]);
+    if (workspace === "surface" && studio === "tattoo")
+      void scene.current?.update(project);
+  }, [project, workspace, studio]);
   useEffect(() => {
     scene.current?.setMode(
       mode,
       layer?.locked || layer?.photoId ? undefined : selected,
     );
-    if (scene.current) scene.current.active = workspace === "surface";
-  }, [mode, selected, layer?.locked, layer?.photoId, workspace]);
+    if (scene.current)
+      scene.current.active = workspace === "surface" && studio === "tattoo";
+  }, [mode, selected, layer?.locked, layer?.photoId, workspace, studio]);
   useEffect(() => {
     if (notice && !notice.error) {
       const t = setTimeout(() => setNotice(null), 5000);
@@ -403,7 +430,9 @@ export function App() {
         if (!result) return false;
         setPath(result);
         setSaved(current);
-        alert("Project saved. Original artwork is included.");
+        alert(
+          "Project saved. Pattern settings and original artwork are included.",
+        );
         return true;
       } catch (error) {
         alert(String(error), true);
@@ -435,7 +464,8 @@ export function App() {
         }
         dispatch({ type: "reset", value: p });
         setSaved(p);
-        setPath(JSON.parse(text).version < 6 ? null : filePath);
+        setStudio(p.fashion ? "fashion" : "tattoo");
+        setPath(JSON.parse(text).version < 7 ? null : filePath);
         setPhotoId(p.photos[0]?.id);
         setWorkspace(p.photos.length ? "photo" : "surface");
         setSelected(
@@ -448,8 +478,8 @@ export function App() {
         scene.current?.view("front", p.body.length);
         setView("front");
         alert(
-          JSON.parse(text).version < 6
-            ? "Legacy project opened without changing placement. Save creates a new v6 copy."
+          JSON.parse(text).version < 7
+            ? "Legacy project opened without changing placement. Save creates a new v7 copy."
             : "Project opened. All original image integrity checks passed.",
         );
       } catch (error) {
@@ -479,6 +509,10 @@ export function App() {
     guard(() => {
       const p = blankProject();
       p.body = humanBody("full-arm");
+      if (studio === "fashion") {
+        p.fashion = newFashion();
+        p.name = "Untitled garment";
+      }
       dispatch({ type: "reset", value: p });
       setSaved(p);
       setPath(null);
@@ -617,13 +651,16 @@ export function App() {
             dispatch({ type: e.shiftKey ? "redo" : "undo" });
             break;
           case "e":
-            void exportImage();
+            if (live.current.studio === "fashion")
+              void patternExporter.current?.();
+            else void exportImage();
             break;
         }
       } else if (
         !mod &&
         !/INPUT|TEXTAREA|SELECT/.test((e.target as HTMLElement).tagName)
       ) {
+        if (live.current.studio === "fashion") return;
         if (e.key.startsWith("Arrow")) {
           const l = live.current.project.layers.find(
             (l) => l.id === live.current.selected,
@@ -861,6 +898,27 @@ export function App() {
           </span>
           <span className="build-badge">EARLY BUILD</span>
         </div>
+        <nav className="studio-switch" aria-label="Studio section">
+          <button
+            className={studio === "tattoo" ? "active" : ""}
+            aria-pressed={studio === "tattoo"}
+            onClick={() => setStudio("tattoo")}
+          >
+            Tattoo
+          </button>
+          <button
+            className={studio === "fashion" ? "active" : ""}
+            aria-pressed={studio === "fashion"}
+            disabled={!ready || busy}
+            onClick={() => {
+              setStudio("fashion");
+              if (!project.fashion)
+                change({ ...project, fashion: newFashion() });
+            }}
+          >
+            Fashion
+          </button>
+        </nav>
         <div className="topbar-actions">
           <span className="local-label">
             <ShieldCheck size={14} /> Local workspace
@@ -880,7 +938,9 @@ export function App() {
           </span>
           <div>
             <div className="breadcrumb">
-              TATTOO STUDIO <span>/</span> COMPOSITION
+              {studio === "fashion" ? "FASHION STUDIO" : "TATTOO STUDIO"}{" "}
+              <span>/</span>{" "}
+              {studio === "fashion" ? "PATTERN DESIGN" : "COMPOSITION"}
             </div>
             <input
               aria-label="Project name"
@@ -935,14 +995,40 @@ export function App() {
           </div>
           <button
             className="primary"
-            onClick={() => void exportImage()}
+            onClick={() =>
+              studio === "fashion"
+                ? void patternExporter.current?.()
+                : void exportImage()
+            }
             disabled={busy || !ready}
           >
-            <Download size={15} /> Export review
+            <Download size={15} />{" "}
+            {studio === "fashion" ? "Export pattern" : "Export review"}
           </button>
         </div>
       </div>
-      <main className="workspace">
+      {studio === "fashion" && (
+        <Suspense
+          fallback={
+            <div className="fashion-loading">Loading pattern studio…</div>
+          }
+        >
+          <FashionWorkspace
+            value={project.fashion ?? initialFashion}
+            onChange={editFashion}
+            onBegin={beginFashion}
+            onCommit={commitFashion}
+            busy={busy}
+            setBusy={setBusy}
+            notify={alert}
+            name={project.name}
+            exporter={patternExporter}
+          />
+        </Suspense>
+      )}
+      <main
+        className={`workspace ${studio === "fashion" ? "studio-hidden" : ""}`}
+      >
         <aside className="library">
           <div className="panel-title">
             <span>COMPOSITION</span>
@@ -1133,7 +1219,7 @@ export function App() {
               <Grip size={19} />
               <span>
                 One creative practice.
-                <small>Tattoo now. Fashion is next.</small>
+                <small>Tattoo & fashion, in one studio.</small>
               </span>
             </div>
           </div>
@@ -2268,20 +2354,24 @@ export function App() {
           <span className="status-dot" />
           {busy ? "Working locally…" : "All processing on this device"}
           <span className="status-separator">/</span>
-          {workspace === "photo"
-            ? "Photo coordinates · uncalibrated"
-            : "Millimeters"}
+          {studio === "fashion"
+            ? "Pattern units · millimeters"
+            : workspace === "photo"
+              ? "Photo coordinates · uncalibrated"
+              : "Millimeters"}
         </span>
         <span>
           <button
             onClick={() => setShowStats(!showStats)}
             title="Toggle rendering diagnostics"
           >
-            {showStats
-              ? `Orbit p95 ${stats.p95.toFixed(1)} ms · ${stats.frames} frames · ${stats.triangles.toLocaleString()} triangles`
-              : "WebGL 2 · Surface mapping"}
+            {studio === "fashion"
+              ? "Parametric pattern drafting"
+              : showStats
+                ? `Orbit p95 ${stats.p95.toFixed(1)} ms · ${stats.frames} frames · ${stats.triangles.toLocaleString()} triangles`
+                : "WebGL 2 · Surface mapping"}
           </button>
-          <span className="status-separator">/</span>FORM STUDIO 0.6
+          <span className="status-separator">/</span>FORM STUDIO 0.7
         </span>
       </footer>
       {notice && (
@@ -2353,10 +2443,11 @@ export function App() {
                 <X size={18} />
               </IconButton>
             </div>
-            <h2 id="help-title">Your first surface study.</h2>
+            <h2 id="help-title">Your studio, in two workspaces.</h2>
             <p>
               Import artwork, choose a complete body section, then compose from
-              every angle.
+              every angle. In Fashion, enter measurements, adjust the pattern
+              and export at actual size.
             </p>
             <div className="shortcut-list">
               {[
@@ -2365,7 +2456,7 @@ export function App() {
                 ["Save / Save As", "⌘S / ⇧⌘S"],
                 ["Open a project", "⌘O"],
                 ["Undo / Redo", "⌘Z / ⇧⌘Z"],
-                ["Export review image", "⌘E"],
+                ["Export current workspace", "⌘E"],
               ].map(([label, key]) => (
                 <div key={key}>
                   <span>{label}</span>
@@ -2385,7 +2476,9 @@ export function App() {
                 Fit and average male and female bodies, complete arms and legs,
                 a detailed muscle filter with directional fibers, independent
                 arm poses, image cleanup and photo protection masks are
-                available. Personal reconstruction and fashion drafting remain
+                available. Fashion includes a measured knit T-shirt, shape
+                controls, seam allowances, neckband and full-size SVG / tiled
+                PDF exports. Personal reconstruction and cloth simulation remain
                 later phases.
               </p>
               <p>

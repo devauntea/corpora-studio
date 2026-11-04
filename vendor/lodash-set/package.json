@@ -1,0 +1,10 @@
+{
+  "name": "@form-studio/safe-set",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "main": "index.cjs",
+  "dependencies": {
+    "lodash": "4.18.1"
+  }
+}

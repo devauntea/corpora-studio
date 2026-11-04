@@ -1,0 +1,6 @@
+{
+  "url": "https://codeberg.org/api/v1/repos/freesewing/freesewing/contents/LICENSE?ref=v4.10.2",
+  "gitBlob": "953afc189088c61bcbe60aa703b10717f5ab1d86",
+  "license": "MIT",
+  "scope": "FreeSewing 4.10.2 packages; npm archives omit top-level license files"
+}

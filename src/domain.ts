@@ -1,3 +1,5 @@
+import { ProjectSchema as LegacyV6ProjectSchema } from "./legacy-v6";
+import { FashionSchema } from "./fashion-model";
 import { ProjectSchema as LegacyV5ProjectSchema } from "./legacy-v5";
 import { ProjectSchema as LegacyV4ProjectSchema } from "./legacy-v4";
 import { ProjectSchema as LegacyV2ProjectSchema } from "./legacy-v2";
@@ -263,7 +265,7 @@ export const PhotoSchema = z
 export const ProjectSchema = z
   .object({
     format: z.literal("form-studio"),
-    version: z.literal(6),
+    version: z.literal(7),
     units: z.literal("mm"),
     id: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -272,6 +274,7 @@ export const ProjectSchema = z
     assets: z.array(AssetSchema).max(24),
     layers: z.array(LayerSchema).max(24),
     photos: z.array(PhotoSchema).max(8),
+    fashion: FashionSchema.optional(),
   })
   .strict()
   .superRefine((p, c) => {
@@ -335,7 +338,7 @@ export type Asset = Project["assets"][number];
 export function blankProject(): Project {
   return {
     format: "form-studio",
-    version: 6,
+    version: 7,
     units: "mm",
     id: crypto.randomUUID(),
     name: "Untitled composition",
@@ -488,6 +491,11 @@ export async function parseProject(text: string): Promise<Project> {
     const old = LegacyV5ProjectSchema.safeParse(json);
     if (!old.success) throw new Error("Unsupported or damaged v5 project.");
     json = { ...old.data, version: 6 };
+  }
+  if ((json as { version?: number })?.version === 6) {
+    const old = LegacyV6ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Unsupported or damaged v6 project.");
+    json = { ...old.data, version: 7 };
   }
   const result = ProjectSchema.safeParse(json);
   if (!result.success)

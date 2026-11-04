@@ -164,7 +164,7 @@ describe("expanded project compatibility", () => {
       ),
     );
     const p = await parseProject(JSON.stringify(old));
-    expect(p.version).toBe(6);
+    expect(p.version).toBe(7);
     expect(p.photos).toEqual([]);
     expect(p.assets).toEqual(old.assets);
     expect(p.body).toEqual(old.body);
@@ -275,7 +275,7 @@ describe("anatomical sections and image recipes", () => {
     const p = await fixture();
     const old = { ...p, version: 2 };
     const next = await parseProject(JSON.stringify(old));
-    expect(next).toEqual({ ...old, version: 6 });
+    expect(next).toEqual({ ...old, version: 7 });
     await expect(
       parseProject(
         JSON.stringify({ ...old, body: { ...old.body, kind: "human-v1" } }),
@@ -390,7 +390,7 @@ describe("pose and crop compatibility", () => {
     p.assets[0].edits = cleanArtwork();
     const old = { ...p, version: 3 };
     const next = await parseProject(JSON.stringify(old));
-    expect(next).toEqual({ ...old, version: 6 });
+    expect(next).toEqual({ ...old, version: 7 });
     if (next.body.kind !== "human-v1")
       throw new Error("Expected human surface");
     expect(armPose(next.body, "left")).toEqual({
@@ -514,7 +514,7 @@ describe("detailed anatomy assets", () => {
     p.body.model!.revision = 2;
     const old = { ...p, version: 5 };
     const loaded = await parseProject(JSON.stringify(old));
-    expect(loaded).toEqual({ ...old, version: 6 });
+    expect(loaded).toEqual({ ...old, version: 7 });
     expect(await parseProject(JSON.stringify(loaded))).toEqual(loaded);
     const forged = {
       ...old,
@@ -532,7 +532,7 @@ describe("detailed anatomy assets", () => {
     const old = { ...p, version: 4 };
     const migrated = await parseProject(JSON.stringify(old));
     expect(migrated.body).toEqual(old.body);
-    expect(migrated.version).toBe(6);
+    expect(migrated.version).toBe(7);
     const invalidOld = {
       ...old,
       body: {

@@ -251,7 +251,22 @@ Full available license texts are in `THIRD_PARTY_NOTICES.txt`, bundled with the 
 | cargo | zerovec-derive | 0.11.7 | Unicode-3.0 | macOS resolved dependency |
 | cargo | zlib-rs | 0.6.8 | Zlib | macOS resolved dependency |
 | cargo | zmij | 1.0.23 | MIT | macOS resolved dependency |
+| npm | @babel/runtime | 7.29.10 | MIT | runtime |
 | npm | @dimforge/rapier3d-compat | 0.12.0 | Apache-2.0 | development |
+| npm | @freesewing/brian | 4.10.2 | MIT | runtime |
+| npm | @freesewing/config | 4.10.2 | MIT | runtime |
+| npm | @freesewing/core | 4.10.2 | MIT | runtime |
+| npm | @freesewing/core-plugins | 4.10.2 | MIT | runtime |
+| npm | @freesewing/library | 4.10.2 | MIT | runtime |
+| npm | @freesewing/plugin-annotations | 4.10.2 | MIT | runtime |
+| npm | @freesewing/plugin-bin-pack | 4.10.2 | MIT | runtime |
+| npm | @freesewing/plugin-bust | 4.10.2 | MIT | runtime |
+| npm | @freesewing/plugin-measurements | 4.10.2 | MIT | runtime |
+| npm | @freesewing/plugin-mirror | 4.10.2 | MIT | runtime |
+| npm | @freesewing/plugin-round | 4.10.2 | MIT | runtime |
+| npm | @freesewing/plugin-sprinkle | 4.10.2 | MIT | runtime |
+| npm | @freesewing/plugin-transform | 4.10.2 | MIT | runtime |
+| npm | @freesewing/teagan | 4.10.2 | MIT | runtime |
 | npm | @jridgewell/resolve-uri | 3.1.2 | MIT | development |
 | npm | @jridgewell/sourcemap-codec | 1.6.0 | MIT | development |
 | npm | @jridgewell/trace-mapping | 0.3.31 | MIT | development |
@@ -291,25 +306,39 @@ Full available license texts are in `THIRD_PARTY_NOTICES.txt`, bundled with the 
 | npm | @types/deep-eql | 4.0.2 | MIT | development |
 | npm | @types/estree | 1.0.10 | MIT | development |
 | npm | @types/node | 24.19.2 | MIT | development |
+| npm | @types/pako | 2.0.4 | MIT | runtime |
+| npm | @types/raf | 3.4.3 | MIT | runtime |
 | npm | @types/react | 19.3.0 | MIT | development |
 | npm | @types/react-dom | 19.3.0 | MIT | development |
 | npm | @types/stats.js | 0.17.4 | MIT | development |
 | npm | @types/three | 0.183.1 | MIT | development |
+| npm | @types/trusted-types | 2.0.7 | MIT | runtime |
 | npm | @types/webxr | 0.5.24 | MIT | development |
 | npm | @vitejs/plugin-react | 6.2.1 | MIT | development |
 | npm | @vitest/mocker | 5.1.0 | MIT | development |
 | npm | @vitest/spy | 5.1.0 | MIT | development |
 | npm | @webgpu/types | 0.1.74 | BSD-3-Clause | development |
 | npm | assertion-error | 2.0.1 | MIT | development |
+| npm | base64-arraybuffer | 1.0.2 | MIT | runtime |
+| npm | bezier-js | 6.1.4 | MIT | runtime |
+| npm | canvg | 3.0.11 | MIT | runtime |
 | npm | chai | 6.3.0 | MIT | development |
+| npm | core-js | 3.51.0 | MIT | runtime |
+| npm | css-line-break | 2.1.0 | MIT | runtime |
 | npm | csstype | 3.2.3 | MIT | development |
 | npm | detect-libc | 2.1.2 | Apache-2.0 | development |
+| npm | dompurify | 3.4.17 | (MPL-2.0 OR Apache-2.0) | runtime |
 | npm | es-module-lexer | 2.3.2 | MIT | development |
 | npm | estree-walker | 3.0.3 | MIT | development |
 | npm | expect-type | 1.4.0 | Apache-2.0 | development |
+| npm | fast-png | 6.4.0 | MIT | runtime |
 | npm | fdir | 6.5.0 | MIT | development |
-| npm | fflate | 0.8.3 | MIT | development |
+| npm | fflate | 0.8.3 | MIT | runtime |
 | npm | fsevents | 2.3.3 | MIT | development |
+| npm | hooks | 0.3.2 | SEE LICENSE | runtime |
+| npm | html2canvas | 1.4.1 | MIT | runtime |
+| npm | iobuffer | 5.4.0 | MIT | runtime |
+| npm | jspdf | 4.2.1 | MIT | runtime |
 | npm | lightningcss | 1.33.0 | MPL-2.0 | development |
 | npm | lightningcss-android-arm64 | 1.33.0 | MPL-2.0 | development |
 | npm | lightningcss-darwin-arm64 | 1.33.0 | MPL-2.0 | development |
@@ -322,29 +351,43 @@ Full available license texts are in `THIRD_PARTY_NOTICES.txt`, bundled with the 
 | npm | lightningcss-linux-x64-musl | 1.33.0 | MPL-2.0 | development |
 | npm | lightningcss-win32-arm64-msvc | 1.33.0 | MPL-2.0 | development |
 | npm | lightningcss-win32-x64-msvc | 1.33.0 | MPL-2.0 | development |
+| npm | lodash | 4.18.1 | MIT | runtime |
+| npm | lodash.clonedeep | 4.5.0 | MIT | runtime |
+| npm | lodash.get | 4.4.2 | MIT | runtime |
 | npm | lucide-react | 0.577.0 | ISC | runtime |
 | npm | magic-string | 1.4.5 | MIT | development |
 | npm | meshoptimizer | 1.0.1 | MIT | development |
 | npm | nanoid | 3.3.20 | MIT | development |
 | npm | obug | 3.0.0 | MIT | development |
+| npm | pako | 2.2.0 | (MIT AND Zlib) | runtime |
+| npm | performance-now | 2.1.0 | MIT | runtime |
 | npm | picocolors | 1.1.1 | ISC | development |
 | npm | picomatch | 4.0.7 | MIT | development |
 | npm | playwright | 1.64.1 | Apache-2.0 | development |
 | npm | playwright-core | 1.64.1 | Apache-2.0 | development |
 | npm | postcss | 8.5.32 | MIT | development |
 | npm | prettier | 3.8.1 | MIT | development |
+| npm | raf | 3.4.1 | MIT | runtime |
 | npm | react | 19.3.1 | MIT | runtime |
 | npm | react-dom | 19.3.1 | MIT | runtime |
+| npm | regenerator-runtime | 0.13.11 | MIT | runtime |
+| npm | rgbcolor | 1.0.1 | MIT OR SEE LICENSE IN FEEL-FREE.md | runtime |
 | npm | rolldown | 1.2.16 | MIT | development |
 | npm | scheduler | 0.28.0 | MIT | runtime |
 | npm | source-map-js | 1.2.2 | BSD-3-Clause | development |
+| npm | stackblur-canvas | 2.7.0 | MIT | runtime |
 | npm | std-env | 4.3.0 | MIT | development |
+| npm | svg-pathdata | 6.0.3 | MIT | runtime |
+| npm | text-segmentation | 1.0.3 | MIT | runtime |
 | npm | three | 0.187.0 | MIT | runtime |
 | npm | tinybench | 6.2.3 | MIT | development |
 | npm | tinyexec | 1.3.1 | MIT | development |
 | npm | tinyglobby | 0.2.17 | MIT | development |
 | npm | typescript | 5.9.3 | Apache-2.0 | development |
 | npm | undici-types | 7.24.6 | MIT | development |
+| npm | utrie | 1.0.2 | MIT | runtime |
+| npm | vendor/lodash-set | 1.0.0 | MIT | runtime |
+| npm | vendor/lodash-unset | 1.0.0 | MIT | runtime |
 | npm | vite | 8.3.5 | MIT | development |
 | npm | vitest | 5.1.0 | MIT | development |
 | npm | why-is-node-running | 3.2.1 | MIT | development |
@@ -392,6 +435,8 @@ Full available license texts are in `THIRD_PARTY_NOTICES.txt`, bundled with the 
 - npm @tauri-apps/cli-win32-arm64-msvc
 - npm @tauri-apps/cli-win32-ia32-msvc
 - npm @tauri-apps/cli-win32-x64-msvc
+- npm bezier-js
+- npm hooks
 - npm lightningcss-android-arm64
 - npm lightningcss-darwin-x64
 - npm lightningcss-freebsd-x64

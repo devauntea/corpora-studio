@@ -1,17 +1,18 @@
-# Form Studio 0.6.0
+# Form Studio 0.7.0
 
-A local desktop tattoo-planning studio with complete anatomical sections and an image cleanup workspace.
+A local desktop design studio with tattoo composition, image cleanup, and measured garment patterns.
 
-Open **`releases/Form Studio 0.6.0.app`** on this Mac. Save and quit an older Form Studio session before switching versions; the previous app bundle is preserved.
+Open **`releases/Form Studio 0.7.0.app`** on this Mac. Save and quit an older Form Studio session before switching versions; the previous app bundle is preserved.
 
+- **Fashion:** draft a knit T-shirt from 13 measurements, with front, back, sleeve and rib neckband pieces. Adjust fit, neckline and allowances; drag shape handles or arrange pieces; save measurements and garment notes with the project. Export full-size SVG or tiled A4/US Letter PDF with a calibration square.
 - **Body model → Template:** full arm, connected upper body, or full leg. Choose male or female and **Fit / Average**, refine build and definition, then use **Skin / Muscles** and filter opacity to compare the tattoo against muscle flow. The latest sculpt adds joint and tendon landmarks, skin folds, and muscle-specific fibers with clean connective borders. Point at a colored region for its name and direction. Each arm has independent elbow flex, shoulder elevation and forearm rotation; legs retain knee flex. Use **Fit model** after raising an arm.
 - **Tattoo image studio:** crop the image; remove a light, black or chosen-color background; erase/restore details; adjust tone; compare with the original; export a transparent PNG; then apply edits to the composition.
 - **Photograph → Add body photos:** the existing direct-photo workflow, protection masks and HEIC import remain available.
-- **Save:** v6 projects embed unchanged original images plus editing recipes. v1/v2/v3/v4/v5 projects open with their old surfaces and placements; their first save creates a new copy.
+- **Save:** v7 projects embed unchanged original images, editing recipes and optional fashion settings. v1/v2/v3/v4/v5/v6 projects open with their old surfaces and placements; their first save creates a new copy.
 
 The colored muscle map is registered from a superficial anatomy atlas to an adjustable skin surface. It is a placement reference, and flex is an approximate pose preview. This is not a clinical anatomy model, personal body reconstruction, calibrated skin-stretch simulation or validated tattoo stencil. Upper-body artwork uses separate trunk and arm charts.
 
-See [the surface-detail update and verification](docs/surface-detail-update.md), [the body library and asset provenance](docs/detailed-body-update.md), and [the preceding pose and crop update](docs/pose-crop-update.md).
+See [the fashion workspace and verification](docs/fashion-workspace.md), [the surface-detail update and verification](docs/surface-detail-update.md), [the body library and asset provenance](docs/detailed-body-update.md), and [the preceding pose and crop update](docs/pose-crop-update.md).
 
 ## Run and develop
 
@@ -43,9 +44,11 @@ Choose **Place** (`G`) and click or drag on a body surface. For the connected up
 
 Artwork appearance, visibility, locking, layer ordering and duplication remain available. Source cleanup applies to all instances; ink appearance remains per layer. Apply in the image studio is one project undo step. Each image brush stroke, crop drag and continuous adjustment-slider gesture is one editor undo step. In Crop mode, drag corners to resize, drag inside to move, or drag outside to draw another rectangle. Reset crop recovers the full image without losing brush edits. Cropping keeps each placed instance’s width and center and updates its height to match the new aspect ratio. Fit and 150–300% zoom scale the image to the available editor space.
 
-Save is `Cmd+S`, Save As is `Shift+Cmd+S`, and Open is `Cmd+O`. Undo/redo is `Cmd+Z` / `Shift+Cmd+Z` (Ctrl in the browser harness on Windows). Project undo holds 100 changes and resets on Open; undo history and camera position are not serialized. Review export is `Cmd+E`: 1800 × 1800 for 3D; photo export has a maximum 4000-pixel image edge plus its review footer. These dimensions do not guarantee equivalent source detail. Muscle-filter exports include the atlas attribution; skin-only and photograph reviews retain their existing footer.
+Save is `Cmd+S`, Save As is `Shift+Cmd+S`, and Open is `Cmd+O`. Undo/redo is `Cmd+Z` / `Shift+Cmd+Z` (Ctrl in the browser harness on Windows). Project undo holds 100 changes and resets on Open; undo history and camera position are not serialized. Export is `Cmd+E`: the selected PDF/SVG pattern format in Fashion; review images in Tattoo: 1800 × 1800 for 3D; photo export has a maximum 4000-pixel image edge plus its review footer. These dimensions do not guarantee equivalent source detail. Muscle-filter exports include the atlas attribution; skin-only and photograph reviews retain their existing footer.
 
 ## Current boundaries
+
+- Fashion starts with one knit T-shirt template. Its three silhouette presets change actual drafting parameters. The shape handles constrain edits to neckline depth, body length and sleeve length; arbitrary point/curve CAD, darts, multi-size grading, woven blocks, artwork-on-garment previews, photo reconstruction and cloth simulation are not implemented. Sew a toile and check ribbing recovery before using final fabric.
 
 - Male and female anatomical surfaces with fit and average presets, complete arm/upper-body/leg sections, and the five legacy surfaces. No automatic personal reconstruction, clinical muscle segmentation, muscle-contraction simulation, garment simulation or AI inference.
 - Surface charts preserve attachment through model and pose changes but have local distortion, especially around joints, shoulders, hands and feet. A single upper-body layer does not paint seamlessly across the trunk/arm chart boundaries.

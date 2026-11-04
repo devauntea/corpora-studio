@@ -35,7 +35,9 @@ fn validate_envelope(content: &str) -> Result<(), String> {
             && v["version"] != 2
             && v["version"] != 3
             && v["version"] != 4
-            && v["version"] != 5)
+            && v["version"] != 5
+            && v["version"] != 6
+            && v["version"] != 7)
     {
         return Err("Unsupported project format or version.".into());
     }
@@ -176,6 +178,47 @@ async fn save_review(data: String, name: String) -> Result<Option<String>, Strin
 fn close_app(app: tauri::AppHandle, approval: State<ExitApproval>) {
     approval.0.store(true, Ordering::SeqCst);
     app.exit(0);
+}
+
+fn pattern_bytes(data: &str, format: &str) -> Result<Vec<u8>, String> {
+    if data.len() > 30_000_000 {
+        return Err("Pattern export exceeds 30 MB.".into());
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|_| "Invalid pattern bytes.")?;
+    match format {
+        "pdf" if bytes.starts_with(b"%PDF-") => Ok(bytes),
+        "svg" if bytes.starts_with(b"<?xml") && std::str::from_utf8(&bytes).is_ok() => Ok(bytes),
+        _ => Err("Expected a generated SVG or PDF pattern.".into()),
+    }
+}
+
+#[tauri::command]
+async fn save_pattern(
+    data: String,
+    name: String,
+    format: String,
+) -> Result<Option<String>, String> {
+    let bytes = pattern_bytes(&data, &format)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let safe: String = name
+            .chars()
+            .filter(|c| c.is_alphanumeric() || " -_".contains(*c))
+            .take(80)
+            .collect();
+        let Some(path) = rfd::FileDialog::new()
+            .add_filter("Sewing pattern", &[format.as_str()])
+            .set_file_name(format!("{safe}-pattern.{format}"))
+            .save_file()
+        else {
+            return Ok(None);
+        };
+        atomic_write(&path, &bytes)?;
+        Ok(Some(path.to_string_lossy().into_owned()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -319,6 +362,7 @@ fn main() {
             open_project,
             save_project,
             save_review,
+            save_pattern,
             close_app,
             decode_heic
         ])
@@ -386,6 +430,18 @@ mod tests {
         }
     }
     #[test]
+    fn pattern_exports_validate_format_and_preserve_bytes() {
+        let pdf = b"%PDF-1.4\nexample";
+        let data = base64::engine::general_purpose::STANDARD.encode(pdf);
+        assert_eq!(pattern_bytes(&data, "pdf").unwrap(), pdf);
+        assert!(pattern_bytes(&data, "svg").is_err());
+        assert!(pattern_bytes(&data, "html").is_err());
+        assert!(pattern_bytes("not base64", "pdf").is_err());
+        let svg = b"<?xml version=\"1.0\"?><svg/>";
+        let encoded = base64::engine::general_purpose::STANDARD.encode(svg);
+        assert_eq!(pattern_bytes(&encoded, "svg").unwrap(), svg);
+    }
+    #[test]
     fn invalid_projects_are_rejected() {
         assert!(validate_envelope("not json").is_err());
         assert!(validate_envelope(r#"{"format":"form-studio","version":99}"#).is_err());
@@ -394,5 +450,7 @@ mod tests {
         assert!(validate_envelope(r#"{"format":"form-studio","version":3}"#).is_ok());
         assert!(validate_envelope(r#"{"format":"form-studio","version":4}"#).is_ok());
         assert!(validate_envelope(r#"{"format":"form-studio","version":5}"#).is_ok());
+        assert!(validate_envelope(r#"{"format":"form-studio","version":6}"#).is_ok());
+        assert!(validate_envelope(r#"{"format":"form-studio","version":7}"#).is_ok());
     }
 }
