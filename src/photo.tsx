@@ -1,3 +1,10 @@
+import {
+  defaultQuad,
+  validQuad,
+  drawWarp,
+  insideQuad,
+  type Quad,
+} from "./photo-warp";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import {
@@ -39,12 +46,20 @@ export async function paintPhoto(
       const w = p.width * c.width,
         h = w * artworkRatio(a) * (l.stretch ?? 1);
       x.clearRect(0, 0, c.width, c.height);
-      x.save();
-      x.translate(p.x * c.width, p.y * c.height);
-      x.rotate((l.rotation * Math.PI) / 180);
-      x.transform(l.flipX ? -1 : 1, 0, p.skew, l.flipY ? -1 : 1, 0, 0);
-      x.drawImage(image, -w / 2, -h / 2, w, h);
-      x.restore();
+      if (p.warp) {
+        const quad = corners(l, a, c.width / c.height).points.map(([u, v]) => [
+          (u * c.width) / 1000,
+          (v * c.width) / 1000,
+        ]) as Quad;
+        drawWarp(x, image, quad);
+      } else {
+        x.save();
+        x.translate(p.x * c.width, p.y * c.height);
+        x.rotate((l.rotation * Math.PI) / 180);
+        x.transform(l.flipX ? -1 : 1, 0, p.skew, l.flipY ? -1 : 1, 0, 0);
+        x.drawImage(image, -w / 2, -h / 2, w, h);
+        x.restore();
+      }
       x.save();
       x.globalCompositeOperation = "destination-out";
       x.lineCap = "round";
@@ -114,22 +129,21 @@ function corners(l: Layer, a: Asset, aspect: number) {
     w = p.width * 1000,
     h = w * artworkRatio(a) * (l.stretch ?? 1),
     t = (l.rotation * Math.PI) / 180;
-  const point = (x: number, y: number) => {
-    x += p.skew * y;
+  const point = (u: number, v: number): [number, number] => {
+    const x = (l.flipX ? -1 : 1) * u * w + p.skew * v * h,
+      y = (l.flipY ? -1 : 1) * v * h;
     return [
       p.x * 1000 + x * Math.cos(t) - y * Math.sin(t),
       (p.y * 1000) / aspect + x * Math.sin(t) + y * Math.cos(t),
-    ] as [number, number];
+    ];
   };
+  const q = p.warp ?? defaultQuad(),
+    u = (q[0][0] + q[1][0]) / 2,
+    v = (q[0][1] + q[1][1]) / 2;
   return {
-    points: [
-      point(-w / 2, -h / 2),
-      point(w / 2, -h / 2),
-      point(w / 2, h / 2),
-      point(-w / 2, h / 2),
-    ],
-    rotate: point(0, -h / 2 - 38),
-    top: point(0, -h / 2),
+    points: q.map(([x, y]) => point(x, y)) as Quad,
+    top: point(u, v),
+    rotate: point(u, v - 38 / h),
   };
 }
 export function PhotoStage({
@@ -155,6 +169,7 @@ export function PhotoStage({
 }) {
   const [before, setBefore] = useState(false),
     [protect, setProtect] = useState(false),
+    [warp, setWarp] = useState(false),
     [brush, setBrush] = useState(0.025),
     [size, setSize] = useState({ width: 1, height: 1 });
   const [draft, setDraft] = useState<Photo["masks"][number]>();
@@ -236,16 +251,10 @@ export function PhotoStage({
     if (!action) {
       target = [...project.layers].reverse().find((l) => {
         if (l.photoId !== photo.id || !l.visible || l.locked) return false;
-        const a = project.assets.find((a) => a.id === l.assetId)!,
-          ph = l.photo!,
-          t = (-l.rotation * Math.PI) / 180,
-          dx = p[0] - ph.x,
-          dy = (p[1] - ph.y) / aspect;
-        const ry = dx * Math.sin(t) + dy * Math.cos(t),
-          rx = dx * Math.cos(t) - dy * Math.sin(t) - ph.skew * ry;
-        return (
-          Math.abs(rx) <= ph.width / 2 &&
-          Math.abs(ry) <= (ph.width * artworkRatio(a) * (l.stretch ?? 1)) / 2
+        const a = project.assets.find((a) => a.id === l.assetId)!;
+        return insideQuad(
+          [p[0] * 1000, (p[1] * 1000) / aspect],
+          corners(l, a, aspect).points,
         );
       });
     }
@@ -280,7 +289,24 @@ export function PhotoStage({
     const ph = d.layer.photo!,
       dx = p[0] - ph.x,
       dy = (p[1] - ph.y) / aspect;
-    if (d.action === "rotate") {
+    if (d.action.startsWith("warp-")) {
+      const asset = project.assets.find((a) => a.id === d.layer.assetId)!;
+      const t = (-d.layer.rotation * Math.PI) / 180,
+        ry = dx * Math.sin(t) + dy * Math.cos(t),
+        rx = dx * Math.cos(t) - dy * Math.sin(t);
+      const y = ry / (d.layer.flipY ? -1 : 1),
+        x = (rx - ph.skew * y) / (d.layer.flipX ? -1 : 1);
+      const q = structuredClone(ph.warp ?? defaultQuad());
+      q[Number(d.action.slice(5))] = [
+        clamp(x / ph.width, -1.5, 1.5),
+        clamp(
+          y / (ph.width * artworkRatio(asset) * (d.layer.stretch ?? 1)),
+          -1.5,
+          1.5,
+        ),
+      ];
+      if (validQuad(q)) onLayer({ photo: { ...ph, warp: q } });
+    } else if (d.action === "rotate") {
       const deg =
         d.layer.rotation + ((Math.atan2(dy, dx) - d.angle) * 180) / Math.PI;
       onLayer({ rotation: ((deg + 540) % 360) - 180 });
@@ -331,11 +357,35 @@ export function PhotoStage({
     <div className="photo-workspace">
       <div className="photo-toolbar">
         <button
-          className={!protect ? "selected" : ""}
-          onClick={() => setProtect(false)}
+          className={!protect && !warp ? "selected" : ""}
+          onClick={() => {
+            setProtect(false);
+            setWarp(false);
+          }}
         >
           Transform
         </button>
+        <button
+          className={warp && !protect ? "selected" : ""}
+          aria-pressed={warp && !protect}
+          onClick={() => {
+            setWarp(true);
+            setProtect(false);
+          }}
+        >
+          Warp corners
+        </button>
+        {warp && (
+          <button
+            disabled={!layer?.photo?.warp || layer.locked}
+            onClick={() => {
+              if (layer?.photo)
+                onLayer({ photo: { ...layer.photo, warp: undefined } });
+            }}
+          >
+            Reset warp
+          </button>
+        )}
         <button
           className={protect ? "selected" : ""}
           onClick={() => setProtect(true)}
@@ -409,7 +459,7 @@ export function PhotoStage({
                 <polygon
                   points={handles.points.map((p) => p.join(",")).join(" ")}
                   fill="transparent"
-                  stroke="#f3eee0"
+                  stroke="#fff"
                   strokeWidth="2"
                   data-action="move"
                 />
@@ -418,7 +468,7 @@ export function PhotoStage({
                   y1={handles.top[1]}
                   x2={handles.rotate[0]}
                   y2={handles.rotate[1]}
-                  stroke="#f3eee0"
+                  stroke="#fff"
                   strokeWidth="2"
                 />
                 {handles.points.map(([x, y], i) => (
@@ -428,18 +478,18 @@ export function PhotoStage({
                     y={y - 8}
                     width="16"
                     height="16"
-                    fill="#244f40"
-                    stroke="#f3eee0"
+                    fill="#333"
+                    stroke="#fff"
                     strokeWidth="2"
-                    data-action="scale"
+                    data-action={warp ? `warp-${i}` : "scale"}
                   />
                 ))}
                 <circle
                   cx={handles.rotate[0]}
                   cy={handles.rotate[1]}
                   r="10"
-                  fill="#244f40"
-                  stroke="#f3eee0"
+                  fill="#333"
+                  stroke="#fff"
                   strokeWidth="2"
                   data-action="rotate"
                 />
@@ -454,7 +504,9 @@ export function PhotoStage({
           ? "Original photograph"
           : protect
             ? "Protection is anchored to this photograph"
-            : "Drag artwork · Corner handles scale · Round handle rotates"}
+            : warp
+              ? "Drag corners to fit perspective · Foldovers are prevented"
+              : "Drag artwork · Corner handles scale · Round handle rotates"}
         <small>Artistic preview · Photograph scale is not calibrated</small>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { defaultProcessing, type Processing } from "./image-processing";
 import { useEffect, useRef, useState } from "react";
 import {
   Eraser,
@@ -89,6 +90,9 @@ export function ArtworkStudio({
     }
     setEdits(next);
   };
+  const processing = edits.processing ?? defaultProcessing();
+  const process = (patch: Partial<Processing>) =>
+    update({ ...edits, processing: { ...processing, ...patch } });
   const beginAdjustment = () => {
     adjustment.current ??= live.current.edits;
   };
@@ -510,6 +514,102 @@ export function ArtworkStudio({
                 onChange={(e) =>
                   update({ ...edits, contrast: +e.target.value })
                 }
+              />
+            </label>
+            <h3>05 / Ink preparation</h3>
+            <label>
+              Conversion
+              <select
+                aria-label="Artwork conversion"
+                value={processing.mode}
+                onChange={(e) =>
+                  process({ mode: e.target.value as Processing["mode"] })
+                }
+              >
+                <option value="original">Original tones</option>
+                <option value="stencil">Solid stencil</option>
+                <option value="line-art">Contour line art</option>
+              </select>
+            </label>
+            {processing.mode === "stencil" && (
+              <>
+                <label>
+                  Ink threshold <output>{processing.threshold}</output>
+                  <input
+                    aria-label="Stencil threshold"
+                    type="range"
+                    min="1"
+                    max="254"
+                    {...rangeGesture}
+                    value={processing.threshold}
+                    onChange={(e) => process({ threshold: +e.target.value })}
+                  />
+                </label>
+                <label className="art-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={processing.adaptive}
+                    onChange={(e) => process({ adaptive: e.target.checked })}
+                  />{" "}
+                  Adapt to uneven lighting
+                </label>
+              </>
+            )}
+            {processing.mode === "line-art" && (
+              <label>
+                Contour detail <output>{processing.detail}</output>
+                <input
+                  aria-label="Contour detail"
+                  type="range"
+                  min="10"
+                  max="200"
+                  {...rangeGesture}
+                  value={processing.detail}
+                  onChange={(e) => process({ detail: +e.target.value })}
+                />
+              </label>
+            )}
+            {processing.mode !== "original" && (
+              <>
+                <label>
+                  Noise smoothing <output>{processing.smoothing}</output>
+                  <input
+                    aria-label="Noise smoothing"
+                    type="range"
+                    min="0"
+                    max="4"
+                    {...rangeGesture}
+                    value={processing.smoothing}
+                    onChange={(e) => process({ smoothing: +e.target.value })}
+                  />
+                </label>
+                <label className="art-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={processing.transparent}
+                    onChange={(e) => process({ transparent: e.target.checked })}
+                  />{" "}
+                  Transparent paper
+                </label>
+                <p>
+                  {processing.mode === "line-art"
+                    ? "Extracts visible contours. Increase detail to pick up finer edges."
+                    : "Converts dark areas into solid black ink."}{" "}
+                  Preview at export size before printing.
+                </p>
+              </>
+            )}
+            <label>
+              Sharpen <output>{processing.sharpen.toFixed(1)}</output>
+              <input
+                aria-label="Artwork sharpening"
+                type="range"
+                min="0"
+                max="2"
+                step=".1"
+                {...rangeGesture}
+                value={processing.sharpen}
+                onChange={(e) => process({ sharpen: +e.target.value })}
               />
             </label>
             <button

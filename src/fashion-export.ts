@@ -23,6 +23,7 @@ export const xml = (s: string) =>
       })[c]!,
   );
 export function pieceMarkup(p: PatternPiece, sa: number, guides = true) {
+  sa = p.allowances ? Number(p.allowances.some((v) => v > 0)) : sa;
   const path = (
     ops: PatternOp[],
     stroke: string,
@@ -59,12 +60,13 @@ export function pieceMarkup(p: PatternPiece, sa: number, guides = true) {
   );
 }
 export function patternSvg(draft: PatternDraft, f: Fashion, name: string) {
+  const manual = Boolean(f.construction && Object.keys(f.construction).length);
   const b = layoutBounds(draft, f),
     height = b.height + 110;
   return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${b.width.toFixed(3)}mm" height="${height.toFixed(3)}mm" viewBox="${b.x} ${b.y - 110} ${b.width} ${height}">
 <title>${xml(name)} — sewing pattern in millimeters</title>
-<desc>Drafted locally using FreeSewing Teagan 4.10.2. Neckband by Form Studio. Seam allowance ${f.seamAllowance} mm; body and sleeve hems ${f.seamAllowance * 3} mm. Verify with a toile. Print at 100 percent.</desc>
-<g fill="#222" font-family="Arial, sans-serif"><text x="${b.x + 20}" y="${b.y - 85}" font-size="12">${xml(name)}</text><text x="${b.x + 20}" y="${b.y - 68}" font-size="6">${xml(f.profile)} · 1 SVG unit = 1 mm · Print at 100%</text><text x="${b.x + 20}" y="${b.y - 54}" font-size="5">Solid: cut · Dashed: stitch · Crosses: matching marks · SA ${f.seamAllowance} mm / hems ${f.seamAllowance * 3} mm</text><text x="${b.x + 20}" y="${b.y - 40}" font-size="5">Knit T-shirt · Test neckband stretch and fit in a toile before cutting final fabric.</text></g>
+<desc>Drafted locally using FreeSewing Teagan 4.10.2. Neckband by Form Studio. ${manual ? "Manual pieces use their saved per-edge allowances." : `Seam allowance ${f.seamAllowance} mm; body and sleeve hems ${f.seamAllowance * 3} mm.`} Verify with a toile. Print at 100 percent.</desc>
+<g fill="#222" font-family="Arial, sans-serif"><text x="${b.x + 20}" y="${b.y - 85}" font-size="12">${xml(name)}</text><text x="${b.x + 20}" y="${b.y - 68}" font-size="6">${xml(f.profile)} · 1 SVG unit = 1 mm · Print at 100%</text><text x="${b.x + 20}" y="${b.y - 54}" font-size="5">Solid: cut · Dashed: stitch · Crosses: matching marks · ${manual ? "Manual pieces: individual edge allowances" : `SA ${f.seamAllowance} mm / hems ${f.seamAllowance * 3} mm`}</text><text x="${b.x + 20}" y="${b.y - 40}" font-size="5">Knit T-shirt · Test neckband stretch and fit in a toile before cutting final fabric.</text></g>
 <rect x="${b.x + b.width - 80}" y="${b.y - 90}" width="50" height="50" fill="none" stroke="#222" stroke-width="0.3"/>
 <text x="${b.x + b.width - 55}" y="${b.y - 30}" font-family="Arial, sans-serif" font-size="5" text-anchor="middle">50 × 50 mm</text>
 ${layoutPieces(draft, f)
@@ -91,7 +93,7 @@ export async function patternPdf(
   doc.setProperties({
     title: name,
     subject: "Full-scale tiled sewing pattern",
-    creator: "Form Studio 0.7",
+    creator: "Form Studio 0.8",
   });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(21);
@@ -107,9 +109,11 @@ export async function patternPdf(
     "Measure the square below before assembling or cutting.",
     "Trim on the tile frames. Match the 5 mm overlapping strips.",
     "Each piece has its own grid: rows top to bottom, columns left to right.",
-    `Seam allowance: ${f.seamAllowance} mm. Body and sleeve hems: ${f.seamAllowance * 3} mm.`,
+    f.construction && Object.keys(f.construction).length
+      ? "Manual pieces: individual edge allowances. Other pieces use the draft settings."
+      : `Seam allowance: ${f.seamAllowance} mm. Body and sleeve hems: ${f.seamAllowance * 3} mm.`,
     "Solid lines: cut. Dashed: stitch. Crosses: matching marks.",
-    "Front and back: cut 1 on fold. Sleeves: cut 2 mirrored.",
+    "Follow the cut instruction printed on each piece.",
     `Neckband: ${Math.round(f.bandRatio * 100)}% of neck opening; finished width ${f.bandWidth} mm.`,
     "Neckband stretch varies by ribbing. Test a sample and sew a toile first.",
   ];
@@ -186,8 +190,11 @@ export async function patternPdf(
         doc.rect(10, 16, t.width, t.height, null).clip().discardPath();
         const x = 16 - col * (t.width - t.overlap),
           y = 22 - row * (t.height - t.overlap);
-        drawPath(p.seam, x, y, 70, f.seamAllowance ? [3, 2] : []);
-        if (f.seamAllowance) drawPath(p.cutline, x, y, 0);
+        const hasAllowance = p.allowances
+          ? p.allowances.some((v) => v > 0)
+          : f.seamAllowance > 0;
+        drawPath(p.seam, x, y, 70, hasAllowance ? [3, 2] : []);
+        if (hasAllowance) drawPath(p.cutline, x, y, 0);
         p.guides.forEach((g) => drawPath(g, x, y, 150, [2, 3]));
         const [a, b] = p.grain;
         drawPath(
@@ -251,9 +258,14 @@ export async function patternPdf(
         }
         doc.setFontSize(15);
         doc.setTextColor(30);
-        doc.text(p.name.toUpperCase(), p.label.x + x, p.label.y + y - 5, {
-          align: "center",
-        });
+        doc.text(
+          ascii(p.name).toUpperCase(),
+          p.label.x + x,
+          p.label.y + y - 5,
+          {
+            align: "center",
+          },
+        );
         doc.setFontSize(10);
         doc.text(ascii(p.cut), p.label.x + x, p.label.y + y + 5, {
           align: "center",
@@ -272,12 +284,12 @@ export async function patternPdf(
         doc.setTextColor(50);
         doc.setFontSize(9);
         doc.text(
-          `${p.name} / R${row + 1} C${col + 1} / ${t.rows} rows x ${t.columns} columns`,
+          `${ascii(p.name).slice(0, 48)} / R${row + 1} C${col + 1} / ${t.rows} rows x ${t.columns} columns`,
           10,
           10,
         );
         doc.text(
-          `Form Studio | ${f.paper.toUpperCase()} | 100% | ${f.seamAllowance} mm SA | 5 mm overlap`,
+          `Form Studio | ${f.paper.toUpperCase()} | 100% | ${p.allowances ? "Individual edge SA" : `${f.seamAllowance} mm SA`} | 5 mm overlap`,
           10,
           t.pageHeight - 8,
         );

@@ -59,7 +59,7 @@ test("whole sections, chart selection, muscle guide and posed project round trip
   const file = info.outputPath("posed.formstudio");
   await (await download).saveAs(file);
   const p = JSON.parse(await fs.readFile(file, "utf8"));
-  expect(p.version).toBe(7);
+  expect(p.version).toBe(8);
   expect(p.body).toMatchObject({
     kind: "human-v1",
     section: "upper-body",

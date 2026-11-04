@@ -1,3 +1,4 @@
+import { ConstructionSetSchema } from "./fashion-construction";
 import { z } from "zod";
 
 const n = (min: number, max: number) => z.number().finite().min(min).max(max);
@@ -191,6 +192,7 @@ export const FashionSchema = z
       .strict(),
     notes: z.string().max(3000),
     paper: z.enum(["a4", "letter"]),
+    construction: ConstructionSetSchema.optional(),
   })
   .strict();
 export type Fashion = z.infer<typeof FashionSchema>;
@@ -249,6 +251,7 @@ export type PatternPiece = {
   id: PieceId;
   name: string;
   cut: string;
+  allowances?: number[];
   width: number;
   height: number;
   seam: PatternOp[];
@@ -293,10 +296,14 @@ export function layoutPieces(draft: PatternDraft, fashion: Fashion) {
     }
     const result = {
       piece,
-      x: (piece.id === "neckband" ? sleeveX : x) + fashion.layout[piece.id].x,
+      x:
+        (piece.id === "neckband" ? sleeveX : x) +
+        fashion.layout[piece.id].x +
+        (fashion.construction?.[piece.id] ? piece.origin.x : 0),
       y:
         (piece.id === "neckband" ? sleeveHeight + 110 : 40) +
-        fashion.layout[piece.id].y,
+        fashion.layout[piece.id].y +
+        (fashion.construction?.[piece.id] ? piece.origin.y : 0),
     };
     x += piece.width + 45;
     return result;

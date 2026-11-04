@@ -1,14 +1,14 @@
-# Form Studio 0.7.0
+# Form Studio 0.8.0
 
 A local desktop design studio with tattoo composition, image cleanup, and measured garment patterns.
 
-Open **`releases/Form Studio 0.7.0.app`** on this Mac. Save and quit an older Form Studio session before switching versions; the previous app bundle is preserved.
+Open **`releases/Form Studio 0.8.0.app`** on this Mac. Save and quit an older Form Studio session before switching versions; the previous app bundle is preserved.
 
 - **Fashion:** draft a knit T-shirt from 13 measurements, with front, back, sleeve and rib neckband pieces. Adjust fit, neckline and allowances; drag shape handles or arrange pieces; save measurements and garment notes with the project. Export full-size SVG or tiled A4/US Letter PDF with a calibration square.
 - **Body model → Template:** full arm, connected upper body, or full leg. Choose male or female and **Fit / Average**, refine build and definition, then use **Skin / Muscles** and filter opacity to compare the tattoo against muscle flow. The latest sculpt adds joint and tendon landmarks, skin folds, and muscle-specific fibers with clean connective borders. Point at a colored region for its name and direction. Each arm has independent elbow flex, shoulder elevation and forearm rotation; legs retain knee flex. Use **Fit model** after raising an arm.
 - **Tattoo image studio:** crop the image; remove a light, black or chosen-color background; erase/restore details; adjust tone; compare with the original; export a transparent PNG; then apply edits to the composition.
 - **Photograph → Add body photos:** the existing direct-photo workflow, protection masks and HEIC import remain available.
-- **Save:** v7 projects embed unchanged original images, editing recipes and optional fashion settings. v1/v2/v3/v4/v5/v6 projects open with their old surfaces and placements; their first save creates a new copy.
+- **Save:** v8 projects embed unchanged original images, editing recipes and optional fashion settings. v1/v2/v3/v4/v5/v6/v7 projects open with their old surfaces and placements; their first save creates a new copy.
 
 The colored muscle map is registered from a superficial anatomy atlas to an adjustable skin surface. It is a placement reference, and flex is an approximate pose preview. This is not a clinical anatomy model, personal body reconstruction, calibrated skin-stretch simulation or validated tattoo stencil. Upper-body artwork uses separate trunk and arm charts.
 
@@ -59,3 +59,5 @@ Save is `Cmd+S`, Save As is `Shift+Cmd+S`, and Open is `Cmd+O`. Undo/redo is `Cm
 - macOS Apple Silicon is the tested native target. Windows qualification, installers, file associations, distribution signing and notarization remain release work.
 
 See the [dependency inventory](docs/dependencies.md). Earlier milestones remain documented in [the original architecture](docs/architecture.md), [the photo workflow plan](docs/advanced-studio-plan.md) and [its verification](docs/advanced-verification.md). The original research report is alongside the repository in `../tattoo-fashion-research-2026-11-03/`.
+
+The 0.8 update adds source-image stencils / contours, perspective corner placement, manual pattern geometry, local recovery and named checkpoints. See [editing and recovery](docs/editing-recovery-update.md) and the [complete status ledger](docs/studio-completion-status.md) for behavior and remaining scope.

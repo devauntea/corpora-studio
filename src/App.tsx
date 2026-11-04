@@ -1,3 +1,5 @@
+import { ProjectLibrary } from "./ProjectLibrary";
+import { listWorkspace, putWorkspace } from "./workspace-store";
 import { newFashion } from "./fashion-model";
 import type { Fashion } from "./fashion-model";
 import { lazy, Suspense } from "react";
@@ -228,6 +230,11 @@ export function App() {
     error?: boolean;
   } | null>(null);
   const [help, setHelp] = useState(false);
+  const [library, setLibrary] = useState(false);
+  const [recovery, setRecovery] = useState("Checking local copies…");
+  const storedProjects = useRef(new Set<string>());
+  const recoveryQueue = useRef<Promise<void>>(Promise.resolve());
+  const recoveryWritten = useRef<Project | null>(null);
   const [editingAsset, setEditingAsset] = useState<string>();
   const [pending, setPending] = useState<(() => void) | null>(null);
   const [stats, setStats] = useState({ p95: 0, frames: 0, triangles: 0 });
@@ -259,6 +266,53 @@ export function App() {
     photoId,
   };
   const dirty = project !== saved;
+  useEffect(() => {
+    void listWorkspace()
+      .then((entries) => {
+        entries
+          .filter((e) => e.kind === "recovery")
+          .forEach((e) => storedProjects.current.add(e.projectId));
+        setRecovery(
+          entries.length ? "Local copies available" : "Recovery ready",
+        );
+      })
+      .catch(() => setRecovery("Local recovery unavailable"));
+  }, []);
+  useEffect(() => {
+    if (!ready || !dirty || recoveryWritten.current === project) return;
+    setRecovery("Saving local copy…");
+    const timer = setTimeout(() => {
+      const current = project;
+      recoveryQueue.current = recoveryQueue.current
+        .catch(() => {})
+        .then(async () => {
+          try {
+            const content = JSON.stringify(current);
+            await putWorkspace(
+              {
+                id: `recovery-${current.id}`,
+                projectId: current.id,
+                name: current.name,
+                label: "Autosaved workspace",
+                kind: "recovery",
+                updated: Date.now(),
+                bytes: content.length * 2,
+                studio,
+              },
+              content,
+            );
+            storedProjects.current.add(current.id);
+            recoveryWritten.current = current;
+            if (live.current.project === current)
+              setRecovery("Local copy up to date");
+          } catch (e) {
+            setRecovery("Recovery needs attention");
+            setNotice({ text: String(e), error: true });
+          }
+        });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [project, ready, studio]);
   const layer = project.layers.find((l) => l.id === selected);
   const photo = project.photos.find((p) => p.id === photoId);
   const visibleLayers = project.layers.filter((l) =>
@@ -285,6 +339,8 @@ export function App() {
   );
   const beginFashion = useCallback(() => dispatch({ type: "begin" }), []);
   const commitFashion = useCallback(() => dispatch({ type: "commit" }), []);
+  const undoFashion = useCallback(() => dispatch({ type: "undo" }), []);
+  const redoFashion = useCallback(() => dispatch({ type: "redo" }), []);
   const editLayer = useCallback(
     (patch: Partial<Layer>) => {
       const p = live.current.project,
@@ -465,7 +521,7 @@ export function App() {
         dispatch({ type: "reset", value: p });
         setSaved(p);
         setStudio(p.fashion ? "fashion" : "tattoo");
-        setPath(JSON.parse(text).version < 7 ? null : filePath);
+        setPath(JSON.parse(text).version < 8 ? null : filePath);
         setPhotoId(p.photos[0]?.id);
         setWorkspace(p.photos.length ? "photo" : "surface");
         setSelected(
@@ -478,8 +534,8 @@ export function App() {
         scene.current?.view("front", p.body.length);
         setView("front");
         alert(
-          JSON.parse(text).version < 7
-            ? "Legacy project opened without changing placement. Save creates a new v7 copy."
+          JSON.parse(text).version < 8
+            ? "Legacy project opened without changing placement. Save creates a new v8 copy."
             : "Project opened. All original image integrity checks passed.",
         );
       } catch (error) {
@@ -920,9 +976,13 @@ export function App() {
           </button>
         </nav>
         <div className="topbar-actions">
-          <span className="local-label">
-            <ShieldCheck size={14} /> Local workspace
-          </span>
+          <button
+            className="local-library-button"
+            aria-label="Open project library"
+            onClick={() => setLibrary(true)}
+          >
+            <FolderOpen size={14} /> Project library <small>{recovery}</small>
+          </button>
           <IconButton
             label="Help and keyboard shortcuts"
             onClick={() => setHelp(true)}
@@ -1018,6 +1078,10 @@ export function App() {
             onChange={editFashion}
             onBegin={beginFashion}
             onCommit={commitFashion}
+            undo={undoFashion}
+            redo={redoFashion}
+            canUndo={history.past.length > 0}
+            canRedo={history.future.length > 0}
             busy={busy}
             setBusy={setBusy}
             notify={alert}
@@ -2371,7 +2435,7 @@ export function App() {
                 ? `Orbit p95 ${stats.p95.toFixed(1)} ms · ${stats.frames} frames · ${stats.triangles.toLocaleString()} triangles`
                 : "WebGL 2 · Surface mapping"}
           </button>
-          <span className="status-separator">/</span>FORM STUDIO 0.7
+          <span className="status-separator">/</span>FORM STUDIO 0.8
         </span>
       </footer>
       {notice && (
@@ -2428,6 +2492,19 @@ export function App() {
           }}
         />
       )}
+      {library && (
+        <ProjectLibrary
+          project={project}
+          studio={studio}
+          close={() => setLibrary(false)}
+          open={(content) => {
+            setLibrary(false);
+            guard(() => {
+              void load(content, null);
+            });
+          }}
+        />
+      )}
       {help && (
         <div className="modal-backdrop" onClick={() => setHelp(false)}>
           <section
@@ -2477,8 +2554,8 @@ export function App() {
                 a detailed muscle filter with directional fibers, independent
                 arm poses, image cleanup and photo protection masks are
                 available. Fashion includes a measured knit T-shirt, shape
-                controls, seam allowances, neckband and full-size SVG / tiled
-                PDF exports. Personal reconstruction and cloth simulation remain
+                controls, manual points and curves, seam allowances, neckband and full-size SVG / tiled
+                PDF exports. Local recovery and named checkpoints cover both workspaces. Personal reconstruction and cloth simulation remain
                 later phases.
               </p>
               <p>

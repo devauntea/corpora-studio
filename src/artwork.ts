@@ -1,3 +1,4 @@
+import { processPixels } from "./image-processing";
 import { clamp, artworkBounds, type ArtworkEdits } from "./domain";
 
 export function backgroundAlpha(
@@ -60,6 +61,7 @@ export function renderArtwork(
     edits.feather,
     edits.grayscale,
     edits.contrast,
+    edits.processing,
   ]);
   let cached = baseCache.get(image);
   if (cached?.key !== cacheKey) {
@@ -104,6 +106,8 @@ export function renderArtwork(
           255,
         );
     }
+    if (edits.processing)
+      processPixels(pixels.data, c.width, c.height, edits.processing);
     bx.putImageData(pixels, 0, 0);
     mx.putImageData(alpha, 0, 0);
     cached = { key: cacheKey, canvas: base, mask };

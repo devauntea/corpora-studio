@@ -126,16 +126,35 @@ test("photo composition: transforms, protection, undo, locking, export and porta
   await page
     .getByRole("button", { name: "Show composition", exact: true })
     .click();
+  await page.getByRole("button", { name: "Warp corners", exact: true }).click();
+  const warpHandle = svg.locator('[data-action="warp-0"]'),
+    wb = (await warpHandle.boundingBox())!;
+  const polygon = svg.locator("polygon"),
+    oldPoints = await polygon.getAttribute("points");
+  await page.mouse.move(wb.x + wb.width / 2, wb.y + wb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(wb.x + wb.width / 2 + 22, wb.y + wb.height / 2 + 13, {
+    steps: 6,
+  });
+  await page.mouse.up();
+  await expect(polygon).not.toHaveAttribute("points", oldPoints!);
+  await expect.poll(pixel).toEqual([196, 155, 125, 255]);
+  const warpedPoints = await polygon.getAttribute("points");
+  await page.getByLabel("Undo (⌘Z)", { exact: true }).click();
+  await expect(polygon).toHaveAttribute("points", oldPoints!);
+  await page.getByLabel("Redo (⇧⌘Z)", { exact: true }).click();
+  await expect(polygon).toHaveAttribute("points", warpedPoints!);
   const save = page.waitForEvent("download");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   const download = await save,
     file = info.outputPath("photo.formstudio");
   await download.saveAs(file);
   const p = JSON.parse(await fs.readFile(file, "utf8"));
-  expect(p.version).toBe(7);
+  expect(p.version).toBe(8);
   expect(p.photos).toHaveLength(2);
   expect(p.photos[0].masks).toHaveLength(1);
   expect(p.layers.at(-1).flipX).toBe(true);
+  expect(p.layers.at(-1).photo.warp).toHaveLength(4);
   const original = p.assets.find((a: { role: string }) => a.role === "body");
   expect(Buffer.from(original.data.split(",")[1], "base64")).toEqual(body);
   expect(original.sha256).toBe(createHash("sha256").update(body).digest("hex"));

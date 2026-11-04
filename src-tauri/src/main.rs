@@ -37,7 +37,8 @@ fn validate_envelope(content: &str) -> Result<(), String> {
             && v["version"] != 4
             && v["version"] != 5
             && v["version"] != 6
-            && v["version"] != 7)
+            && v["version"] != 7
+            && v["version"] != 8)
     {
         return Err("Unsupported project format or version.".into());
     }
@@ -452,5 +453,6 @@ mod tests {
         assert!(validate_envelope(r#"{"format":"form-studio","version":5}"#).is_ok());
         assert!(validate_envelope(r#"{"format":"form-studio","version":6}"#).is_ok());
         assert!(validate_envelope(r#"{"format":"form-studio","version":7}"#).is_ok());
+        assert!(validate_envelope(r#"{"format":"form-studio","version":8}"#).is_ok());
     }
 }

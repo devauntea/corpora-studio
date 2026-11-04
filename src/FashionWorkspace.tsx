@@ -1,3 +1,5 @@
+import { ConstructionEditor } from "./ConstructionEditor";
+import { detachPiece } from "./pattern-geometry";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import {
@@ -96,6 +98,10 @@ export function FashionWorkspace({
   onChange,
   onBegin,
   onCommit,
+  undo,
+  redo,
+  canUndo,
+  canRedo,
   busy,
   setBusy,
   notify,
@@ -106,6 +112,10 @@ export function FashionWorkspace({
   onChange: (f: Fashion) => void;
   onBegin: () => void;
   onCommit: () => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   busy: boolean;
   setBusy: (b: boolean) => void;
   notify: (s: string, error?: boolean) => void;
@@ -117,6 +127,7 @@ export function FashionWorkspace({
   const [selected, setSelected] = useState<PieceId>("front");
   const [tool, setTool] = useState<"move" | "shape" | "pan">("move");
   const [grid, setGrid] = useState(true);
+  const [geometry, setGeometry] = useState<PieceId | null>(null);
   const [view, setView] = useState<ViewBox | null>(null);
   const [exportType, setExportType] = useState<"pdf" | "svg">("pdf");
   const svg = useRef<SVGSVGElement>(null);
@@ -142,6 +153,7 @@ export function FashionWorkspace({
     value.seamAllowance,
     value.bandRatio,
     value.bandWidth,
+    value.construction,
   ]);
   const draft = outcome.draft;
   const bounds = draft
@@ -289,6 +301,25 @@ export function FashionWorkspace({
   );
   return (
     <main className="fashion-workspace" aria-label="Fashion pattern studio">
+      {geometry && draft && value.construction?.[geometry] && (
+        <ConstructionEditor
+          id={geometry}
+          value={value.construction[geometry]!}
+          change={(c) =>
+            onChange({
+              ...value,
+              construction: { ...value.construction, [geometry]: c },
+            })
+          }
+          begin={onBegin}
+          commit={onCommit}
+          undo={undo}
+          redo={redo}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          close={() => setGeometry(null)}
+        />
+      )}
       <aside className="fashion-library">
         <div className="fashion-heading">
           <span className="eyebrow">GARMENT 01</span>
@@ -397,6 +428,51 @@ export function FashionWorkspace({
               >
                 Arrange pieces
               </button>
+              {chosen && (
+                <>
+                  <p className="fashion-caption">
+                    Edit anchors, Bézier curves, notches and dart markings.
+                    Detaching preserves the stitching line and rebuilds
+                    allowances with mitered corners.
+                  </p>
+                  <button
+                    className="fashion-secondary"
+                    onClick={() => {
+                      if (!value.construction?.[selected])
+                        onChange({
+                          ...value,
+                          construction: {
+                            ...value.construction,
+                            [selected]: detachPiece(
+                              chosen,
+                              value.seamAllowance,
+                            ),
+                          },
+                        });
+                      setGeometry(selected);
+                    }}
+                  >
+                    Edit points & curves
+                  </button>
+                  {value.construction?.[selected] && (
+                    <>
+                      <p className="fashion-caption">
+                        Manual piece · measurements do not change its shape.
+                      </p>
+                      <button
+                        className="fashion-secondary"
+                        onClick={() => {
+                          const construction = { ...value.construction };
+                          delete construction[selected];
+                          onChange({ ...value, construction });
+                        }}
+                      >
+                        Restore measurement draft
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
               <label className="fashion-text-field">
                 STUDIO NOTES
                 <textarea
@@ -752,7 +828,7 @@ export function FashionWorkspace({
               <h3>From screen to cutting table.</h3>
               <p className="fashion-caption">
                 Vector curves, matching marks, grainlines and seam allowances.
-                Export uses the current measurements.
+                Export uses the current draft and saved manual pieces.
               </p>
               <label className="fashion-text-field">
                 FORMAT

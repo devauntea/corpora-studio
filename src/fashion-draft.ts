@@ -1,3 +1,4 @@
+import { constructPiece } from "./pattern-geometry";
 import { Teagan } from "@freesewing/teagan";
 import {
   FashionSchema,
@@ -220,5 +221,6 @@ export function draftFashion(input: Fashion): PatternDraft {
     warnings.push(
       "The drafting engine reported a fit warning. Check the armhole, sleeve and waist curves before cutting.",
     );
-  return { pieces, neckLength, warnings };
+  if (f.construction && Object.keys(f.construction).length) warnings.push("Manual pieces keep their own geometry and allowances. Check adjoining seam lengths and neckband fit after editing.");
+  return { pieces: pieces.map(p => f.construction?.[p.id] ? constructPiece(p.id, f.construction[p.id]!) : p), neckLength, warnings };
 }

@@ -1,3 +1,6 @@
+import { QuadSchema } from "./photo-warp";
+import { ProjectSchema as LegacyV7ProjectSchema } from "./legacy-v7";
+import { ProcessingSchema } from "./image-processing";
 import { ProjectSchema as LegacyV6ProjectSchema } from "./legacy-v6";
 import { FashionSchema } from "./fashion-model";
 import { ProjectSchema as LegacyV5ProjectSchema } from "./legacy-v5";
@@ -151,6 +154,7 @@ export const ArtworkEditsSchema = z
     feather: finite(1, 100),
     grayscale: z.boolean(),
     contrast: finite(0.25, 3),
+    processing: ProcessingSchema.optional(),
     strokes: z
       .array(
         z
@@ -239,6 +243,7 @@ export const LayerSchema = LegacyLayerSchema.extend({
       y: finite(0, 1),
       width: finite(0.01, 2),
       skew: finite(-0.7, 0.7),
+      warp: QuadSchema.optional(),
     })
     .strict()
     .optional(),
@@ -265,7 +270,7 @@ export const PhotoSchema = z
 export const ProjectSchema = z
   .object({
     format: z.literal("form-studio"),
-    version: z.literal(7),
+    version: z.literal(8),
     units: z.literal("mm"),
     id: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -338,7 +343,7 @@ export type Asset = Project["assets"][number];
 export function blankProject(): Project {
   return {
     format: "form-studio",
-    version: 7,
+    version: 8,
     units: "mm",
     id: crypto.randomUUID(),
     name: "Untitled composition",
@@ -496,6 +501,11 @@ export async function parseProject(text: string): Promise<Project> {
     const old = LegacyV6ProjectSchema.safeParse(json);
     if (!old.success) throw new Error("Unsupported or damaged v6 project.");
     json = { ...old.data, version: 7 };
+  }
+  if ((json as { version?: number })?.version === 7) {
+    const old = LegacyV7ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Unsupported or damaged v7 project.");
+    json = { ...old.data, version: 8 };
   }
   const result = ProjectSchema.safeParse(json);
   if (!result.success)
