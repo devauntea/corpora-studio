@@ -1,3 +1,5 @@
+import { getStroke } from "perfect-freehand";
+import { prepareInWorker } from "./compute-jobs";
 import { processPixels } from "./image-processing";
 import { clamp, artworkBounds, type ArtworkEdits } from "./domain";
 
@@ -52,17 +54,7 @@ export function renderArtwork(
     c.height,
   );
   if (!edits) return c;
-  const cacheKey = JSON.stringify([
-    maxEdge,
-    bounds,
-    edits.background,
-    edits.color,
-    edits.tolerance,
-    edits.feather,
-    edits.grayscale,
-    edits.contrast,
-    edits.processing,
-  ]);
+  const cacheKey = preparationKey(maxEdge, bounds, edits);
   let cached = baseCache.get(image);
   if (cached?.key !== cacheKey) {
     const base = document.createElement("canvas");
@@ -144,5 +136,124 @@ export function renderArtwork(
   ctx.globalCompositeOperation = "destination-in";
   ctx.drawImage(mask, 0, 0);
   ctx.globalCompositeOperation = "source-over";
+  if (edits.drawing?.length) {
+    const drawing = document.createElement("canvas");
+    drawing.width = c.width;
+    drawing.height = c.height;
+    const dx = drawing.getContext("2d")!;
+    for (const stroke of edits.drawing) {
+      const outline = getStroke(
+        stroke.points.map(([x, y, pressure]) => [px(x), py(y), pressure]),
+        {
+          size: stroke.radius * unit * 2,
+          thinning: 0.65,
+          smoothing: 0.6,
+          streamline: 0.4,
+          simulatePressure: false,
+          last: true,
+        },
+      );
+      if (!outline.length) continue;
+      dx.globalCompositeOperation =
+        stroke.mode === "erase" ? "destination-out" : "source-over";
+      dx.fillStyle = stroke.color;
+      dx.beginPath();
+      outline.forEach(([x, y], i) => (i ? dx.lineTo(x, y) : dx.moveTo(x, y)));
+      dx.closePath();
+      dx.fill();
+    }
+    ctx.drawImage(drawing, 0, 0);
+  }
   return c;
+}
+
+function preparationKey(
+  maxEdge: number,
+  bounds: ReturnType<typeof artworkBounds>,
+  edits: ArtworkEdits,
+) {
+  return JSON.stringify([
+    maxEdge,
+    bounds,
+    edits.background,
+    edits.color,
+    edits.tolerance,
+    edits.feather,
+    edits.grayscale,
+    edits.contrast,
+    edits.processing,
+  ]);
+}
+export async function renderArtworkAsync(
+  image: HTMLImageElement,
+  edits: ArtworkEdits | undefined,
+  maxEdge = 2048,
+  options: { signal?: AbortSignal; progress?: (v: number) => void } = {},
+) {
+  if (!edits) return renderArtwork(image, edits, maxEdge);
+  const bounds = artworkBounds(image.width, image.height, edits.crop);
+  // 8.4 MP cap includes temporary processing buffers; dimensions remain proportional.
+  const edge = Math.min(
+    maxEdge,
+    Math.sqrt(
+      8_390_000 *
+        Math.max(bounds.width / bounds.height, bounds.height / bounds.width),
+    ),
+  );
+  const effective = Math.max(1, Math.min(maxEdge, edge));
+  const key = preparationKey(effective, bounds, edits);
+  if (baseCache.get(image)?.key !== key) {
+    const source = document.createElement("canvas"),
+      scale = Math.min(1, effective / Math.max(bounds.width, bounds.height));
+    source.width = Math.max(1, Math.round(bounds.width * scale));
+    source.height = Math.max(1, Math.round(bounds.height * scale));
+    const ctx = source.getContext("2d")!;
+    ctx.drawImage(
+      image,
+      bounds.x,
+      bounds.y,
+      bounds.width,
+      bounds.height,
+      0,
+      0,
+      source.width,
+      source.height,
+    );
+    const result = await prepareInWorker(
+      {
+        pixels: ctx.getImageData(0, 0, source.width, source.height).data,
+        width: source.width,
+        height: source.height,
+        edits,
+      },
+      options,
+    );
+    if (options.signal?.aborted)
+      throw new DOMException("Local job cancelled", "AbortError");
+    ctx.putImageData(
+      new ImageData(
+        result.pixels as Uint8ClampedArray<ArrayBuffer>,
+        source.width,
+        source.height,
+      ),
+      0,
+      0,
+    );
+    const mask = document.createElement("canvas");
+    mask.width = source.width;
+    mask.height = source.height;
+    mask
+      .getContext("2d")!
+      .putImageData(
+        new ImageData(
+          result.alpha as Uint8ClampedArray<ArrayBuffer>,
+          source.width,
+          source.height,
+        ),
+        0,
+        0,
+      );
+    baseCache.set(image, { key, canvas: source, mask });
+  }
+  return renderArtwork(image, edits, effective);
 }

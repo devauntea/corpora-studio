@@ -1,0 +1,46 @@
+name: Desktop qualification
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - run: npx playwright install chromium webkit
+      - run: npm run test:e2e
+      - name: Collect target notices
+        run: python scripts/dependency-notices.py
+      - name: Package unsigned test app
+        run: npx tauri build --bundles ${{ runner.os == 'Windows' && 'nsis' || 'app' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qualification-${{ runner.os }}
+          path: |
+            src-tauri/target/release/bundle/
+            test-results/
+            qa/
+            THIRD_PARTY_NOTICES.txt
+            docs/dependencies.md
+          retention-days: 14

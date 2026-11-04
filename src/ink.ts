@@ -1,4 +1,4 @@
-import { renderArtwork } from "./artwork";
+import { renderArtworkAsync } from "./artwork";
 import { type Asset, type Layer, imageSource, clamp } from "./domain";
 import { loadImage } from "./io";
 
@@ -27,7 +27,7 @@ export class InkCache {
     const key = inkKey(a, l);
     if (this.variants.has(key)) return this.variants.get(key)!;
     const img = await this.image(a),
-      c = renderArtwork(img, a.edits);
+      c = await renderArtworkAsync(img, a.edits);
     const ctx = c.getContext("2d", { willReadFrequently: true })!;
     const pixels = ctx.getImageData(0, 0, c.width, c.height),
       p = pixels.data,

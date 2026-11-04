@@ -1,3 +1,4 @@
+import { compositeProject } from "./layer-groups";
 import { HumanSurface, loadHuman, muscleAtHit } from "./anatomy";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -16,10 +17,11 @@ import { InkCache } from "./ink";
 export type View = "front" | "back" | "left" | "right";
 export type SceneEvents = {
   begin: () => void;
-  move: (u: number, v: number, zone?: SurfaceZone) => void;
+  move: (u: number, v: number, zone?: SurfaceZone, vertex?: number) => void;
   end: () => void;
   stats: (stats: { p95: number; frames: number; triangles: number }) => void;
   error: (message: string) => void;
+  inspection?: (stats: import("./surface-decals").SurfaceInspection) => void;
   hoverMuscle?: (id: number | undefined) => void;
 };
 function geometryKey(body: Body) {
@@ -120,6 +122,7 @@ export class StudioScene {
   dragging = false;
   project?: Project;
   selected?: string;
+  inspectionLayer?: string;
   ink = new InkCache();
   paintVersion = 0;
   disposed = false;
@@ -216,7 +219,7 @@ export class StudioScene {
       this.dragging = true;
       el.setPointerCapture(e.pointerId);
       this.events.begin();
-      this.events.move(hit.x, hit.y, hit.zone);
+      this.events.move(hit.x, hit.y, hit.zone, hit.vertex);
     };
     let lastHover = 0;
     const leave = () => this.events.hoverMuscle?.(undefined);
@@ -232,7 +235,7 @@ export class StudioScene {
       }
       if (this.dragging) {
         const h = this.hit(e);
-        if (h) this.events.move(h.x, h.y, h.zone);
+        if (h) this.events.move(h.x, h.y, h.zone, h.vertex);
       }
     };
     const up = () => {
@@ -314,6 +317,11 @@ export class StudioScene {
     )[0];
     return hit?.uv
       ? {
+          vertex: hit.face
+            ? (hit.object as THREE.Mesh).geometry
+                .getAttribute("sourceIndex")
+                ?.getX(hit.face.a)
+            : undefined,
           muscle: muscleAtHit(hit),
           x: hit.uv.x,
           y: hit.uv.y,
@@ -363,6 +371,7 @@ export class StudioScene {
     this.controls.update();
   }
   async update(project: Project) {
+    project = compositeProject(project);
     const version = ++this.paintVersion;
     this.events.hoverMuscle?.(undefined);
     const humanData =
@@ -455,9 +464,19 @@ export class StudioScene {
       }
       if (this.disposed || version !== this.paintVersion) return false;
       if (project.body.kind === "human-v1" && this.human) {
-        this.human.paint(project.body, items);
+        await this.human.paint(project.body, items, this.inspectionLayer);
+        if (this.disposed || version !== this.paintVersion) return false;
+        this.events.inspection?.(this.human.decals.inspection);
         this.renderer.render(this.scene, this.camera);
         this.host.dataset.renderedBody = JSON.stringify(project.body);
+        this.host.dataset.connectedTriangles = String(
+          this.human.decals.group.children.reduce(
+            (sum, m) =>
+              sum +
+              (m as THREE.Mesh).geometry.getAttribute("position").count / 3,
+            0,
+          ),
+        );
         this.ink.prune(
           project.assets,
           project.layers.filter((l) => !l.photoId && l.visible),

@@ -57,3 +57,14 @@ describe("perspective placement", () => {
     expect(QuadSchema.safeParse(excessive).success).toBe(false);
   });
 });
+
+import { makeLattice, validLattice, LatticeSchema } from "../src/lattice-warp";
+it("lattice rejects folded cells while allowing a curved interior", () => {
+  const q = makeLattice();
+  expect(validLattice(q)).toBe(true);
+  q[4] = [0.1, 0.1];
+  expect(validLattice(q)).toBe(true);
+  q[4] = [1.5, -1.5];
+  expect(validLattice(q)).toBe(false);
+  expect(LatticeSchema.safeParse(q).success).toBe(false);
+});

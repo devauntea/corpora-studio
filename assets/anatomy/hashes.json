@@ -35,6 +35,10 @@
   "human-v3-female.json": "d50e9044d4099bfc0580f65e847ed30b1e06261afeb6069516f4ac50f3e92403",
   "human-v3-male.bin": "05885d7ebc5625f550b168e4c17ffd7c91d4731e65b629385d2fe7f2335560e2",
   "human-v3-male.json": "f45b649f5f3d8e0b0e8d3006bd9de369c2ceb395a60514d7029b324007080992",
+  "human-v4-female.bin": "3e5ca4caaa0e677db56de6b9d8f6838b48fc5aa0bb3a5c8762f0767cb0a8a19f",
+  "human-v4-female.json": "ac1064b8cad865d586f72a079ea165c8afd0afe60a418af24af2c0aef0113bcf",
+  "human-v4-male.bin": "dc9c87696b95efc4e743150cf42db7da737081819125b1d2ba51056974fe1fb0",
+  "human-v4-male.json": "8061aa759af8e26c548ff68fea373fc0a1834849582110e0bceeb9b26ef21538",
   "muscle-field-v2-female.bin": "f2af8ef9d9c919365d40914e318ff4e227b126f1f0fd249e65dc513dc4fc1f4d",
   "muscle-field-v2-female.json": "62232f9131b137f4539d702e7653094450aba73000b5ab23539fde67ea408295",
   "muscle-field-v2-male.bin": "2013cf02efd785c5919355491cdbed231919e0b61c593b5ccfc73fce07eb6f8d",
@@ -42,5 +46,9 @@
   "muscle-field-v3-female.bin": "8261a7c44ab9cefd4094bee73ba1cd9c7d0f0fb1a8095869b39bc264c2c31e81",
   "muscle-field-v3-female.json": "0340f270031d2e3ccd8d25b497bf06e2b1cb4e9a7c1547acba429ab462aa29b8",
   "muscle-field-v3-male.bin": "95eab6dff0863553337087dde91e8cf3018e8a48c2509b3935650f2ddeccaf58",
-  "muscle-field-v3-male.json": "6fa0cc1375d83b92cda596ebaf1fb07f1954f578cdb16067140376f0a6b531ad"
+  "muscle-field-v3-male.json": "6fa0cc1375d83b92cda596ebaf1fb07f1954f578cdb16067140376f0a6b531ad",
+  "muscle-field-v4-female.bin": "5fc17653499fbd4724531a0f71baca7a1ce613dfd45dfce92c9bf0eb7834a1a3",
+  "muscle-field-v4-female.json": "90dc1d3ac88d372e7221245cc57465205e9a3f716eb6e8b622a84a0f645fbbe4",
+  "muscle-field-v4-male.bin": "ad27b72bfb1a2bf4a54d9574ec7ffe5c39c6803fa71b1ee462eedf4f2133f5d6",
+  "muscle-field-v4-male.json": "c5f19ab8393f649ce3674aa4aaf5d3e6ab76037073fc05203c52fac7d35fd49b"
 }

@@ -780,7 +780,7 @@ button.primary:not(:disabled):hover {
   font-size: 10px;
   margin-top: 15px;
   padding: 9px 8px;
-  color: #777777;
+  color: #626262;
 }
 .wide-button kbd {
   margin-left: auto;
@@ -1804,24 +1804,225 @@ select:focus-visible {
 .model-credits p {
   margin: 10px 0 0;
 }
-.local-library-button { display:flex; gap:8px; font-size:11px; padding:5px 10px; color:#ddd; }
-.local-library-button small { color:#999; font-size:9px; margin-left:4px; }
-.library-backdrop { z-index:85; }
-.project-library { width:min(900px,90vw); height:min(780px,90vh); display:flex; flex-direction:column; background:#fafafa; border-radius:10px; box-shadow:0 20px 80px #0005; padding:26px; }
-.project-library header { display:flex; justify-content:space-between; align-items:center; }
-.project-library h2 { font-size:25px; font-weight:500; letter-spacing:-.6px; margin:7px 0; }
-.library-description { color:#777; line-height:1.6; font-size:12px; max-width:660px; }
-.checkpoint-form { display:flex; gap:8px; margin:16px 0; }
-.checkpoint-form input,.library-search { border:1px solid #ccc; border-radius:4px; background:#fff; font-size:12px; padding:11px; }
-.checkpoint-form input { flex:1; }
-.checkpoint-form button { font-size:11px; padding:10px 16px; background:#333; color:white; border-radius:4px; }
-.library-entries { flex:1; min-height:0; overflow:auto; margin:15px 0; }
-.library-entry { display:flex; justify-content:space-between; align-items:center; gap:20px; border-bottom:1px solid #ddd; padding:19px 6px; }
-.library-entry small { color:#999; font-size:9px; letter-spacing:.7px; }
-.library-entry h3 { font-size:16px; font-weight:500; margin:6px 0; }
-.library-entry p { font-size:11px; color:#666; margin:6px 0; }
-.library-entry time { color:#999; font-size:10px; }
-.library-entry-actions { display:flex; gap:10px; }
-.library-entry-actions button { font-size:10px; padding:8px; border:1px solid #ddd; border-radius:4px; }
-.project-library footer,.library-empty { color:#888; font-size:11px; line-height:1.7; }
-.library-empty { padding:35px 0; text-align:center; }
+.local-library-button {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  padding: 5px 10px;
+  color: #ddd;
+}
+.local-library-button small {
+  color: #999;
+  font-size: 9px;
+  margin-left: 4px;
+}
+.library-backdrop {
+  z-index: 85;
+}
+.project-library {
+  width: min(900px, 90vw);
+  height: min(780px, 90vh);
+  display: flex;
+  flex-direction: column;
+  background: #fafafa;
+  border-radius: 10px;
+  box-shadow: 0 20px 80px #0005;
+  padding: 26px;
+}
+.project-library header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.project-library h2 {
+  font-size: 25px;
+  font-weight: 500;
+  letter-spacing: -0.6px;
+  margin: 7px 0;
+}
+.library-description {
+  color: #777;
+  line-height: 1.6;
+  font-size: 12px;
+  max-width: 660px;
+}
+.checkpoint-form {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+}
+.checkpoint-form input,
+.library-search {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 12px;
+  padding: 11px;
+}
+.checkpoint-form input {
+  flex: 1;
+}
+.checkpoint-form button {
+  font-size: 11px;
+  padding: 10px 16px;
+  background: #333;
+  color: white;
+  border-radius: 4px;
+}
+.library-entries {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 15px 0;
+}
+.library-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid #ddd;
+  padding: 19px 6px;
+}
+.library-entry small {
+  color: #999;
+  font-size: 9px;
+  letter-spacing: 0.7px;
+}
+.library-entry h3 {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 6px 0;
+}
+.library-entry p {
+  font-size: 11px;
+  color: #666;
+  margin: 6px 0;
+}
+.library-entry time {
+  color: #999;
+  font-size: 10px;
+}
+.library-entry-actions {
+  display: flex;
+  gap: 10px;
+}
+.library-entry-actions button {
+  font-size: 10px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+.project-library footer,
+.library-empty {
+  color: #888;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.library-empty {
+  padding: 35px 0;
+  text-align: center;
+}
+.layer-groups {
+  border-block: 1px solid #ddd;
+  padding: 12px 18px;
+  max-height: 250px;
+  overflow: auto;
+  font-size: 11px;
+}
+.layer-groups summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.layer-groups label {
+  display: block;
+  margin: 8px 0;
+  color: #444;
+}
+.layer-groups input:not([type="checkbox"]) {
+  width: 100%;
+  padding: 5px;
+  border: 1px solid #aaa;
+  border-radius: 3px;
+}
+.layer-groups > div {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #ddd;
+}
+.layer-groups button {
+  padding: 5px;
+  border: 1px solid #aaa;
+  border-radius: 3px;
+  background: white;
+}
+.checkpoint-compare {
+  z-index: 1300;
+}
+.checkpoint-compare > section {
+  width: min(1300px, 95vw);
+  height: 92vh;
+  background: #f8f8f8;
+  color: #222;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 18px;
+}
+.checkpoint-compare header,
+.compare-controls,
+.compare-labels {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+}
+.checkpoint-compare header h2 {
+  flex: 1;
+}
+.checkpoint-compare button,
+.checkpoint-compare select {
+  background: white;
+  color: #222;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  padding: 8px;
+}
+.compare-controls label {
+  font-size: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.compare-labels strong {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+}
+.compare-images {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+}
+.compare-images img {
+  width: calc(50% - 6px);
+  height: 100%;
+  object-fit: contain;
+  background: white;
+}
+.compare-images.swipe {
+  position: relative;
+}
+.compare-images.swipe img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+}
+.checkpoint-compare footer {
+  font-size: 11px;
+  color: #555;
+  padding-top: 14px;
+}
+
+.point-inputs{display:flex;gap:8px;border:1px solid #444;padding:8px;margin:8px 0;min-width:0}.point-inputs legend{font-size:11px}.point-inputs label{min-width:0;flex:1}.point-inputs input{width:100%;box-sizing:border-box}.lattice-controls{padding:8px 12px;max-height:180px;overflow:auto;background:#202020}.lattice-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}

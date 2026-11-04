@@ -1,0 +1,228 @@
+.stencil-backdrop {
+  z-index: 1200;
+}
+.stencil-studio {
+  background: #f8f8f8;
+  color: #222;
+  width: min(1250px, 96vw);
+  height: 92vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 25px 100px #0009;
+}
+.stencil-studio header,
+.stencil-studio footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #ccc;
+}
+.stencil-studio header > div,
+.stencil-studio footer p {
+  flex: 1;
+}
+.stencil-studio h2 {
+  margin: 4px 0;
+}
+.stencil-studio p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.stencil-studio button {
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  background: white;
+  color: #222;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.stencil-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 290px 1fr;
+}
+.stencil-body aside {
+  overflow: auto;
+  padding: 18px;
+  border-right: 1px solid #ccc;
+}
+.stencil-body label {
+  display: block;
+  margin: 12px 0;
+  font-size: 12px;
+}
+.stencil-body input:not([type="checkbox"]),
+.stencil-body select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  background: white;
+  color: #222;
+  margin-top: 4px;
+}
+.stencil-preview {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  padding: 18px;
+}
+.stencil-preview svg {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+.stencil-status {
+  font-size: 12px;
+  color: #555;
+}
+.stencil-studio footer {
+  border-top: 1px solid #ccc;
+}
+.stencil-studio footer p {
+  max-width: 65%;
+}
+.stencil-studio .eyebrow {
+  color: #555;
+}
+.photo-measurements {
+  max-height: 220px;
+  overflow: auto;
+  font-size: 11px;
+}
+.photo-measurements > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  border-top: 1px solid #ccc;
+  padding: 10px 0;
+}
+.photo-measurements input {
+  max-width: 105px;
+  padding: 4px;
+  border: 1px solid #aaa;
+}
+.photo-measurements select {
+  max-width: 160px;
+  padding: 4px;
+}
+.photo-measurements label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.photo-measurements label input {
+  max-width: 55px;
+}
+.garment-photo textarea {
+  width: 100%;
+  min-height: 80px;
+}
+.body-fit textarea {
+  width: 100%;
+  min-height: 70px;
+  background: white;
+  color: #222;
+  border: 1px solid #aaa;
+}
+.fit-results {
+  max-height: 260px;
+  overflow: auto;
+  font-size: 12px;
+}
+.fit-results table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.fit-results th,
+.fit-results td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+.cloth-preview {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.cloth-stage {
+  flex: 1;
+  min-height: 200px;
+}
+.cloth-stage canvas {
+  display: block;
+}
+.cloth-status {
+  padding: 12px 18px;
+  font-size: 12px;
+  background: #fafafa;
+}
+.cloth-export {
+  padding: 8px 18px;
+  background: #eee;
+  display: flex;
+  gap: 10px;
+}
+.panel-outline {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: 160px;
+  height: 220px;
+  background: #ffffffdd;
+  border: 1px solid #ccc;
+}
+.stitch-row {
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin: 10px 0;
+}
+.stencil-body summary {
+  cursor: pointer;
+  padding: 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.portfolio-preview {
+  overflow: auto;
+  padding: 20px;
+}
+.portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.portfolio-grid figure {
+  margin: 0;
+}
+.portfolio-grid img {
+  width: 100%;
+  height: 230px;
+  object-fit: contain;
+  background: #e8e8e8;
+}
+.portfolio-grid figcaption {
+  font-size: 12px;
+  padding: 8px 0;
+}
+.stencil-body textarea {
+  width: 100%;
+  background: white;
+  color: #222;
+  min-height: 85px;
+  border: 1px solid #aaa;
+  padding: 8px;
+}
+.cloth-benchmark {
+  font-size: 12px;
+  padding: 10px 18px;
+  background: #eee;
+}

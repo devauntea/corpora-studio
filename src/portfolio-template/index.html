@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Selected tattoo compositions and fashion studies made in Form Studio."
+    />
+    <title>Form Studio — Selected Studies</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="manifest.js" defer></script>
+    <script src="gallery.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#work">Skip to studies</a>
+    <header>
+      <a class="wordmark" href="#">FORM<span>STUDIO</span></a>
+      <nav aria-label="Main">
+        <a href="#work">Selected work</a><a href="#process">Process</a>
+      </nav>
+      <span class="edition">DESIGN ARCHIVE / 01</span>
+    </header>
+    <main>
+      <section class="intro">
+        <p class="eyebrow">TATTOO × GARMENT × FORM</p>
+        <div class="intro-row">
+          <h1 id="title">Studies in<br /><em>shape & surface.</em></h1>
+          <p id="description">
+            A collection of tattoo compositions and garment studies. Made with
+            the desktop studio. Presented as finished images.
+          </p>
+        </div>
+        <div class="index-line">
+          <span>SELECTED STUDIES</span><span id="count">00 WORKS</span
+          ><a href="#work" aria-label="Explore selected studies">↓</a>
+        </div>
+      </section>
+      <section id="work" aria-label="Selected work">
+        <div class="filters" role="group" aria-label="Filter studies">
+          <button aria-pressed="true" data-filter="all">All studies</button
+          ><button aria-pressed="false" data-filter="tattoo">Tattoo</button
+          ><button aria-pressed="false" data-filter="fashion">Fashion</button>
+        </div>
+        <div id="gallery" class="gallery"></div>
+        <p id="empty" hidden>No studies in this category.</p>
+      </section>
+      <section id="process" class="process">
+        <span class="eyebrow">FROM THE STUDIO</span>
+        <h2>Designed in context.<br />Considered from every angle.</h2>
+        <div class="process-copy">
+          <p>
+            Tattoo studies explore how an image follows the shape of the body.
+            Fashion studies begin with measurements and pattern construction.
+          </p>
+          <p>
+            This archive presents exported work. Model renders are artistic
+            previews; garment drafts and cloth previews require physical fit
+            checks.
+          </p>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <a class="wordmark" href="#">FORM<span>STUDIO</span></a>
+      <p>Selected work, exported from the desktop studio.</p>
+      <span>LOCAL CREATION. QUIET PRESENTATION.</span>
+    </footer>
+    <div id="credits" class="credits" aria-label="Asset credits"></div>
+    <dialog id="lightbox" aria-label="Study image">
+      <button id="close-lightbox" aria-label="Close study image">Close ×</button
+      ><img id="lightbox-image" alt="" />
+      <div>
+        <h2 id="lightbox-title"></h2>
+        <p id="lightbox-note"></p>
+      </div>
+    </dialog>
+  </body>
+</html>

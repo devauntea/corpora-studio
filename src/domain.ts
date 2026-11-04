@@ -1,3 +1,6 @@
+import { BodyStudySchema, FitShapeSchema } from "./body-fitting";
+import { LatticeSchema } from "./lattice-warp";
+import { ProjectSchema as LegacyV8ProjectSchema } from "./legacy-v8";
 import { QuadSchema } from "./photo-warp";
 import { ProjectSchema as LegacyV7ProjectSchema } from "./legacy-v7";
 import { ProcessingSchema } from "./image-processing";
@@ -83,13 +86,20 @@ const LegacyProjectSchema = z
         });
   });
 export const regions = ["upper-arm", "calf", "thigh", "torso"] as const;
-export const humanSections = ["full-arm", "upper-body", "full-leg"] as const;
+export const humanSections = [
+  "full-arm",
+  "upper-body",
+  "full-leg",
+  "full-body",
+  "neck",
+] as const;
 export const surfaceZones = [
   "trunk",
   "left-arm",
   "right-arm",
   "left-leg",
   "right-leg",
+  "neck",
 ] as const;
 export type SurfaceZone = (typeof surfaceZones)[number];
 const ArmPoseSchema = z
@@ -105,8 +115,9 @@ const HumanBodySchema = z
     kind: z.literal("human-v1"),
     section: z.enum(humanSections),
     side: z.enum(["left", "right"]),
-    length: finite(350, 1300),
+    length: finite(80, 2200),
     build: finite(0.75, 1.35),
+    fitting: FitShapeSchema.optional(),
     muscularity: finite(0, 1),
     flex: finite(0, 110),
     armPose: z
@@ -116,7 +127,7 @@ const HumanBodySchema = z
     anatomy: z.boolean(),
     model: z
       .object({
-        revision: z.union([z.literal(2), z.literal(3)]),
+        revision: z.union([z.literal(2), z.literal(3), z.literal(4)]),
         sex: z.enum(["male", "female"]),
         physique: z.enum(["fit", "average"]),
         anatomyOpacity: finite(0, 1),
@@ -155,6 +166,22 @@ export const ArtworkEditsSchema = z
     grayscale: z.boolean(),
     contrast: finite(0.25, 3),
     processing: ProcessingSchema.optional(),
+    drawing: z
+      .array(
+        z
+          .object({
+            mode: z.enum(["draw", "erase"]),
+            color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+            radius: finite(0.000001, 0.2),
+            points: z
+              .array(z.tuple([finite(0, 1), finite(0, 1), finite(0, 1)]))
+              .min(1)
+              .max(2000),
+          })
+          .strict(),
+      )
+      .max(200)
+      .optional(),
     strokes: z
       .array(
         z
@@ -213,13 +240,22 @@ const AssetSchema = LegacyAssetSchema.extend({
     .string()
     .regex(/^[a-f0-9]{64}$/)
     .optional(),
-  role: z.enum(["artwork", "body"]).optional(),
+  role: z.enum(["artwork", "body", "garment"]).optional(),
   edits: ArtworkEditsSchema.optional(),
 }).superRefine((a, c) => {
   if ((a.mime === "image/heic") !== Boolean(a.preview && a.previewSha256))
     c.addIssue({ code: "custom", message: "HEIC preview required" });
 });
 export const LayerSchema = LegacyLayerSchema.extend({
+  groupId: z.string().uuid().optional(),
+  surface: z
+    .object({
+      vertex: finite(0, 249999).int(),
+      revision: z.union([z.literal(2), z.literal(3), z.literal(4)]),
+      sex: z.enum(["male", "female"]),
+    })
+    .strict()
+    .optional(),
   zone: z.enum(surfaceZones).optional(),
   locked: z.boolean().optional(),
   flipX: z.boolean().optional(),
@@ -244,10 +280,16 @@ export const LayerSchema = LegacyLayerSchema.extend({
       width: finite(0.01, 2),
       skew: finite(-0.7, 0.7),
       warp: QuadSchema.optional(),
+      lattice: LatticeSchema.optional(),
     })
     .strict()
     .optional(),
 }).superRefine((l, c) => {
+  if (l.surface && l.photoId)
+    c.addIssue({
+      code: "custom",
+      message: "A surface placement cannot belong to a photograph",
+    });
   if (Boolean(l.photoId) !== Boolean(l.photo))
     c.addIssue({ code: "custom", message: "Incomplete photo placement" });
 });
@@ -270,7 +312,7 @@ export const PhotoSchema = z
 export const ProjectSchema = z
   .object({
     format: z.literal("form-studio"),
-    version: z.literal(8),
+    version: z.literal(9),
     units: z.literal("mm"),
     id: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -280,9 +322,33 @@ export const ProjectSchema = z
     layers: z.array(LayerSchema).max(24),
     photos: z.array(PhotoSchema).max(8),
     fashion: FashionSchema.optional(),
+    bodyStudy: BodyStudySchema.optional(),
+    groups: z
+      .array(
+        z
+          .object({
+            id: z.string().uuid(),
+            name: z.string().min(1).max(60),
+            visible: z.boolean(),
+            locked: z.boolean(),
+            opacity: finite(0, 1),
+          })
+          .strict(),
+      )
+      .max(12)
+      .optional(),
   })
   .strict()
   .superRefine((p, c) => {
+    if (
+      p.body.kind === "human-v1" &&
+      (p.body.section === "full-body" || p.body.section === "neck") &&
+      p.body.model?.revision !== 4
+    )
+      c.addIssue({
+        code: "custom",
+        message: "Full body and neck require the continuous revision 4 surface",
+      });
     const issue = (message: string) => c.addIssue({ code: "custom", message });
     if (
       p.photos.reduce(
@@ -291,16 +357,27 @@ export const ProjectSchema = z
       ) > 80_000
     )
       issue("Protection mask exceeds 80,000 points");
-    if (p.assets.some((a) => a.role === "body" && a.edits))
+    if (
+      p.assets.some(
+        (a) => (a.role === "body" || a.role === "garment") && a.edits,
+      )
+    )
       issue("Artwork edits cannot be applied to body photographs");
     if (
       p.assets.reduce(
         (n, a) =>
-          n + (a.edits?.strokes.reduce((n, s) => n + s.points.length, 0) ?? 0),
+          n +
+          (a.edits?.strokes.reduce((n, s) => n + s.points.length, 0) ?? 0) +
+          (a.edits?.drawing?.reduce((n, s) => n + s.points.length, 0) ?? 0),
         0,
       ) > 80_000
     )
       issue("Artwork masks exceed 80,000 points");
+    const groupIds = new Set(p.groups?.map((g) => g.id));
+    if (groupIds.size !== (p.groups?.length ?? 0))
+      issue("Duplicate layer group");
+    if (p.layers.some((l) => l.groupId && !groupIds.has(l.groupId)))
+      issue("Missing layer group");
     const ids = new Set(p.assets.map((a) => a.id)),
       photoIds = new Set(p.photos.map((a) => a.id));
     if (
@@ -324,12 +401,25 @@ export const ProjectSchema = z
         Math.floor((a.data.split(",")[1].length * 3) / 4) > 15_000_002
       )
         issue("Source image budget exceeded");
+    for (const view of p.bodyStudy?.views ?? [])
+      if (!p.assets.some((a) => a.id === view.assetId && a.role === "body"))
+        issue("Missing fitting photograph");
+    if (
+      p.fashion?.photoStudy &&
+      !p.assets.some(
+        (a) => a.id === p.fashion!.photoStudy!.assetId && a.role === "garment",
+      )
+    )
+      issue("Missing garment study photograph");
     for (const ph of p.photos)
       if (!p.assets.some((a) => a.id === ph.assetId && a.role === "body"))
         issue("Missing body photo");
     for (const l of p.layers)
       if (
-        !p.assets.some((a) => a.id === l.assetId && a.role !== "body") ||
+        !p.assets.some(
+          (a) =>
+            a.id === l.assetId && a.role !== "body" && a.role !== "garment",
+        ) ||
         (l.photoId && !photoIds.has(l.photoId))
       )
         issue("Missing layer source or photo");
@@ -343,7 +433,7 @@ export type Asset = Project["assets"][number];
 export function blankProject(): Project {
   return {
     format: "form-studio",
-    version: 8,
+    version: 9,
     units: "mm",
     id: crypto.randomUUID(),
     name: "Untitled composition",
@@ -507,6 +597,11 @@ export async function parseProject(text: string): Promise<Project> {
     if (!old.success) throw new Error("Unsupported or damaged v7 project.");
     json = { ...old.data, version: 8 };
   }
+  if ((json as { version?: number })?.version === 8) {
+    const old = LegacyV8ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Unsupported or damaged v8 project.");
+    json = { ...old.data, version: 9 };
+  }
   const result = ProjectSchema.safeParse(json);
   if (!result.success)
     throw new Error(
@@ -594,9 +689,13 @@ export function historyReducer<T>(
 
 export function bodyLabel(body: Body) {
   if (body.kind === "human-v1")
-    return body.section === "upper-body"
-      ? "Upper body"
-      : `${body.side === "left" ? "Left" : "Right"} ${body.section === "full-arm" ? "full arm" : "full leg"}`;
+    return body.section === "full-body"
+      ? "Full body · neck to feet"
+      : body.section === "neck"
+        ? "Neck & clavicles"
+        : body.section === "upper-body"
+          ? "Upper body"
+          : `${body.side === "left" ? "Left" : "Right"} ${body.section === "full-arm" ? "full arm" : "full leg"}`;
   return body.kind === "forearm-v1"
     ? `${body.side === "left" ? "Left" : "Right"} forearm`
     : body.region === "torso"
@@ -710,7 +809,7 @@ function regionPoint(
 }
 export const imageSource = (a: Asset) => a.preview ?? a.data;
 export const artworkAssets = (p: Project) =>
-  p.assets.filter((a) => a.role !== "body");
+  p.assets.filter((a) => a.role !== "body" && a.role !== "garment");
 export function layerForPhoto(asset: Asset, photoId?: string): Layer {
   return {
     ...newLayer(asset),
@@ -731,7 +830,15 @@ export function humanBody(
     side: previous?.side ?? "left",
     skin: previous?.skin ?? "#d4d0cb",
     length:
-      section === "upper-body" ? 620 : section === "full-arm" ? 760 : 1000,
+      section === "full-body"
+        ? 1600
+        : section === "neck"
+          ? 160
+          : section === "upper-body"
+            ? 620
+            : section === "full-arm"
+              ? 760
+              : 1000,
     build: 1,
     muscularity:
       previous?.kind === "human-v1" && previous.model
@@ -739,14 +846,29 @@ export function humanBody(
         : 1,
     model:
       previous?.kind === "human-v1" && previous.model
-        ? { ...previous.model }
-        : { revision: 3, sex: "male", physique: "fit", anatomyOpacity: 0.85 },
+        ? {
+            ...previous.model,
+            revision:
+              section === "full-body" || section === "neck"
+                ? 4
+                : previous.model.revision === 4
+                  ? 3
+                  : previous.model.revision,
+          }
+        : {
+            revision: section === "full-body" || section === "neck" ? 4 : 3,
+            sex: "male",
+            physique: "fit",
+            anatomyOpacity: 0.85,
+          },
     flex: 0,
     anatomy: false,
   };
 }
 export function bodyZones(body: Body): SurfaceZone[] {
   if (body.kind !== "human-v1") return [];
+  if (body.section === "full-body") return [...surfaceZones];
+  if (body.section === "neck") return ["neck"];
   if (body.section === "upper-body") return ["trunk", "left-arm", "right-arm"];
   return [
     `${body.side}-${body.section === "full-arm" ? "arm" : "leg"}` as SurfaceZone,
@@ -758,30 +880,50 @@ export function layerZone(body: Body, layer: Layer): SurfaceZone {
     ? layer.zone
     : (zones[0] ?? "trunk");
 }
+export function humanScale(body: HumanBody) {
+  return (
+    body.length /
+    (body.section === "full-body"
+      ? body.model?.sex === "female"
+        ? 15.5677456856
+        : 15.5738158226
+      : body.section === "neck"
+        ? 1.4
+        : body.section === "upper-body"
+          ? body.model
+            ? 5.7
+            : 5.5
+          : body.section === "full-arm"
+            ? 7.9
+            : 9)
+  );
+}
 // Nominal chart sizes scale with the template. They are not tape measurements.
 export function humanChartSize(body: HumanBody, zone = bodyZones(body)[0]) {
-  const scale =
-    body.length /
-    (body.section === "upper-body"
-      ? body.model
-        ? 5.7
-        : 5.5
-      : body.section === "full-arm"
-        ? 7.9
-        : 9.0);
+  const scale = humanScale(body);
   return {
     width:
-      (zone === "trunk" ? 9.4 : zone?.endsWith("leg") ? 4.1 : 2.65) *
+      (zone === "neck"
+        ? 3.8
+        : zone === "trunk"
+          ? 9.4
+          : zone?.endsWith("leg")
+            ? 4.1
+            : 2.65) *
       scale *
       body.build,
     height:
-      (zone === "trunk"
-        ? body.model
-          ? 5.7
-          : 5.5
-        : zone?.endsWith("leg")
-          ? 9
-          : 7.9) * scale,
+      (zone === "neck"
+        ? 1.4
+        : zone === "trunk"
+          ? body.model
+            ? body.model.revision === 4
+              ? 5.4
+              : 5.7
+            : 5.5
+          : zone?.endsWith("leg")
+            ? 9
+            : 7.9) * scale,
   };
 }
 

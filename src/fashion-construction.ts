@@ -26,6 +26,25 @@ const path = z
   );
 export const ConstructionSchema = z
   .object({
+    formulas: z
+      .array(
+        z
+          .object({
+            edge: z.number().int().min(0).max(255),
+            point: z.enum(["to", "cp1", "cp2"]),
+            axis: z.enum(["x", "y"]),
+            expression: z.string().min(1).max(200),
+          })
+          .strict(),
+      )
+      .max(256)
+      .refine(
+        (v) =>
+          new Set(v.map((f) => `${f.edge}:${f.point}:${f.axis}`)).size ===
+          v.length,
+        "Duplicate formula target",
+      )
+      .optional(),
     name: z.string().min(1).max(80),
     cut: z.string().min(1).max(100),
     seam: path,
@@ -57,11 +76,6 @@ export const ConstructionSchema = z
       ctx.addIssue({ code: "custom", message: "Missing notch segment" });
   });
 export const ConstructionSetSchema = z
-  .object({
-    front: ConstructionSchema.optional(),
-    back: ConstructionSchema.optional(),
-    sleeve: ConstructionSchema.optional(),
-    neckband: ConstructionSchema.optional(),
-  })
-  .strict();
+  .record(z.string().regex(/^[a-zA-Z][a-zA-Z0-9.-]{0,59}$/), ConstructionSchema)
+  .refine((v) => Object.keys(v).length <= 40, "Too many manual pieces");
 export type Construction = z.infer<typeof ConstructionSchema>;

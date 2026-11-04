@@ -19,9 +19,7 @@ test("fashion drafting, constrained shape editing, history, exports and shared p
     page.getByRole("heading", { name: "Solar botanical" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Fashion", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Everyday tee" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Teagan" })).toBeVisible();
   await expect(page.locator("[data-piece]")).toHaveCount(4);
   const front = page
     .locator('[data-piece="front"] g')
@@ -29,7 +27,7 @@ test("fashion drafting, constrained shape editing, history, exports and shared p
     .locator("path")
     .first();
   const original = await front.getAttribute("d");
-  const hips = page.getByRole("spinbutton", { name: "Hips", exact: true });
+  const hips = page.getByRole("spinbutton", { name: "High hips", exact: true });
   await hips.fill("1111");
   await hips.press("Escape");
   await expect(hips).toHaveValue("1000");
@@ -102,7 +100,7 @@ test("fashion drafting, constrained shape editing, history, exports and shared p
   await (await save).saveAs(projectPath);
   const stored = JSON.parse(await fs.readFile(projectPath, "utf8"));
   expect(stored.fashion.notes).toBe("Cotton jersey. Test ribbing recovery.");
-  expect(stored.version).toBe(8);
+  expect(stored.version).toBe(9);
   expect(stored.layers).toHaveLength(1);
   await page.screenshot({ path: testInfo.outputPath("fashion-workspace.png") });
   await page.getByRole("button", { name: "Tattoo", exact: true }).click();
@@ -113,9 +111,7 @@ test("fashion drafting, constrained shape editing, history, exports and shared p
   await page
     .getByLabel("Project file", { exact: true })
     .setInputFiles(projectPath);
-  await expect(
-    page.getByRole("heading", { name: "Everyday tee" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Teagan" })).toBeVisible();
   await expect(
     page.getByRole("spinbutton", { name: "Chest ease", exact: true }),
   ).toHaveValue("24");

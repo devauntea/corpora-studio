@@ -1,0 +1,38 @@
+name: Signed macOS release
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  signed-build:
+    runs-on: macos-latest
+    environment: desktop-release
+    env:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: node scripts/signing-preflight.mjs darwin
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - run: python3 scripts/dependency-notices.py
+      - run: npx tauri build --bundles app,dmg
+      - name: Verify signature and notarization
+        run: |
+          codesign --verify --deep --strict 'src-tauri/target/release/bundle/macos/Form Studio.app'
+          xcrun stapler validate 'src-tauri/target/release/bundle/macos/Form Studio.app'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-macos-release
+          path: src-tauri/target/release/bundle/

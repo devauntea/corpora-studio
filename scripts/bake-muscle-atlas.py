@@ -2,7 +2,8 @@
 Run with --disable-autoexec. Does not execute scripts embedded in the source blend.
 Output is a CC BY-SA 4.0 derivative anatomical color/identity field, not a diagnostic atlas.
 """
-import bpy,json,math,array,pathlib,hashlib
+import bpy,json,math,array,pathlib,hashlib,sys
+EXTENDED="--full-body" in sys.argv
 from mathutils import Vector,Matrix
 from mathutils.bvhtree import BVHTree
 R=pathlib.Path(__file__).resolve().parents[1]
@@ -54,7 +55,7 @@ for o in bpy.data.objects:
  src.append((o.name,gid,region,vs,fs))
 print('Registered source muscle meshes:',len(src),flush=True)
 for sex in ['male','female']:
- skin=json.loads((R/'.tools/anatomy'/f'{sex}-surface.json').read_text());verts=[];faces=[];ids=[]
+ skin=json.loads((R/'.tools/anatomy'/(f'{sex}-surface-v4.json' if EXTENDED else f'{sex}-surface.json')).read_text());verts=[];faces=[];ids=[]
  j={k:Vector(v) for k,v in skin['joints']['L'].items()}
  def register(p,region):
   sign=1 if p.x>=0 else -1;p=Vector((abs(p.x),p.y,p.z))
@@ -115,9 +116,9 @@ for sex in ['male','female']:
   if ns:
    for c in range(3):softened[i*3+c]=round(colors[i*3+c]*.55+sum(colors[n*3+c] for n in ns)/len(ns)*.45)
  colors=softened
- name=f'muscle-field-v2-{sex}';blob=bytes(colors)+bytes(identities)
- (R/'public/anatomy'/f'{name}.bin').write_bytes(blob)
- (R/'public/anatomy'/f'{name}.json').write_text(json.dumps({'vertexCount':len(skin['vertices']),'groups':meta,'license':'CC-BY-SA-4.0','source':'Z-Anatomy / BodyParts3D','revision':'679bc9bf746fdc2671398aa3857a8acff263a0fb','sha256':hashlib.sha256(blob).hexdigest()},indent=2)+'\n')
+ name=f'muscle-field-v4-base-{sex}' if EXTENDED else f'muscle-field-v2-{sex}';blob=bytes(colors)+bytes(identities)
+ (R/('.tools/anatomy' if EXTENDED else 'public/anatomy')/f'{name}.bin').write_bytes(blob)
+ (R/('.tools/anatomy' if EXTENDED else 'public/anatomy')/f'{name}.json').write_text(json.dumps({'vertexCount':len(skin['vertices']),'groups':meta,'license':'CC-BY-SA-4.0','source':'Z-Anatomy / BodyParts3D','revision':'679bc9bf746fdc2671398aa3857a8acff263a0fb','sha256':hashlib.sha256(blob).hexdigest()},indent=2)+'\n')
  print(sex,len(blob),'field bytes, average distance',sum(distances)/len(distances),flush=True)
 
 # Refresh the complete manifest after both fields have been baked.

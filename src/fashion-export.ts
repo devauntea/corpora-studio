@@ -1,3 +1,4 @@
+import { designNames } from "./fashion-model";
 import {
   layoutBounds,
   layoutPieces,
@@ -50,6 +51,13 @@ export function pieceMarkup(p: PatternPiece, sa: number, guides = true) {
     (sa ? path(p.cutline, "#222", 0.6) : "") +
     (guides ? p.guides.map((g) => path(g, "#aaa", 0.3, "2 3")).join("") : "") +
     `<path d="M${a.x},${a.y} L${b.x},${b.y} ${arrow(a, 1)} ${arrow(b, -1)}" fill="none" stroke="#555" stroke-width="0.4"/>` +
+    (p.marks ?? [])
+      .map((m) =>
+        m.kind === "button"
+          ? `<circle cx="${m.point.x}" cy="${m.point.y}" r="2" fill="none" stroke="#111" stroke-width=".4"/>`
+          : `<path d="M${m.point.x - 4},${m.point.y} h8" stroke="#111" stroke-width=".6"/>`,
+      )
+      .join("") +
     p.notches
       .map(
         (n) =>
@@ -65,8 +73,8 @@ export function patternSvg(draft: PatternDraft, f: Fashion, name: string) {
     height = b.height + 110;
   return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${b.width.toFixed(3)}mm" height="${height.toFixed(3)}mm" viewBox="${b.x} ${b.y - 110} ${b.width} ${height}">
 <title>${xml(name)} — sewing pattern in millimeters</title>
-<desc>Drafted locally using FreeSewing Teagan 4.10.2. Neckband by Form Studio. ${manual ? "Manual pieces use their saved per-edge allowances." : `Seam allowance ${f.seamAllowance} mm; body and sleeve hems ${f.seamAllowance * 3} mm.`} Verify with a toile. Print at 100 percent.</desc>
-<g fill="#222" font-family="Arial, sans-serif"><text x="${b.x + 20}" y="${b.y - 85}" font-size="12">${xml(name)}</text><text x="${b.x + 20}" y="${b.y - 68}" font-size="6">${xml(f.profile)} · 1 SVG unit = 1 mm · Print at 100%</text><text x="${b.x + 20}" y="${b.y - 54}" font-size="5">Solid: cut · Dashed: stitch · Crosses: matching marks · ${manual ? "Manual pieces: individual edge allowances" : `SA ${f.seamAllowance} mm / hems ${f.seamAllowance * 3} mm`}</text><text x="${b.x + 20}" y="${b.y - 40}" font-size="5">Knit T-shirt · Test neckband stretch and fit in a toile before cutting final fabric.</text></g>
+<desc>Drafted locally using FreeSewing ${xml(designNames[f.design ?? "teagan"])} 4.10.2. ${manual ? "Manual pieces use their saved per-edge allowances." : `Seam allowance ${f.seamAllowance} mm; body and sleeve hems ${f.seamAllowance * 3} mm.`} Verify with a toile. Print at 100 percent.</desc>
+<g fill="#222" font-family="Arial, sans-serif"><text x="${b.x + 20}" y="${b.y - 85}" font-size="12">${xml(name)}</text><text x="${b.x + 20}" y="${b.y - 68}" font-size="6">${xml(f.profile)} · 1 SVG unit = 1 mm · Print at 100%</text><text x="${b.x + 20}" y="${b.y - 54}" font-size="5">Solid: cut · Dashed: stitch · Crosses: matching marks · ${manual ? "Manual pieces: individual edge allowances" : `SA ${f.seamAllowance} mm / hems ${f.seamAllowance * 3} mm`}</text><text x="${b.x + 20}" y="${b.y - 40}" font-size="5">${xml(designNames[f.design ?? "teagan"])} · Verify finishing and fit in a toile before cutting final fabric.</text></g>
 <rect x="${b.x + b.width - 80}" y="${b.y - 90}" width="50" height="50" fill="none" stroke="#222" stroke-width="0.3"/>
 <text x="${b.x + b.width - 55}" y="${b.y - 30}" font-family="Arial, sans-serif" font-size="5" text-anchor="middle">50 × 50 mm</text>
 ${layoutPieces(draft, f)
@@ -104,7 +112,7 @@ export async function patternPdf(
   doc.setFontSize(10);
   const instructions = [
     `Profile: ${ascii(f.profile)}`,
-    "Knit T-shirt / FreeSewing Teagan 4.10.2 + Form Studio neckband",
+    `${ascii(designNames[f.design ?? "teagan"])} / FreeSewing 4.10.2`,
     `Print on ${f.paper === "a4" ? "A4" : "US Letter"} at ACTUAL SIZE / 100%. Disable fit-to-page.`,
     "Measure the square below before assembling or cutting.",
     "Trim on the tile frames. Match the 5 mm overlapping strips.",
@@ -114,28 +122,38 @@ export async function patternPdf(
       : `Seam allowance: ${f.seamAllowance} mm. Body and sleeve hems: ${f.seamAllowance * 3} mm.`,
     "Solid lines: cut. Dashed: stitch. Crosses: matching marks.",
     "Follow the cut instruction printed on each piece.",
-    `Neckband: ${Math.round(f.bandRatio * 100)}% of neck opening; finished width ${f.bandWidth} mm.`,
-    "Neckband stretch varies by ribbing. Test a sample and sew a toile first.",
+    (f.design ?? "teagan") === "teagan"
+      ? `Neckband: ${Math.round(f.bandRatio * 100)}% of neck opening; finished width ${f.bandWidth} mm.`
+      : "Hem, fold and finishing lines follow this design. Read the assembly guide.",
+    "Test the recorded fabric and sew a toile before cutting final fabric.",
   ];
   instructions.forEach((line, i) => doc.text(line, 15, 45 + i * 5));
   doc.setDrawColor(0);
   doc.setLineWidth(0.25);
   doc.rect(15, 105, 100, 100);
   doc.text("100 x 100 mm calibration square", 15, 212);
-  let page = 2;
+  const extraIndex = draft.pieces.length > 5;
+  if (extraIndex) {
+    doc.text("Piece / tile index on the next page.", 15, 224);
+    doc.addPage();
+    doc.setFontSize(16);
+    doc.text("PIECE / TILE INDEX", 15, 24);
+    doc.setFontSize(10);
+  }
+  let page = extraIndex ? 3 : 2;
   draft.pieces.forEach((p, i) => {
     const t = tilePlan(p, f.paper),
       count = t.columns * t.rows;
     doc.text(
       `${p.name}: ${t.columns} columns x ${t.rows} rows / pages ${page}-${page + count - 1}`,
       15,
-      224 + i * 6,
+      (extraIndex ? 40 : 224) + i * 6,
     );
     page += count;
   });
   doc.setFontSize(8);
   doc.text(
-    "Assembly instructions: freesewing.eu/docs/designs/teagan/instructions/",
+    `Assembly guide: freesewing.eu/docs/designs/${f.design ?? "teagan"}/instructions/`,
     15,
     254,
   );
@@ -254,6 +272,18 @@ export async function patternPdf(
               x,
               y,
               0,
+            );
+        }
+        for (const m of p.marks ?? []) {
+          doc.setDrawColor(0);
+          doc.setLineWidth(0.4);
+          if (m.kind === "button") doc.circle(m.point.x + x, m.point.y + y, 2);
+          else
+            doc.line(
+              m.point.x + x - 4,
+              m.point.y + y,
+              m.point.x + x + 4,
+              m.point.y + y,
             );
         }
         doc.setFontSize(15);

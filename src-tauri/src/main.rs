@@ -38,7 +38,8 @@ fn validate_envelope(content: &str) -> Result<(), String> {
             && v["version"] != 5
             && v["version"] != 6
             && v["version"] != 7
-            && v["version"] != 8)
+            && v["version"] != 8
+            && v["version"] != 9)
     {
         return Err("Unsupported project format or version.".into());
     }
@@ -223,6 +224,66 @@ async fn save_pattern(
 }
 
 #[tauri::command]
+async fn save_text_file(
+    content: String,
+    name: String,
+    format: String,
+) -> Result<Option<String>, String> {
+    if content.len() > 2_000_000 || !["json", "smis", "csv"].contains(&format.as_str()) {
+        return Err("Invalid text export or size exceeds 2 MB.".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let safe: String = name
+            .chars()
+            .filter(|c| c.is_alphanumeric() || " -_".contains(*c))
+            .take(80)
+            .collect();
+        let Some(path) = rfd::FileDialog::new()
+            .add_filter("Studio data", &[format.as_str()])
+            .set_file_name(format!("{safe}.{format}"))
+            .save_file()
+        else {
+            return Ok(None);
+        };
+        atomic_write(&path, content.as_bytes())?;
+        Ok(Some(path.to_string_lossy().into_owned()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn save_portfolio(data: String, name: String) -> Result<Option<String>, String> {
+    if data.len() > 67_000_000 {
+        return Err("Portfolio exceeds 50 MB.".into());
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|_| "Invalid archive bytes.")?;
+    if bytes.len() > 50_000_000 || !bytes.starts_with(b"PK\x03\x04") {
+        return Err("Expected a generated portfolio ZIP.".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let safe: String = name
+            .chars()
+            .filter(|c| c.is_alphanumeric() || " -_".contains(*c))
+            .take(80)
+            .collect();
+        let Some(path) = rfd::FileDialog::new()
+            .add_filter("Portfolio ZIP", &["zip"])
+            .set_file_name(format!("{safe}-portfolio.zip"))
+            .save_file()
+        else {
+            return Ok(None);
+        };
+        atomic_write(&path, &bytes)?;
+        Ok(Some(path.to_string_lossy().into_owned()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 async fn decode_heic(data: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || decode_heic_local(&data))
         .await
@@ -364,6 +425,8 @@ fn main() {
             save_project,
             save_review,
             save_pattern,
+            save_text_file,
+            save_portfolio,
             close_app,
             decode_heic
         ])

@@ -1,3 +1,11 @@
+import { PointInputs } from "./PointInputs";
+import { compositeProject, effectiveLayer } from "./layer-groups";
+import {
+  makeLattice,
+  validLattice,
+  drawLattice,
+  type Lattice,
+} from "./lattice-warp";
 import {
   defaultQuad,
   validQuad,
@@ -24,6 +32,7 @@ export async function paintPhoto(
   max = 2048,
   before = false,
 ) {
+  project = compositeProject(project);
   const asset = project.assets.find((a) => a.id === photo.assetId)!;
   const source = await cache.image(asset),
     scale = Math.min(1, max / Math.max(source.width, source.height));
@@ -46,7 +55,16 @@ export async function paintPhoto(
       const w = p.width * c.width,
         h = w * artworkRatio(a) * (l.stretch ?? 1);
       x.clearRect(0, 0, c.width, c.height);
-      if (p.warp) {
+      if (p.lattice) {
+        drawLattice(
+          x,
+          image,
+          corners(l, a, c.width / c.height).lattice.map(([u, v]) => [
+            (u * c.width) / 1000,
+            (v * c.width) / 1000,
+          ]) as Lattice,
+        );
+      } else if (p.warp) {
         const quad = corners(l, a, c.width / c.height).points.map(([u, v]) => [
           (u * c.width) / 1000,
           (v * c.width) / 1000,
@@ -137,11 +155,14 @@ function corners(l: Layer, a: Asset, aspect: number) {
       (p.y * 1000) / aspect + x * Math.sin(t) + y * Math.cos(t),
     ];
   };
-  const q = p.warp ?? defaultQuad(),
+  const q = p.lattice
+      ? ([p.lattice[0], p.lattice[2], p.lattice[8], p.lattice[6]] as Quad)
+      : (p.warp ?? defaultQuad()),
     u = (q[0][0] + q[1][0]) / 2,
     v = (q[0][1] + q[1][1]) / 2;
   return {
     points: q.map(([x, y]) => point(x, y)) as Quad,
+    lattice: (p.lattice ?? makeLattice(q)).map(([x, y]) => point(x, y)),
     top: point(u, v),
     rotate: point(u, v - 38 / h),
   };
@@ -170,6 +191,7 @@ export function PhotoStage({
   const [before, setBefore] = useState(false),
     [protect, setProtect] = useState(false),
     [warp, setWarp] = useState(false),
+    [lattice, setLattice] = useState(false),
     [brush, setBrush] = useState(0.025),
     [size, setSize] = useState({ width: 1, height: 1 });
   const [draft, setDraft] = useState<Photo["masks"][number]>();
@@ -247,16 +269,19 @@ export function PhotoStage({
       return;
     }
     const action = (e.target as SVGElement).dataset.action;
-    let target = layer;
+    let target = layer ? effectiveLayer(project, layer) : undefined;
     if (!action) {
-      target = [...project.layers].reverse().find((l) => {
-        if (l.photoId !== photo.id || !l.visible || l.locked) return false;
-        const a = project.assets.find((a) => a.id === l.assetId)!;
-        return insideQuad(
-          [p[0] * 1000, (p[1] * 1000) / aspect],
-          corners(l, a, aspect).points,
-        );
-      });
+      target = project.layers
+        .map((l) => effectiveLayer(project, l))
+        .reverse()
+        .find((l) => {
+          if (l.photoId !== photo.id || !l.visible || l.locked) return false;
+          const a = project.assets.find((a) => a.id === l.assetId)!;
+          return insideQuad(
+            [p[0] * 1000, (p[1] * 1000) / aspect],
+            corners(l, a, aspect).points,
+          );
+        });
     }
     if (!target || target.locked) return;
     onSelect(target.id);
@@ -289,15 +314,20 @@ export function PhotoStage({
     const ph = d.layer.photo!,
       dx = p[0] - ph.x,
       dy = (p[1] - ph.y) / aspect;
-    if (d.action.startsWith("warp-")) {
+    if (d.action.startsWith("warp-") || d.action.startsWith("lattice-")) {
       const asset = project.assets.find((a) => a.id === d.layer.assetId)!;
       const t = (-d.layer.rotation * Math.PI) / 180,
         ry = dx * Math.sin(t) + dy * Math.cos(t),
         rx = dx * Math.cos(t) - dy * Math.sin(t);
       const y = ry / (d.layer.flipY ? -1 : 1),
         x = (rx - ph.skew * y) / (d.layer.flipX ? -1 : 1);
-      const q = structuredClone(ph.warp ?? defaultQuad());
-      q[Number(d.action.slice(5))] = [
+      const isLattice = d.action.startsWith("lattice-");
+      const q = structuredClone(
+        isLattice
+          ? (ph.lattice ?? makeLattice(ph.warp))
+          : (ph.warp ?? defaultQuad()),
+      );
+      q[Number(d.action.slice(isLattice ? 8 : 5))] = [
         clamp(x / ph.width, -1.5, 1.5),
         clamp(
           y / (ph.width * artworkRatio(asset) * (d.layer.stretch ?? 1)),
@@ -305,7 +335,11 @@ export function PhotoStage({
           1.5,
         ),
       ];
-      if (validQuad(q)) onLayer({ photo: { ...ph, warp: q } });
+      if (isLattice) {
+        if (validLattice(q)) onLayer({ photo: { ...ph, lattice: q } });
+        else onError("That movement would fold or overlap a lattice cell.");
+      } else if (validQuad(q as Quad))
+        onLayer({ photo: { ...ph, warp: q as Quad, lattice: undefined } });
     } else if (d.action === "rotate") {
       const deg =
         d.layer.rotation + ((Math.atan2(dy, dx) - d.angle) * 180) / Math.PI;
@@ -350,17 +384,21 @@ export function PhotoStage({
     }
   };
   const handles =
-    layer && art && layer.visible && !layer.locked
+    layer &&
+    art &&
+    effectiveLayer(project, layer).visible &&
+    !effectiveLayer(project, layer).locked
       ? corners(layer, art, aspect)
       : undefined;
   return (
     <div className="photo-workspace">
       <div className="photo-toolbar">
         <button
-          className={!protect && !warp ? "selected" : ""}
+          className={!protect && !warp && !lattice ? "selected" : ""}
           onClick={() => {
             setProtect(false);
             setWarp(false);
+            setLattice(false);
           }}
         >
           Transform
@@ -370,17 +408,36 @@ export function PhotoStage({
           aria-pressed={warp && !protect}
           onClick={() => {
             setWarp(true);
+            setLattice(false);
             setProtect(false);
           }}
         >
           Warp corners
         </button>
-        {warp && (
+        <button
+          aria-pressed={lattice && !protect}
+          onClick={() => {
+            setLattice(true);
+            setWarp(false);
+            setProtect(false);
+          }}
+        >
+          Lattice warp
+        </button>
+        {(warp || lattice) && (
           <button
-            disabled={!layer?.photo?.warp || layer.locked}
+            disabled={
+              (!layer?.photo?.warp && !layer?.photo?.lattice) || layer?.locked
+            }
             onClick={() => {
               if (layer?.photo)
-                onLayer({ photo: { ...layer.photo, warp: undefined } });
+                onLayer({
+                  photo: {
+                    ...layer.photo,
+                    warp: undefined,
+                    lattice: undefined,
+                  },
+                });
             }}
           >
             Reset warp
@@ -396,6 +453,37 @@ export function PhotoStage({
           {before ? "Show composition" : "Show original"}
         </button>
       </div>
+      {lattice && !protect && layer?.photo && (
+        <details className="lattice-controls">
+          <summary>Edit lattice points with keyboard</summary>
+          <div className="lattice-fields">
+            {(layer.photo.lattice ?? makeLattice(layer.photo.warp)).map(
+              (q, i) => (
+                <PointInputs
+                  key={i}
+                  label={`Lattice point ${i + 1}`}
+                  point={q}
+                  min={-1.5}
+                  max={1.5}
+                  disabled={layer.locked}
+                  change={(q) => {
+                    if (!layer.photo || layer.locked) return;
+                    const next = (
+                      layer.photo.lattice ?? makeLattice(layer.photo.warp)
+                    ).map((p, j) => (i === j ? q : p));
+                    if (validLattice(next))
+                      onLayer({ photo: { ...layer.photo, lattice: next } });
+                    else
+                      onError(
+                        "That movement would fold or overlap a lattice cell.",
+                      );
+                  }}
+                />
+              ),
+            )}
+          </div>
+        </details>
+      )}
       {protect && (
         <div className="photo-mask-tools">
           <label>
@@ -471,19 +559,47 @@ export function PhotoStage({
                   stroke="#fff"
                   strokeWidth="2"
                 />
-                {handles.points.map(([x, y], i) => (
-                  <rect
-                    key={i}
-                    x={x - 8}
-                    y={y - 8}
-                    width="16"
-                    height="16"
-                    fill="#333"
-                    stroke="#fff"
-                    strokeWidth="2"
-                    data-action={warp ? `warp-${i}` : "scale"}
-                  />
-                ))}
+                {lattice && (
+                  <g pointerEvents="none">
+                    {[0, 1, 2].map((i) => (
+                      <g key={i}>
+                        <polyline
+                          points={[0, 1, 2]
+                            .map((j) => handles.lattice[i * 3 + j].join(","))
+                            .join(" ")}
+                          fill="none"
+                          stroke="#fff"
+                          strokeWidth="1"
+                        />
+                        <polyline
+                          points={[0, 1, 2]
+                            .map((j) => handles.lattice[j * 3 + i].join(","))
+                            .join(" ")}
+                          fill="none"
+                          stroke="#fff"
+                          strokeWidth="1"
+                        />
+                      </g>
+                    ))}
+                  </g>
+                )}
+                {(lattice ? handles.lattice : handles.points).map(
+                  ([x, y], i) => (
+                    <rect
+                      key={i}
+                      x={x - 8}
+                      y={y - 8}
+                      width="16"
+                      height="16"
+                      fill="#333"
+                      stroke="#fff"
+                      strokeWidth="2"
+                      data-action={
+                        lattice ? `lattice-${i}` : warp ? `warp-${i}` : "scale"
+                      }
+                    />
+                  ),
+                )}
                 <circle
                   cx={handles.rotate[0]}
                   cy={handles.rotate[1]}

@@ -1,3 +1,5 @@
+import {useDialogReturnFocus} from "./dialog-focus";
+import { StencilStudio } from "./StencilStudio";
 import { defaultProcessing, type Processing } from "./image-processing";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -21,7 +23,7 @@ import {
   type Asset,
   type ArtworkEdits,
 } from "./domain";
-import { renderArtwork } from "./artwork";
+import { renderArtworkAsync } from "./artwork";
 import { loadImage, saveReview, native } from "./io";
 import { listen } from "@tauri-apps/api/event";
 
@@ -36,12 +38,17 @@ export function ArtworkStudio({
   close: () => void;
   pointBudget: number;
 }) {
+  useDialogReturnFocus();
+  const [brushColor, setBrushColor] = useState("#111111");
+  const [stencil, setStencil] = useState(false);
   const [edits, setEdits] = useState<ArtworkEdits>(
     asset.edits ?? cleanArtwork(),
   );
   const [past, setPast] = useState<ArtworkEdits[]>([]),
     [future, setFuture] = useState<ArtworkEdits[]>([]);
-  const [tool, setTool] = useState<"erase" | "restore" | "crop">("erase"),
+  const [tool, setTool] = useState<
+      "erase" | "restore" | "crop" | "draw" | "erase-drawing"
+    >("erase"),
     [radius, setRadius] = useState(0.025),
     [original, setOriginal] = useState(false);
   const [zoom, setZoom] = useState(1),
@@ -162,48 +169,58 @@ export function ArtworkStudio({
   }, [asset]);
   useEffect(() => {
     if (!image.current || !canvas.current) return;
-    const rendered = renderArtwork(
+    const controller = new AbortController();
+    void renderArtworkAsync(
       image.current,
       original
         ? undefined
         : tool === "crop"
           ? { ...edits, crop: undefined }
           : edits,
-    );
-    const c = canvas.current;
-    c.width = rendered.width;
-    c.height = rendered.height;
-    const ctx = c.getContext("2d")!;
-    ctx.drawImage(rendered, 0, 0);
-    if (tool === "crop" && !original) {
-      const r = edits.crop ?? fullCrop(),
-        x = r.x * c.width,
-        y = r.y * c.height,
-        w = r.width * c.width,
-        h = r.height * c.height;
-      ctx.fillStyle = "#0008";
-      ctx.beginPath();
-      ctx.rect(0, 0, c.width, c.height);
-      ctx.rect(x, y, w, h);
-      ctx.fill("evenodd");
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = Math.max(2, c.width / 500);
-      ctx.strokeRect(x, y, w, h);
-      ctx.lineWidth /= 2;
-      for (const f of [1 / 3, 2 / 3]) {
-        ctx.beginPath();
-        ctx.moveTo(x + w * f, y);
-        ctx.lineTo(x + w * f, y + h);
-        ctx.moveTo(x, y + h * f);
-        ctx.lineTo(x + w, y + h * f);
-        ctx.stroke();
-      }
-      const handle = Math.max(5, c.width / 100);
-      ctx.fillStyle = "#fff";
-      for (const px of [x, x + w])
-        for (const py of [y, y + h])
-          ctx.fillRect(px - handle / 2, py - handle / 2, handle, handle);
-    }
+      2048,
+      { signal: controller.signal },
+    )
+      .then((rendered) => {
+        if (!canvas.current || controller.signal.aborted) return;
+        const c = canvas.current;
+        c.width = rendered.width;
+        c.height = rendered.height;
+        const ctx = c.getContext("2d")!;
+        ctx.drawImage(rendered, 0, 0);
+        if (tool === "crop" && !original) {
+          const r = edits.crop ?? fullCrop(),
+            x = r.x * c.width,
+            y = r.y * c.height,
+            w = r.width * c.width,
+            h = r.height * c.height;
+          ctx.fillStyle = "#0008";
+          ctx.beginPath();
+          ctx.rect(0, 0, c.width, c.height);
+          ctx.rect(x, y, w, h);
+          ctx.fill("evenodd");
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = Math.max(2, c.width / 500);
+          ctx.strokeRect(x, y, w, h);
+          ctx.lineWidth /= 2;
+          for (const f of [1 / 3, 2 / 3]) {
+            ctx.beginPath();
+            ctx.moveTo(x + w * f, y);
+            ctx.lineTo(x + w * f, y + h);
+            ctx.moveTo(x, y + h * f);
+            ctx.lineTo(x + w, y + h * f);
+            ctx.stroke();
+          }
+          const handle = Math.max(5, c.width / 100);
+          ctx.fillStyle = "#fff";
+          for (const px of [x, x + w])
+            for (const py of [y, y + h])
+              ctx.fillRect(px - handle / 2, py - handle / 2, handle, handle);
+        }
+      })
+      .catch((e) => {
+        if (e.name !== "AbortError") setError(String(e));
+      });
+    return () => controller.abort();
   }, [edits, original, loaded, tool]);
   useEffect(() => {
     if (!native) return;
@@ -281,12 +298,14 @@ export function ArtworkStudio({
     if (side === "Bottom") next.height = Math.max(0.01, 1 - value - crop.y);
     update({ ...edits, crop: next });
   };
-  const count = edits.strokes.reduce((n, s) => n + s.points.length, 0);
+  const count =
+    edits.strokes.reduce((n, s) => n + s.points.length, 0) +
+    (edits.drawing?.reduce((n, s) => n + s.points.length, 0) ?? 0);
   const exportPNG = async () => {
     if (!image.current) return;
     setExporting(true);
     try {
-      const c = renderArtwork(image.current, edits, 4096);
+      const c = await renderArtworkAsync(image.current, edits, 4096);
       await saveReview(
         c.toDataURL("image/png"),
         asset.name.replace(/\.[^.]+$/, "") + "-clean-artwork",
@@ -299,6 +318,13 @@ export function ArtworkStudio({
   };
   return (
     <div className="modal-backdrop artwork-backdrop">
+      {stencil && (
+        <StencilStudio
+          asset={asset}
+          edits={edits}
+          close={() => setStencil(false)}
+        />
+      )}
       <section
         className="artwork-studio"
         role="dialog"
@@ -336,6 +362,7 @@ export function ArtworkStudio({
             >
               <Redo2 size={17} />
             </button>
+            <button onClick={() => setStencil(true)}>Stencil output</button>
             <button onClick={close} aria-label="Close image studio">
               <X size={20} />
             </button>
@@ -343,6 +370,40 @@ export function ArtworkStudio({
         </header>
         <div className="art-studio-body">
           <aside className="art-tools">
+            <h3>Draw on artwork</h3>
+            <div className="brush-tabs">
+              <button
+                aria-pressed={tool === "draw"}
+                onClick={() => {
+                  setTool("draw");
+                  setOriginal(false);
+                }}
+              >
+                Draw
+              </button>
+              <button
+                aria-pressed={tool === "erase-drawing"}
+                onClick={() => {
+                  setTool("erase-drawing");
+                  setOriginal(false);
+                }}
+              >
+                Erase drawing
+              </button>
+            </div>
+            <label>
+              Brush color
+              <input
+                aria-label="Drawing color"
+                type="color"
+                value={brushColor}
+                onChange={(e) => setBrushColor(e.target.value)}
+              />
+            </label>
+            <p>
+              Pen pressure controls stroke width. Erase drawing affects only
+              drawn strokes; source cleanup stays separate.
+            </p>
             <h3>01 / Crop</h3>
             <button
               className={`wide-button ${tool === "crop" ? "active" : ""}`}
@@ -703,6 +764,35 @@ export function ArtworkStudio({
                       };
                       return;
                     }
+                    if (tool === "draw" || tool === "erase-drawing") {
+                      if (
+                        (edits.drawing?.length ?? 0) >= 200 ||
+                        count >= pointBudget
+                      ) {
+                        setError("Drawing point limit reached.");
+                        return;
+                      }
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                      gesture.current = edits;
+                      setEdits({
+                        ...edits,
+                        drawing: [
+                          ...(edits.drawing ?? []),
+                          {
+                            mode: tool === "draw" ? "draw" : "erase",
+                            color: brushColor,
+                            radius: radius * viewCrop().width,
+                            points: [
+                              [
+                                ...point(e),
+                                e.pointerType === "pen" ? e.pressure : 0.6,
+                              ],
+                            ],
+                          },
+                        ],
+                      });
+                      return;
+                    }
                     if (edits.strokes.length >= 200 || count >= pointBudget) {
                       setError(
                         "Cleanup limit reached. Undo or reset strokes before adding more.",
@@ -764,6 +854,30 @@ export function ArtworkStudio({
                         };
                       }
                       setEdits((current) => ({ ...current, crop: next }));
+                      return;
+                    }
+                    if (tool === "draw" || tool === "erase-drawing") {
+                      setEdits((current) => {
+                        const strokes = [...(current.drawing ?? [])],
+                          last = strokes.at(-1);
+                        if (
+                          !last ||
+                          last.points.length >= 2000 ||
+                          count >= pointBudget
+                        )
+                          return current;
+                        const prev = last.points.at(-1)!;
+                        if (Math.hypot(p[0] - prev[0], p[1] - prev[1]) < 0.0005)
+                          return current;
+                        strokes[strokes.length - 1] = {
+                          ...last,
+                          points: [
+                            ...last.points,
+                            [...p, e.pointerType === "pen" ? e.pressure : 0.6],
+                          ],
+                        };
+                        return { ...current, drawing: strokes };
+                      });
                       return;
                     }
                     setEdits((current) => {

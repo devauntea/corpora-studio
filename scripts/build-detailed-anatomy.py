@@ -2,9 +2,10 @@
 The v1 mesh is deliberately left untouched. All interpolated channels share topology.
 """
 import json, math, pathlib, hashlib, array, runpy, sys
+EXTENDED='--full-body' in sys.argv
 sculpt_functions=runpy.run_path(str(pathlib.Path(__file__).with_name("surface-sculpt.py")))
 sculpt=sculpt_functions["sculpt"]; bony_landmarks=sculpt_functions["bony_landmarks"]
-R=pathlib.Path(__file__).resolve().parents[1]; S=R/'assets/anatomy/source'; OUT=R/'public/anatomy'
+R=pathlib.Path(__file__).resolve().parents[1]; S=R/'assets/anatomy/source'; OUT=R/('.tools/anatomy' if EXTENDED else 'public/anatomy')
 (R/'.tools/anatomy').mkdir(parents=True,exist_ok=True)
 OUT.mkdir(parents=True,exist_ok=True)
 base=[]; faces=[]; group=''
@@ -114,7 +115,7 @@ def build(sex):
   vtx[3:6]=[fitpoint[c]-vtx[c] for c in range(3)]
   # Ease vertical morph motion into each cut plane. Fixing only the final ring
   # lets neighboring vertices cross that ring, producing a ragged silhouette.
-  cut_distance=min(abs(vtx[1]-1.2),abs(vtx[1]-6.9),abs(vtx[1]-.6))
+  cut_distance=abs(vtx[1]-7.4) if EXTENDED else min(abs(vtx[1]-1.2),abs(vtx[1]-6.9),abs(vtx[1]-.6))
   t=min(1,cut_distance/.28);vtx[4]*=t*t*(3-2*t)
   # A clean proximal plane removes the hanging axillary sliver made by a weight-only cut.
   vtx.extend([min(vtx[0]-(joints['L']['shoulder'][0]-.18), (vtx[6]-.04)*3), min(-vtx[0]-(-joints['R']['shoulder'][0]-.18), (vtx[9]-.04)*3)])
@@ -126,19 +127,20 @@ def build(sex):
    if (da>=0)!=(db>=0):
     t=da/(da-db);result.append([u+(w-u)*t for u,w in zip(a,b)])
   return result
- vs=[];lookup={};parts=[[] for _ in range(5)]
+ vs=[];lookup={};parts=[[] for _ in range(6 if EXTENDED else 5)]
  for f in fs:
   poly=[data[i] for i in f];pieces=[]
   for zone,channel in [(1,12),(2,13)]:
    pieces.append((zone,clip(poly,channel,0,1)));poly=clip(poly,channel,0,-1)
-  pieces.append((0,clip(clip(poly,1,1.2,1),1,6.9,-1)))
-  for zone,sign in [(3,1),(4,-1)]:pieces.append((zone,clip(clip(poly,1,.6,-1),0,.55*sign,sign)))
+  pieces.append((0,clip(clip(poly,1,.6 if EXTENDED else 1.2,1),1,6.0 if EXTENDED else 6.9,-1)))
+  if EXTENDED:pieces.append((5,clip(clip(poly,1,6.0,1),1,7.4,-1)))
+  for zone,sign in [(3,1),(4,-1)]:pieces.append((zone,clip(clip(poly,1,.6,-1),0,0 if EXTENDED else .55*sign,sign)))
   for zone,p in pieces:
    for j in range(1,len(p)-1):
     for q in [p[0],p[j],p[j+1]]:
      # Keep cut rings planar under the fit morph as well as the average surface.
-     if zone==0 and (abs(q[1]-1.2)<1e-5 or abs(q[1]-6.9)<1e-5):q=q[:];q[4]=0
-     if zone>=3 and abs(q[1]-.6)<1e-5:q=q[:];q[4]=0
+     if not EXTENDED and zone==0 and (abs(q[1]-1.2)<1e-5 or abs(q[1]-6.9)<1e-5):q=q[:];q[4]=0
+     if not EXTENDED and zone>=3 and abs(q[1]-.6)<1e-5:q=q[:];q[4]=0
      key=tuple(round(x,6) for x in q[:12])
      if key not in lookup:lookup[key]=len(vs);vs.append(list(key))
      parts[zone].append(lookup[key])
@@ -146,13 +148,13 @@ def build(sex):
  coordinates=array.array('f',[x for v in vs for x in v]);triangles=array.array('I',[x for p in parts for x in p])
  if sys.byteorder!='little':coordinates.byteswap();triangles.byteswap()
  blob=coordinates.tobytes()+triangles.tobytes()
- name=f'human-v2-{sex}';(OUT/(name+'.bin')).write_bytes(blob)
- meta={'version':2,'provenance':'MakeHuman core CC0; '+(S/'revision.txt').read_text().strip(),'vertexCount':len(vs),'partCounts':[len(p) for p in parts],'joints':joints,'buffer':name+'.bin','sha256':hashlib.sha256(blob).hexdigest()}
+ name=f'human-v4-base-{sex}' if EXTENDED else f'human-v2-{sex}';(OUT/(name+'.bin')).write_bytes(blob)
+ meta={'version':4 if EXTENDED else 2,'provenance':'MakeHuman core CC0; '+(S/'revision.txt').read_text().strip(),'vertexCount':len(vs),'partCounts':[len(p) for p in parts],'joints':joints,'buffer':name+'.bin','sha256':hashlib.sha256(blob).hexdigest()}
  (OUT/(name+'.json')).write_text(json.dumps(meta,indent=2)+'\n')
  # Local bake input, never shipped. This lets the anatomical field be regenerated against this exact surface.
- (R/'.tools/anatomy'/f'{sex}-surface.json').write_text(json.dumps({'vertices':vs,'parts':parts,'joints':joints},separators=(',',':')))
+ (R/'.tools/anatomy'/(f'{sex}-surface-v4.json' if EXTENDED else f'{sex}-surface.json')).write_text(json.dumps({'vertices':vs,'parts':parts,'joints':joints},separators=(',',':')))
  print(sex,len(vs),'vertices',sum(len(p)//3 for p in parts),'triangles',len(blob),'bytes',flush=True)
 for sex in ['male','female']:build(sex)
 manifest={f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(S.iterdir()) if f.is_file()}
-manifest.update({f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(OUT.iterdir()) if f.is_file()})
+manifest.update({f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted((R/'public/anatomy').iterdir()) if f.is_file()})
 (R/'assets/anatomy/hashes.json').write_text(json.dumps(manifest,indent=2)+'\n')

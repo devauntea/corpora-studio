@@ -1,3 +1,5 @@
+import { CheckpointCompare } from "./CheckpointCompare";
+import { parseProject } from "./domain";
 import { useEffect, useState } from "react";
 import { FolderOpen, X, Trash2, Save } from "lucide-react";
 import {
@@ -19,6 +21,10 @@ export function ProjectLibrary({
   open: (content: string) => void;
   close: () => void;
 }) {
+  const [comparison, setComparison] = useState<{
+    name: string;
+    project: Project;
+  } | null>(null);
   const [entries, setEntries] = useState<WorkspaceEntry[]>([]),
     [query, setQuery] = useState(""),
     [label, setLabel] = useState(""),
@@ -66,6 +72,14 @@ export function ProjectLibrary({
   };
   return (
     <div className="modal-backdrop library-backdrop">
+      {comparison && (
+        <CheckpointCompare
+          left={comparison}
+          right={{ name: "Current project", project }}
+          studio={studio}
+          close={() => setComparison(null)}
+        />
+      )}
       <section
         className="project-library"
         role="dialog"
@@ -167,6 +181,26 @@ export function ProjectLibrary({
                     }}
                   >
                     <FolderOpen size={15} /> Open
+                  </button>
+                  <button
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true);
+                      try {
+                        setComparison({
+                          name: entry.label,
+                          project: await parseProject(
+                            await readWorkspace(entry.id),
+                          ),
+                        });
+                      } catch (e) {
+                        setError(String(e));
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    Compare with current
                   </button>
                   <button
                     aria-label={`Remove local copy ${entry.label}`}

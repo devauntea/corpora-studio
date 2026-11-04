@@ -14,6 +14,10 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'public/anatomy'
 SOURCE = ROOT / 'assets/anatomy/source'
+EXTENDED='--full-body' in sys.argv
+INPUT='4-base' if EXTENDED else '2'
+OUTPUT='4' if EXTENDED else '3'
+INPUT_DIR=ROOT/'.tools/anatomy' if EXTENDED else OUT
 
 def dot(a, b): return sum(x*y for x, y in zip(a, b))
 def sub(a, b): return [x-y for x, y in zip(a, b)]
@@ -217,13 +221,13 @@ def refine(p, weights, joints, hands, sex, fit):
         rear = 1-smooth(az-.25, az-.07, z)
         result[2] += .012*(gauss(x-axx-.13, .035)+gauss(x-axx+.13, .035))*gauss(y-ay-.6, .6)*rear
     # Preserve section planes exactly; all detail fades before the caps.
-    distance = min(abs(y-1.2), abs(y-6.9), abs(y-.6))
+    distance = abs(y-7.4) if EXTENDED else min(abs(y-1.2), abs(y-6.9), abs(y-.6))
     fade = smooth(0, .12, distance)
     return add(p, mul(sub(result, p), fade))
 
 def build(sex):
-    meta = json.loads((OUT/f'human-v2-{sex}.json').read_text()); n = meta['vertexCount']
-    raw = (OUT/meta['buffer']).read_bytes()
+    meta = json.loads((INPUT_DIR/f'human-v{INPUT}-{sex}.json').read_text()); n = meta['vertexCount']
+    raw = (INPUT_DIR/meta['buffer']).read_bytes()
     assert hashlib.sha256(raw).hexdigest() == meta['sha256']
     values = array.array('f'); values.frombytes(raw[:n*48])
     indices = array.array('I'); indices.frombytes(raw[n*48:])
@@ -237,14 +241,14 @@ def build(sex):
     coordinates = array.array('f', [x for v in vertices for x in v])
     if sys.byteorder != 'little': coordinates.byteswap()
     blob = coordinates.tobytes()+raw[n*48:]
-    name = f'human-v3-{sex}'
+    name = f'human-v{OUTPUT}-{sex}'
     (OUT/f'{name}.bin').write_bytes(blob)
-    meta.update(version=3, buffer=name+'.bin', sha256=hashlib.sha256(blob).hexdigest(), parent=f'human-v2-{sex}', detailLandmarks=hands['L'], refinement='Authored anatomical planes, entheses, joint landmarks, hand tendons and digit folds.')
+    meta.update(version=int(OUTPUT), buffer=name+'.bin', sha256=hashlib.sha256(blob).hexdigest(), parent=f'human-v{INPUT}-{sex}', detailLandmarks=hands['L'], refinement='Authored anatomical planes, entheses, joint landmarks, hand tendons and digit folds.')
     (OUT/f'{name}.json').write_text(json.dumps(meta, indent=2)+'\n')
     print(sex, 'surface refined', flush=True)
 
-    fieldmeta = json.loads((OUT/f'muscle-field-v2-{sex}.json').read_text())
-    oldfield = (OUT/f'muscle-field-v2-{sex}.bin').read_bytes()
+    fieldmeta = json.loads((INPUT_DIR/f'muscle-field-v{INPUT}-{sex}.json').read_text())
+    oldfield = (INPUT_DIR/f'muscle-field-v{INPUT}-{sex}.bin').read_bytes()
     assert hashlib.sha256(oldfield).hexdigest() == fieldmeta['sha256']
     ids = list(oldfield[n*3:]); neighbors = [set() for _ in range(n)]
     for i in range(0, len(indices), 3):
@@ -284,9 +288,9 @@ def build(sex):
         influences.extend(k for k,v in top)
         influences.extend(round(v*255) for k,v in top)
     blob = bytes(colors)+bytes(ids)+bytes(influences)
-    name = f'muscle-field-v3-{sex}'
+    name = f'muscle-field-v{OUTPUT}-{sex}'
     (OUT/f'{name}.bin').write_bytes(blob)
-    fieldmeta.update(sha256=hashlib.sha256(blob).hexdigest(), format=3, bytesPerVertex=12, influenceChannels='4 uint8 palette indices (36=connective), then 4 uint8 weights per vertex', modifications='Topology-aware label cleanup and smoothed categorical probabilities; original palette. The renderer adds authored fascicle and connective-tissue detail.')
+    fieldmeta.update(sha256=hashlib.sha256(blob).hexdigest(), format=int(OUTPUT), bytesPerVertex=12, influenceChannels='4 uint8 palette indices (36=connective), then 4 uint8 weights per vertex', modifications='Topology-aware label cleanup and smoothed categorical probabilities; original palette. The renderer adds authored fascicle and connective-tissue detail.')
     (OUT/f'{name}.json').write_text(json.dumps(fieldmeta, indent=2)+'\n')
     print(sex, n, 'vertices;', len(blob), 'field bytes', flush=True)
 

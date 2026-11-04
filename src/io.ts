@@ -109,3 +109,45 @@ export async function savePattern(
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   return "Downloaded pattern";
 }
+
+export async function saveTextFile(
+  content: string,
+  name: string,
+  format: "json" | "smis" | "csv",
+) {
+  if (content.length > 2_000_000) throw new Error("Text export exceeds 2 MB.");
+  if (native)
+    return invoke<string | null>("save_text_file", { content, name, format });
+  download(
+    content,
+    `${name}.${format}`,
+    format === "json"
+      ? "application/json"
+      : format === "smis"
+        ? "application/xml"
+        : "text/csv",
+  );
+  return "Downloaded file";
+}
+
+export async function savePortfolio(bytes: Uint8Array, name: string) {
+  if (bytes.length > 50000000) throw new Error("Portfolio exceeds 50 MB.");
+  if (native) {
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 8192)
+      binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+    return invoke<string | null>("save_portfolio", {
+      data: btoa(binary),
+      name,
+    });
+  }
+  const url = URL.createObjectURL(
+      new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "application/zip" }),
+    ),
+    a = document.createElement("a");
+  a.href = url;
+  a.download = name + "-portfolio.zip";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return "Downloaded portfolio";
+}

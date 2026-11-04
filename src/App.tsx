@@ -1,3 +1,7 @@
+import { PortfolioStudio } from "./PortfolioStudio";
+import { BodyFitStudio } from "./BodyFitStudio";
+import { LayerGroups } from "./LayerGroups";
+import { effectiveLayer } from "./layer-groups";
 import { ProjectLibrary } from "./ProjectLibrary";
 import { listWorkspace, putWorkspace } from "./workspace-store";
 import { newFashion } from "./fashion-model";
@@ -63,6 +67,7 @@ import {
   type SurfaceZone,
   imageSource,
   artworkAssets,
+  ProjectSchema,
   layerForPhoto,
   type Photo,
   clamp,
@@ -313,7 +318,19 @@ export function App() {
     }, 1200);
     return () => clearTimeout(timer);
   }, [project, ready, studio]);
+  const [portfolioOpen, setPortfolioOpen] = useState(false);
+  const [bodyFitOpen, setBodyFitOpen] = useState(false);
+  const [inspectSurface, setInspectSurface] = useState(false);
+  const [inspection, setInspection] =
+    useState<import("./surface-decals").SurfaceInspection>();
+  useEffect(() => {
+    if (scene.current) {
+      scene.current.inspectionLayer = inspectSurface ? selected : undefined;
+      void scene.current.update(project);
+    }
+  }, [inspectSurface, selected]);
   const layer = project.layers.find((l) => l.id === selected);
+  const groupLocked = Boolean(layer && effectiveLayer(project, layer).locked);
   const photo = project.photos.find((p) => p.id === photoId);
   const visibleLayers = project.layers.filter((l) =>
     workspace === "photo"
@@ -334,7 +351,26 @@ export function App() {
     [],
   );
   const editFashion = useCallback(
-    (fashion: Fashion) => change({ ...live.current.project, fashion }),
+    (fashion: Fashion, asset?: Asset) => {
+      const p = live.current.project;
+      const next = {
+        ...p,
+        fashion,
+        ...(asset
+          ? {
+              assets: [
+                ...p.assets.filter(
+                  (a) => a.id !== p.fashion?.photoStudy?.assetId,
+                ),
+                asset,
+              ],
+            }
+          : {}),
+      };
+      const result = ProjectSchema.safeParse(next);
+      if (result.success) change(next);
+      else alert(result.error.issues.map((i) => i.message).join("; "), true);
+    },
     [change],
   );
   const beginFashion = useCallback(() => dispatch({ type: "begin" }), []);
@@ -346,10 +382,34 @@ export function App() {
       const p = live.current.project,
         id = live.current.selected;
       if (
-        p.layers.find((l) => l.id === id)?.locked &&
-        patch.locked === undefined
+        (p.layers.find((l) => l.id === id)?.locked ||
+          p.groups?.some(
+            (g) =>
+              g.locked && g.id === p.layers.find((l) => l.id === id)?.groupId,
+          )) &&
+        (patch.locked === undefined ||
+          p.groups?.some(
+            (g) =>
+              g.locked && g.id === p.layers.find((l) => l.id === id)?.groupId,
+          ))
       )
         return;
+      const current = p.layers.find((l) => l.id === id);
+      if (
+        current?.surface &&
+        !Object.hasOwn(patch, "surface") &&
+        (patch.u !== undefined ||
+          patch.v !== undefined ||
+          patch.zone !== undefined)
+      ) {
+        patch = {
+          ...patch,
+          surface: scene.current?.human?.decals.nearestAnchor({
+            ...current,
+            ...patch,
+          }),
+        };
+      }
       change({
         ...p,
         layers: p.layers.map((l) => (l.id === id ? { ...l, ...patch } : l)),
@@ -358,8 +418,32 @@ export function App() {
     [change],
   );
   const [hoveredMuscle, setHoveredMuscle] = useState<number | undefined>();
-  const editBody = (patch: Partial<Body>) =>
-    change({ ...project, body: { ...project.body, ...patch } as Body });
+  const editBody = (patch: Partial<Body>) => {
+    const body = { ...project.body, ...patch } as Body;
+    const changedMesh =
+      body.kind !== project.body.kind ||
+      (body.kind === "human-v1" &&
+        project.body.kind === "human-v1" &&
+        (body.model?.sex !== project.body.model?.sex ||
+          body.model?.revision !== project.body.model?.revision));
+    if (
+      body.kind === "human-v1" &&
+      project.body.kind === "human-v1" &&
+      (changedMesh || body.muscularity !== project.body.muscularity)
+    )
+      body.fitting = undefined;
+    change({
+      ...project,
+      body,
+      layers: changedMesh
+        ? project.layers.map((l) => ({ ...l, surface: undefined }))
+        : project.layers,
+    });
+    if (changedMesh && project.layers.some((l) => l.surface))
+      alert(
+        "Body mesh changed. Connected placements returned to chart positions; re-anchor them on this model.",
+      );
+  };
 
   useEffect(() => {
     let active = true;
@@ -391,14 +475,29 @@ export function App() {
     try {
       scene.current = new StudioScene(stage.current, {
         begin: () => dispatch({ type: "begin" }),
-        move: (u, v, zone) =>
+        move: (u, v, zone, vertex) =>
           editLayer({
             u: wrap(u),
             v: clamp(v, 0, 1),
             ...(zone ? { zone } : {}),
+            ...(live.current.project.layers.find(
+              (l) => l.id === live.current.selected,
+            )?.surface &&
+            vertex !== undefined &&
+            live.current.project.body.kind === "human-v1" &&
+            live.current.project.body.model
+              ? {
+                  surface: {
+                    vertex,
+                    revision: live.current.project.body.model.revision,
+                    sex: live.current.project.body.model.sex,
+                  },
+                }
+              : {}),
           }),
         end: () => dispatch({ type: "commit" }),
         stats: setStats,
+        inspection: setInspection,
         hoverMuscle: setHoveredMuscle,
         error: (message) => alert(message, true),
       });
@@ -420,11 +519,11 @@ export function App() {
   useEffect(() => {
     scene.current?.setMode(
       mode,
-      layer?.locked || layer?.photoId ? undefined : selected,
+      groupLocked || layer?.photoId ? undefined : selected,
     );
     if (scene.current)
       scene.current.active = workspace === "surface" && studio === "tattoo";
-  }, [mode, selected, layer?.locked, layer?.photoId, workspace, studio]);
+  }, [mode, selected, groupLocked, layer?.photoId, workspace, studio]);
   useEffect(() => {
     if (notice && !notice.error) {
       const t = setTimeout(() => setNotice(null), 5000);
@@ -521,7 +620,7 @@ export function App() {
         dispatch({ type: "reset", value: p });
         setSaved(p);
         setStudio(p.fashion ? "fashion" : "tattoo");
-        setPath(JSON.parse(text).version < 8 ? null : filePath);
+        setPath(JSON.parse(text).version < 9 ? null : filePath);
         setPhotoId(p.photos[0]?.id);
         setWorkspace(p.photos.length ? "photo" : "surface");
         setSelected(
@@ -534,7 +633,7 @@ export function App() {
         scene.current?.view("front", p.body.length);
         setView("front");
         alert(
-          JSON.parse(text).version < 8
+          JSON.parse(text).version < 9
             ? "Legacy project opened without changing placement. Save creates a new v8 copy."
             : "Project opened. All original image integrity checks passed.",
         );
@@ -670,11 +769,12 @@ export function App() {
   }, [alert]);
   const removeLayer = useCallback(() => {
     const p = live.current.project;
-    if (p.layers.find((l) => l.id === live.current.selected)?.locked) return;
+    const selectedLayer = p.layers.find((l) => l.id === live.current.selected);
+    if (selectedLayer && effectiveLayer(p, selectedLayer).locked) return;
     change({
       ...p,
       layers: p.layers.filter(
-        (l) => l.id !== live.current.selected || l.locked,
+        (l) => l.id !== live.current.selected || effectiveLayer(p, l).locked,
       ),
     });
   }, [change]);
@@ -721,7 +821,7 @@ export function App() {
           const l = live.current.project.layers.find(
             (l) => l.id === live.current.selected,
           );
-          if (!l || l.locked) return;
+          if (!l || effectiveLayer(live.current.project, l).locked) return;
           e.preventDefault();
           const step = e.shiftKey ? 0.01 : 0.001,
             dx =
@@ -1018,6 +1118,15 @@ export function App() {
           </span>
         </div>
         <div className="project-actions">
+          <button
+            onClick={(e) => {
+              e.currentTarget.focus();
+              setPortfolioOpen(true);
+            }}
+            disabled={busy || !ready}
+          >
+            Portfolio
+          </button>
           <IconButton label="New project" onClick={create} disabled={busy}>
             <FilePlus2 size={17} />
           </IconButton>
@@ -1075,6 +1184,8 @@ export function App() {
         >
           <FashionWorkspace
             value={project.fashion ?? initialFashion}
+            assets={project.assets}
+            body={project.body}
             onChange={editFashion}
             onBegin={beginFashion}
             onCommit={commitFashion}
@@ -1163,6 +1274,7 @@ export function App() {
               <Plus size={16} />
             </IconButton>
           </div>
+          <LayerGroups project={project} change={change} selected={selected} />
           <div className="layer-list">
             {[...visibleLayers].reverse().map((l, i) => (
               <div
@@ -1187,7 +1299,10 @@ export function App() {
                   <span>
                     <strong>{l.name}</strong>
                     <small>
-                      {l.locked ? "Locked · " : ""}
+                      {l.groupId
+                        ? `${project.groups?.find((g) => g.id === l.groupId)?.name} · `
+                        : ""}
+                      {effectiveLayer(project, l).locked ? "Locked · " : ""}
                       {l.photo
                         ? `${Math.round(l.photo.width * 100)}% photo`
                         : `${l.width.toFixed(0)} mm`}{" "}
@@ -1529,13 +1644,31 @@ export function App() {
                     <ImagePlus size={15} />
                     Edit source in image studio{asset.edits ? " · edited" : ""}
                   </button>
+                  <label className="select-field">
+                    Layer group
+                    <select
+                      aria-label="Layer group"
+                      disabled={groupLocked}
+                      value={layer.groupId ?? ""}
+                      onChange={(e) =>
+                        editLayer({ groupId: e.target.value || undefined })
+                      }
+                    >
+                      <option value="">Ungrouped</option>
+                      {project.groups?.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <Toggle
                     label="Lock layer"
                     checked={layer.locked ?? false}
                     onChange={() => editLayer({ locked: !layer.locked })}
                   />
                   <fieldset
-                    disabled={layer.locked}
+                    disabled={groupLocked}
                     className="inspector-section editable-group"
                   >
                     <div className="section-label">
@@ -1562,6 +1695,52 @@ export function App() {
                         </select>
                       </label>
                     )}
+                    {!layer.photo &&
+                      project.body.kind === "human-v1" &&
+                      project.body.model && (
+                        <>
+                          <Toggle
+                            label="Connected surface placement"
+                            checked={!!layer.surface}
+                            onChange={() => {
+                              const surface = layer.surface
+                                ? undefined
+                                : scene.current?.human?.decals.nearestAnchor(
+                                    layer,
+                                  );
+                              editLayer({ surface });
+                            }}
+                          />
+                          {layer.surface && (
+                            <>
+                              <Toggle
+                                label="Inspect surface distortion"
+                                checked={inspectSurface}
+                                onChange={() => setInspectSurface((v) => !v)}
+                              />
+                              <p className="field-note">
+                                Follows the connected mesh across chart seams.
+                                Drag on the body to position. Width is in local
+                                surface millimeters.
+                              </p>
+                              {inspectSurface && inspection && (
+                                <p className="field-note" role="status">
+                                  {inspection.triangles.toLocaleString()} mapped
+                                  triangles. 95th percentile scale error{" "}
+                                  {(inspection.p95Error * 100).toFixed(1)}%. Max
+                                  stretch {inspection.maxStretch.toFixed(2)}×;
+                                  min scale{" "}
+                                  {inspection.maxCompression.toFixed(2)}×.{" "}
+                                  {inspection.folded} folded triangles omitted.
+                                  Green ≤10%, amber ≤25%, red &gt;25%. This is
+                                  mapping distortion, not a skin-strain
+                                  prediction.
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </>
+                      )}
                     <div className="field-grid">
                       {layer.photo ? (
                         <>
@@ -1727,7 +1906,7 @@ export function App() {
                     )}
                   </fieldset>
                   <fieldset
-                    disabled={layer.locked}
+                    disabled={groupLocked}
                     className="inspector-section editable-group"
                   >
                     <div className="section-label">
@@ -1879,7 +2058,7 @@ export function App() {
                     <IconButton
                       label="Delete selected layer"
                       onClick={removeLayer}
-                      disabled={layer.locked}
+                      disabled={groupLocked}
                     >
                       <Trash2 size={15} />
                     </IconButton>
@@ -1938,6 +2117,15 @@ export function App() {
                   <div className="section-label">
                     <span>BODY REGION</span>
                   </div>
+                  <button
+                    className="wide-button"
+                    onClick={(e) => {
+                      e.currentTarget.focus();
+                      setBodyFitOpen(true);
+                    }}
+                  >
+                    Personal body fitting
+                  </button>
                   <label className="select-field">
                     Template
                     <select
@@ -1967,7 +2155,14 @@ export function App() {
                                 e.target.value as (typeof regions)[number],
                                 project.body,
                               );
-                        change({ ...project, body });
+                        change({
+                          ...project,
+                          body,
+                          layers: project.layers.map((l) => ({
+                            ...l,
+                            surface: undefined,
+                          })),
+                        });
                         scene.current?.view(
                           e.target.value === "torso" ? "back" : "front",
                           body.length,
@@ -1976,6 +2171,10 @@ export function App() {
                       }}
                     >
                       <optgroup label="Complete anatomical sections">
+                        <option value="full-body">
+                          Full body · neck to feet
+                        </option>
+                        <option value="neck">Neck & clavicles</option>
                         <option value="full-arm">
                           Full arm · shoulder to fingertips
                         </option>
@@ -2002,7 +2201,9 @@ export function App() {
                     (project.body.kind === "region-v1" &&
                       project.body.region === "torso") ||
                     (project.body.kind === "human-v1" &&
-                      project.body.section === "upper-body")
+                      ["upper-body", "full-body", "neck"].includes(
+                        project.body.section,
+                      ))
                   ) && (
                     <div className="segmented" aria-label="Body side">
                       {(["left", "right"] as const).map((side) => (
@@ -2038,12 +2239,20 @@ export function App() {
                             : "Region length"
                       }
                       value={project.body.length}
-                      min={project.body.kind === "human-v1" ? 350 : 160}
+                      min={
+                        project.body.kind === "human-v1"
+                          ? project.body.section === "neck"
+                            ? 80
+                            : 350
+                          : 160
+                      }
                       max={
                         project.body.kind === "forearm-v1"
                           ? 400
                           : project.body.kind === "human-v1"
-                            ? 1300
+                            ? project.body.section === "full-body"
+                              ? 2200
+                              : 1300
                             : 800
                       }
                       onChange={(length) => editBody({ length })}
@@ -2053,7 +2262,7 @@ export function App() {
                         <div className="section-label">
                           <span>BODY LIBRARY</span>
                         </div>
-                        {project.body.model?.revision !== 3 && (
+                        {(project.body.model?.revision ?? 0) < 3 && (
                           <p className="field-note">
                             Saved surface preserved. Choose a body preset below
                             to use the latest sculpt.
@@ -2073,7 +2282,11 @@ export function App() {
                                 if (project.body.kind !== "human-v1") return;
                                 editBody({
                                   model: {
-                                    revision: 3,
+                                    revision:
+                                      project.body.section === "full-body" ||
+                                      project.body.section === "neck"
+                                        ? 4
+                                        : 3,
                                     sex,
                                     physique:
                                       project.body.model?.physique ?? "fit",
@@ -2107,7 +2320,11 @@ export function App() {
                                   muscularity: physique === "fit" ? 1 : 0,
                                   build: 1,
                                   model: {
-                                    revision: 3,
+                                    revision:
+                                      project.body.section === "full-body" ||
+                                      project.body.section === "neck"
+                                        ? 4
+                                        : 3,
                                     sex: project.body.model?.sex ?? "male",
                                     physique,
                                     anatomyOpacity:
@@ -2138,11 +2355,15 @@ export function App() {
                           onChange={(v) => editBody({ muscularity: v / 100 })}
                         />
                         <p className="field-note">
-                          {project.body.section === "full-arm"
-                            ? "Includes shoulder cap, upper arm, elbow, forearm and hand."
-                            : project.body.section === "full-leg"
-                              ? "Includes thigh, knee, calf, ankle and foot."
-                              : "Connected neck, shoulders, chest, abdomen, back and both complete arms."}{" "}
+                          {project.body.section === "full-body"
+                            ? "Continuous neck, torso, pelvis and all four limbs. No head is included."
+                            : project.body.section === "neck"
+                              ? "Neck and clavicular region, continuous with the full-body template."
+                              : project.body.section === "full-arm"
+                                ? "Includes shoulder cap, upper arm, elbow, forearm and hand."
+                                : project.body.section === "full-leg"
+                                  ? "Includes thigh, knee, calf, ankle and foot."
+                                  : "Connected neck, shoulders, chest, abdomen, back and both complete arms."}{" "}
                           Scale is approximate; local chart distortion varies.
                         </p>
                         <div className="section-label">
@@ -2435,7 +2656,7 @@ export function App() {
                 ? `Orbit p95 ${stats.p95.toFixed(1)} ms · ${stats.frames} frames · ${stats.triangles.toLocaleString()} triangles`
                 : "WebGL 2 · Surface mapping"}
           </button>
-          <span className="status-separator">/</span>FORM STUDIO 0.8
+          <span className="status-separator">/</span>FORM STUDIO 0.9
         </span>
       </footer>
       {notice && (
@@ -2453,6 +2674,52 @@ export function App() {
           </button>
         </div>
       )}
+      {portfolioOpen && (
+        <PortfolioStudio
+          project={project}
+          close={() => setPortfolioOpen(false)}
+        />
+      )}
+      {bodyFitOpen && (
+        <BodyFitStudio
+          project={project}
+          close={() => setBodyFitOpen(false)}
+          change={(bodyStudy, asset, body) => {
+            const next = {
+              ...project,
+              bodyStudy,
+              ...(body
+                ? {
+                    body,
+                    layers: project.layers.map((l) => ({
+                      ...l,
+                      surface: undefined,
+                    })),
+                  }
+                : {}),
+              ...(asset
+                ? {
+                    assets: [
+                      ...project.assets.filter(
+                        (a) =>
+                          !project.bodyStudy?.views.some(
+                            (v) => v.assetId === a.id,
+                          ) ||
+                          bodyStudy.views.some((v) => v.assetId === a.id) ||
+                          project.photos.some((p) => p.assetId === a.id),
+                      ),
+                      asset,
+                    ],
+                  }
+                : {}),
+            };
+            const parsed = ProjectSchema.safeParse(next);
+            if (parsed.success) change(next);
+            else
+              alert(parsed.error.issues.map((i) => i.message).join("; "), true);
+          }}
+        />
+      )}
       {editingAsset && project.assets.find((a) => a.id === editingAsset) && (
         <ArtworkStudio
           key={editingAsset}
@@ -2465,6 +2732,8 @@ export function App() {
                 (n, a) =>
                   n +
                   (a.edits?.strokes.reduce((n, s) => n + s.points.length, 0) ??
+                    0) +
+                  (a.edits?.drawing?.reduce((n, s) => n + s.points.length, 0) ??
                     0),
                 0,
               )
@@ -2550,13 +2819,13 @@ export function App() {
                 <ShieldCheck size={16} /> In this build
               </span>
               <p>
-                Fit and average male and female bodies, complete arms and legs,
-                a detailed muscle filter with directional fibers, independent
-                arm poses, image cleanup and photo protection masks are
-                available. Fashion includes a measured knit T-shirt, shape
-                controls, manual points and curves, seam allowances, neckband and full-size SVG / tiled
-                PDF exports. Local recovery and named checkpoints cover both workspaces. Personal reconstruction and cloth simulation remain
-                later phases.
+                Full body and neck views, colored muscle guidance, connected
+                tattoo placement, personal fitting with residuals, pressure
+                drawing and calibrated stencil output are available. Fashion
+                includes five garment designs, measurement profiles, size
+                comparisons, photo measurements, formula construction and a
+                visual drape preview. Named checkpoints and portfolio export
+                cover both workspaces.
               </p>
               <p>
                 The companion website will showcase finished work exported from

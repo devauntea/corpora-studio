@@ -1,3 +1,5 @@
+import { deformBodyPoint } from "./body-fitting";
+import { SurfaceDecals } from "./surface-decals";
 import * as THREE from "three";
 import {
   addSculptedSurfaceDetail,
@@ -7,6 +9,7 @@ import {
   bodyZones,
   armPose,
   humanChartSize,
+  humanScale,
   layerZone,
   type HumanBody,
   type Layer,
@@ -59,7 +62,7 @@ export function loadHuman(body?: HumanBody): Promise<HumanMeshData> {
         if (!fieldResponse.ok)
           throw new Error("The muscle atlas could not load.");
         const field = new Uint8Array(await fieldResponse.arrayBuffer());
-        const sculpted = body!.model!.revision === 3;
+        const sculpted = body!.model!.revision >= 3;
         if (field.length !== meta.vertexCount * (sculpted ? 12 : 4))
           throw new Error("The muscle atlas does not match this body.");
         return {
@@ -86,6 +89,7 @@ const zones: SurfaceZone[] = [
   "right-arm",
   "left-leg",
   "right-leg",
+  "neck",
 ];
 const vector = (p: number[]) =>
   new THREE.Vector3(...(p as [number, number, number]));
@@ -126,15 +130,7 @@ export function muscleAtHit(hit: THREE.Intersection): number | undefined {
 }
 
 export function humanGeometries(data: HumanMeshData, body: HumanBody) {
-  const scale =
-    body.length /
-    (body.section === "upper-body"
-      ? body.model
-        ? 5.7
-        : 5.5
-      : body.section === "full-arm"
-        ? 7.9
-        : 9.0);
+  const scale = humanScale(body);
   const points: THREE.Vector3[] = [],
     rests: THREE.Vector3[] = [];
   const joints = data.joints;
@@ -169,7 +165,16 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
   const zAxis = new THREE.Vector3(0, 0, 1);
   for (const v of data.vertices) {
     const rest = vector(v),
-      p = rest.clone().addScaledVector(vector(v.slice(3, 6)), body.muscularity);
+      p = vector(
+        deformBodyPoint(
+          rest
+            .clone()
+            .addScaledVector(vector(v.slice(3, 6)), body.muscularity)
+            .toArray(),
+          v.slice(6),
+          body.fitting,
+        ),
+      );
     rests.push(rest);
     for (const rig of rigs) {
       const {
@@ -252,7 +257,8 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
       restPositions: number[] = [],
       muscleIds: number[] = [],
       musclePalette: number[] = [],
-      muscleWeights: number[] = [];
+      muscleWeights: number[] = [],
+      sourceIds: number[] = [];
     const indices = data.parts[zones.indexOf(zone)];
     const side = zone.startsWith("right") ? "R" : "L",
       j = joints[side];
@@ -270,10 +276,19 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
       .normalize();
     const chart = (i: number): [number, number] => {
       const p = rests[i];
+      if (zone === "neck")
+        return [
+          0.5 + Math.atan2(p.x, p.z + 0.15) / (Math.PI * 2),
+          (p.y - 6) / 1.4,
+        ];
       if (!arm && !leg)
         return [
           0.5 + Math.atan2(p.x, p.z + 0.15) / (Math.PI * 2),
-          body.model ? (p.y - 1.2) / 5.7 : (p.y - 1.5) / 5.5,
+          body.model?.revision === 4
+            ? (p.y - 0.6) / 5.4
+            : body.model
+              ? (p.y - 1.2) / 5.7
+              : (p.y - 1.5) / 5.5,
         ];
       const q = p.clone().sub(start),
         along = q.dot(axis),
@@ -307,6 +322,7 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
       for (let c = 0; c < 3; c++) {
         const i = ids[c];
         positions.push(...points[i].toArray());
+        sourceIds.push(i);
         if (data.muscleColors) {
           const color = new THREE.Color().setRGB(
             data.muscleColors[i * 3] / 255,
@@ -321,7 +337,7 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
               .map(
                 (v, c) =>
                   v +
-                  (body.model?.revision === 3
+                  ((body.model?.revision ?? 0) >= 3
                     ? data.vertices[i][c + 3] * 0.6
                     : 0),
               ),
@@ -349,6 +365,10 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
     g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     g.setAttribute("normal", new THREE.Float32BufferAttribute(ns, 3));
     g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    g.setAttribute(
+      "sourceIndex",
+      new THREE.Uint32BufferAttribute(sourceIds, 1),
+    );
     if (colors.length) {
       g.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
       g.setAttribute(
@@ -528,6 +548,7 @@ export class HumanSurface {
       texture: THREE.CanvasTexture;
     }
   >();
+  decals: SurfaceDecals;
   constructor(data: HumanMeshData, body: HumanBody) {
     for (const { zone, geometry } of humanGeometries(data, body)) {
       const canvas = document.createElement("canvas");
@@ -541,11 +562,11 @@ export class HumanSurface {
         new THREE.MeshStandardMaterial({
           map: texture,
           vertexColors: !!body.model,
-          roughness: body.model?.revision === 3 ? 0.66 : 0.78,
+          roughness: (body.model?.revision ?? 0) >= 3 ? 0.66 : 0.78,
           side: THREE.DoubleSide,
         }),
       );
-      if (body.model?.revision === 3)
+      if ((body.model?.revision ?? 0) >= 3)
         addSculptedSurfaceDetail(
           mesh.material as THREE.MeshStandardMaterial,
           body,
@@ -649,6 +670,8 @@ export class HumanSurface {
     );
     cap.name = "section-caps";
     this.group.add(cap);
+    this.decals = new SurfaceDecals(data, body, this.charts);
+    this.group.add(this.decals.group);
   }
   appearance(body: HumanBody) {
     for (const { mesh } of this.charts.values()) {
@@ -672,9 +695,10 @@ export class HumanSurface {
         body.anatomy ? (body.model?.anatomyOpacity ?? 1) : 0,
       );
   }
-  paint(
+  async paint(
     body: HumanBody,
     items: { layer: Layer; image: HTMLCanvasElement; ratio: number }[],
+    inspectionLayer?: string,
   ) {
     for (const [zone, { canvas, texture }] of this.charts) {
       const ctx = canvas.getContext("2d")!,
@@ -690,7 +714,7 @@ export class HumanSurface {
       if (body.anatomy && !body.model) drawMuscleGuide(ctx, zone, size);
       const chart = humanChartSize(body, zone);
       for (const { layer: l, image, ratio } of items) {
-        if (layerZone(body, l) !== zone) continue;
+        if (l.surface || layerZone(body, l) !== zone) continue;
         const copies =
           Math.ceil(Math.hypot(l.width, l.width * ratio) / chart.width) + 1;
         for (let r = -copies; r <= copies; r++) {
@@ -713,8 +737,10 @@ export class HumanSurface {
       }
       texture.needsUpdate = true;
     }
+    await this.decals.paint(items, inspectionLayer);
   }
   dispose() {
+    this.decals.dispose();
     for (const { mesh, texture } of this.charts.values()) {
       mesh.geometry.dispose();
       (mesh.material as THREE.Material).dispose();

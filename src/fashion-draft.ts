@@ -1,3 +1,5 @@
+import { resolveConstruction } from "./pattern-formulas";
+import { draftDesign, fabricWarnings } from "./design-adapters";
 import { constructPiece } from "./pattern-geometry";
 import { Teagan } from "@freesewing/teagan";
 import {
@@ -62,8 +64,33 @@ function curveLength(from: Point2, op: Extract<PatternOp, { type: "curve" }>) {
   return length;
 }
 export function draftFashion(input: Fashion): PatternDraft {
+  const f = FashionSchema.parse(input);
+  const result = draftBase({ ...f, construction: undefined });
+  if (f.construction) {
+    result.pieces = result.pieces.map((p) =>
+      f.construction?.[p.id]
+        ? constructPiece(
+            p.id,
+            resolveConstruction(f.construction[p.id], f.measurements),
+          )
+        : p,
+    );
+    for (const [id, c] of Object.entries(f.construction))
+      if (!result.pieces.some((p) => p.id === id))
+        result.pieces.push(
+          constructPiece(id, resolveConstruction(c, f.measurements)),
+        );
+    if (Object.keys(f.construction).length)
+      result.warnings.push(
+        "Custom pieces use their own geometry and allowances. Recheck joining seams after edits.",
+      );
+  }
+  return result;
+}
+function draftBase(input: Fashion): PatternDraft {
   const f = FashionSchema.parse(input),
     m = f.measurements;
+  if (f.design && f.design !== "teagan") return draftDesign(f);
   if (
     m.hpsToBust >= m.hpsToWaistBack ||
     m.waistToArmpit >= m.hpsToWaistBack - 70
@@ -216,11 +243,20 @@ export function draftFashion(input: Fashion): PatternDraft {
               throw new Error(
                 "The pattern contains an invalid curve. Review the profile.",
               );
-  const warnings: string[] = [];
+  const warnings: string[] = fabricWarnings(f);
   if (engine.setStores.some((s) => s.logs.warn.length))
     warnings.push(
       "The drafting engine reported a fit warning. Check the armhole, sleeve and waist curves before cutting.",
     );
-  if (f.construction && Object.keys(f.construction).length) warnings.push("Manual pieces keep their own geometry and allowances. Check adjoining seam lengths and neckband fit after editing.");
-  return { pieces: pieces.map(p => f.construction?.[p.id] ? constructPiece(p.id, f.construction[p.id]!) : p), neckLength, warnings };
+  if (f.construction && Object.keys(f.construction).length)
+    warnings.push(
+      "Manual pieces keep their own geometry and allowances. Check adjoining seam lengths and neckband fit after editing.",
+    );
+  return {
+    pieces: pieces.map((p) =>
+      f.construction?.[p.id] ? constructPiece(p.id, f.construction[p.id]!) : p,
+    ),
+    neckLength,
+    warnings,
+  };
 }

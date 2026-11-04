@@ -1,30 +1,27 @@
 # Form Studio — implementation status
 
-The desktop app is the editing product. The future website is a portfolio for finished exports; it does not need editor parity. This record tracks the original briefs without representing the entire platform as complete.
+The desktop app is the editing product. The separate portfolio displays finished exports. Version 0.9 implements software in all eight areas of `next-features-research.md`; the entire platform is not represented as physically or publicly qualified.
 
-## Working workflows
+## Delivered workflows
 
-- Tattoo composition on fit / average male and female whole arms, upper bodies and whole legs; detailed surface and colored muscle guidance; independent arm poses.
-- Original image preservation with cropping, color-key background removal, erase / restore masks, grayscale, contrast, local stencil conversion, contour extraction, smoothing and sharpening.
-- Layered tattoo placement, ink appearance, flips, stretch, rotation and visibility; photo composition with affine and four-corner perspective transforms, existing-tattoo protection masks and review export.
-- Fashion: a measurement-driven knit T-shirt with front, back, sleeve and rib neckband; fit and neckline options, fold and hem allowances, piece arrangement and construction notes.
-- Manual pattern pieces: stitching-line anchors and cubic controls, segment splitting and removal, per-edge allowances, grainlines, matching marks and dart construction guides. Measurement changes do not overwrite detached pieces.
-- True-size vector SVG and overlapping A4 / Letter PDF tiles with scale squares; manual edits appear in exports.
-- Shared document history, native project save/open, project integrity validation, embedded original images, local recovery copies and named checkpoints.
+1. Five garment designs through a generic FreeSewing adapter; reusable measurement profiles and interchange; nested size series; fabric/ease records; custom formula-driven pattern construction.
+2. Calibrated flat-lay photo measurements, pointer/keyboard adjustment, explicit hidden-construction and ease assumptions, transfer to draft measurements and error exports.
+3. Local bounded cloth preview from triangulated panels, stitch ranges, pins and body contact; cylinder benchmark and observation/report export. Self-contact and measured fabric calibration are not implemented.
+4. Versioned continuous full-body/neck coverage, fit/average bodies, colored muscle guidance, cross-chart connected placements and Jacobian distortion inspection.
+5. Local personal fitting from front/side landmarks, known height and optional tape inputs, with six authored torso scale parameters and per-input residuals.
+6. Pressure drawing, image cleanup, groups, protected photo composition, fold-checked nine-point lattice and checkpoint comparison.
+7. Centerline contour selection, millimeter line widths, per-printer calibration, true-size tiled PDF/PNG and DPI metadata.
+8. Bounded cancellable workers, keyboard alternatives and automated accessibility checks, native export, static portfolio bundle/gallery, qualification CI and credential-dependent signing pipelines.
 
-## Remaining original-brief work
+See [implementation details and limits](next-features-implementation.md) and [release verification](next-features-verification.md).
 
-These are substantive features, not hidden behind nonfunctional controls:
+## Remaining evaluation and release gates
 
-1. Additional garment templates, size grading, reusable measurement profiles, fabric / material specification and a general pattern-construction workspace beyond the four tee pieces.
-2. Photo-assisted garment measurement and pattern reconstruction with explicit visible/hidden construction assumptions, capture guidance, editable results and validation data.
-3. A physically evaluated 3D garment fitting workflow and cloth behavior; current patterns have not been verified by sewing a toile.
-4. Further authored body detail and anatomical review, full body / neck coverage, connected placements across chart seams, and calibrated distortion inspection.
-5. Photo-assisted personal body fitting with confirmed landmarks, camera assumptions, real measurements and residual/error reporting.
-6. General artwork drawing and compositing, local lattice warps, groups, photo zoom/mask refinement and side-by-side version comparison.
-7. Production-scale stencil output with physical calibration and artist-approved line selection. Current PNG processing is image preparation; photo reviews are uncalibrated.
-8. Background compute jobs, broader performance / accessibility checks, Windows qualification, notarized public distribution and the portfolio showcase.
+- Tape-versus-photo measurements on 10–20 real garments and a small consenting group for body fitting; report residuals and error distributions rather than claiming accuracy from synthetic tests.
+- Sew and measure a toile; compare a real 500 mm fabric square over the cylinder against the preview. No physical observations have been fabricated or bundled as validation data.
+- Qualified review of the muscle guide and body geometry.
+- Print calibration and selected contours on actual stencil paper; artist acceptance.
+- Native VoiceOver/stylus hardware review and actual Windows/WebView2 execution. CI configuration is not a passed Windows run.
+- Developer ID credentials, notarization and Windows signing credentials. Local ad-hoc signing is not public distribution approval.
 
-## Verification boundary
-
-Automated geometry, integrity, rendering and browser workflow checks are executed per release. Native save/open/export UI checks for this continuation are pending because the Mac is locked. A browser test is not evidence that native system dialogs were exercised. Scientific/clinical anatomy accuracy, personal reconstruction accuracy, garment fit and real fabric behavior require separate evaluation; the software does not claim those validations.
+These require physical specimens, qualified reviewers, platform hardware or account credentials. They remain explicitly unverified until evidence is recorded.

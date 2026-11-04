@@ -144,17 +144,25 @@ test("photo composition: transforms, protection, undo, locking, export and porta
   await expect(polygon).toHaveAttribute("points", oldPoints!);
   await page.getByLabel("Redo (⇧⌘Z)", { exact: true }).click();
   await expect(polygon).toHaveAttribute("points", warpedPoints!);
+  await page.getByRole("button", { name: "Lattice warp", exact: true }).click();
+  await page
+    .getByText("Edit lattice points with keyboard", { exact: true })
+    .click();
+  await page.getByLabel("Lattice point 5 X percent").fill("8");
+  await page.getByLabel("Lattice point 5 Y percent").fill("5");
   const save = page.waitForEvent("download");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   const download = await save,
     file = info.outputPath("photo.formstudio");
   await download.saveAs(file);
   const p = JSON.parse(await fs.readFile(file, "utf8"));
-  expect(p.version).toBe(8);
+  expect(p.version).toBe(9);
   expect(p.photos).toHaveLength(2);
   expect(p.photos[0].masks).toHaveLength(1);
   expect(p.layers.at(-1).flipX).toBe(true);
   expect(p.layers.at(-1).photo.warp).toHaveLength(4);
+  expect(p.layers.at(-1).photo.lattice).toHaveLength(9);
+  expect(p.layers.at(-1).photo.lattice[4]).toEqual([0.08, 0.05]);
   const original = p.assets.find((a: { role: string }) => a.role === "body");
   expect(Buffer.from(original.data.split(",")[1], "base64")).toEqual(body);
   expect(original.sha256).toBe(createHash("sha256").update(body).digest("hex"));

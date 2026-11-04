@@ -1,63 +1,58 @@
-# Form Studio 0.8.0
+# Form Studio 0.9.0
 
-A local desktop design studio with tattoo composition, image cleanup, and measured garment patterns.
+A local desktop studio for tattoo composition, artwork preparation and measurement-driven fashion design.
 
-Open **`releases/Form Studio 0.8.0.app`** on this Mac. Save and quit an older Form Studio session before switching versions; the previous app bundle is preserved.
+Open `releases/Form Studio 0.9.0.app` on this Mac. Save work in an older session before switching versions; previous release bundles are preserved.
 
-- **Fashion:** draft a knit T-shirt from 13 measurements, with front, back, sleeve and rib neckband pieces. Adjust fit, neckline and allowances; drag shape handles or arrange pieces; save measurements and garment notes with the project. Export full-size SVG or tiled A4/US Letter PDF with a calibration square.
-- **Body model → Template:** full arm, connected upper body, or full leg. Choose male or female and **Fit / Average**, refine build and definition, then use **Skin / Muscles** and filter opacity to compare the tattoo against muscle flow. The latest sculpt adds joint and tendon landmarks, skin folds, and muscle-specific fibers with clean connective borders. Point at a colored region for its name and direction. Each arm has independent elbow flex, shoulder elevation and forearm rotation; legs retain knee flex. Use **Fit model** after raising an arm.
-- **Tattoo image studio:** crop the image; remove a light, black or chosen-color background; erase/restore details; adjust tone; compare with the original; export a transparent PNG; then apply edits to the composition.
-- **Photograph → Add body photos:** the existing direct-photo workflow, protection masks and HEIC import remain available.
-- **Save:** v8 projects embed unchanged original images, editing recipes and optional fashion settings. v1/v2/v3/v4/v5/v6/v7 projects open with their old surfaces and placements; their first save creates a new copy.
+- **Body studio:** fit/average male and female full arms, upper bodies, full legs, neck and full body from the neck down. Toggle the colored muscle guide, pose arms independently and inspect named regions. Connected placements cross chart boundaries; distortion inspection reports triangle stretch.
+- **Personal fitting:** import front/side photographs, confirm landmarks, enter height and optional tape measurements, optimize locally, review residuals and apply the fitted torso shape.
+- **Artwork studio:** crop; key a light, dark or sampled background; erase/restore; draw pressure-sensitive strokes; adjust tone and contrast; export transparent PNG. Original images remain embedded unchanged.
+- **Stencil studio:** select traced centerlines, set line width in millimeters, calibrate a printer with a 50 mm square, and export mirrored or normal true-size PDF/PNG with physical resolution metadata.
+- **Photo composition:** placement, perspective corners, nine-point lattice, numeric keyboard controls, existing-ink protection, groups and review export.
+- **Fashion:** Teagan T-shirt, Brian bodice, Titan trousers, Sarah skirt and Simon woven shirt; required measurements and options; reusable profiles, JSON/SMIS interchange, independently drafted nested sizes and grade checks; fabric records and ease warnings.
+- **Pattern construction:** custom panels, formula-linked anchors and cubic controls, per-edge allowances, grainlines, notches and dart guides. SVG and overlapping A4/Letter PDF exports retain true dimensions and calibration squares.
+- **Garment photo measurements:** four-corner reference calibration, editable endpoints, explicit ease/hidden-layer assumptions, draft-input transfer and tape/error CSV.
+- **3D drape:** arrange triangulated pattern panels, pair stitch ranges, set pins and material controls, run a local visual simulation against the body and export reports. A cylinder benchmark accepts a measured physical sample for comparison.
+- **Project library and portfolio:** local recovery copies, named checkpoints, side-by-side/swipe comparison, native save/open and a standalone gallery ZIP. Portfolio export includes only selected finished images and metadata; body-photo mockups are opt-in.
 
-The colored muscle map is registered from a superficial anatomy atlas to an adjustable skin surface. It is a placement reference, and flex is an approximate pose preview. This is not a clinical anatomy model, personal body reconstruction, calibrated skin-stretch simulation or validated tattoo stencil. Upper-body artwork uses separate trunk and arm charts.
-
-See [the fashion workspace and verification](docs/fashion-workspace.md), [the surface-detail update and verification](docs/surface-detail-update.md), [the body library and asset provenance](docs/detailed-body-update.md), and [the preceding pose and crop update](docs/pose-crop-update.md).
+The [implementation record](docs/next-features-implementation.md) maps all eight research areas to software and evaluation status. The [status ledger](docs/studio-completion-status.md) distinguishes delivered workflows from physical and distribution qualification.
 
 ## Run and develop
 
-The Mac app runs without a development server or internet connection. This local build is not notarized for public distribution. Build output goes to `src-tauri/target/release/bundle/macos/`; versioned copies in `releases/` avoid replacing a running app.
-
-For development, install Node 24, stable Rust, and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/). Then:
+The packaged Mac app works without a development server or network. It is locally ad-hoc signed, not notarized for public distribution. Install Node 24, stable Rust and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ```sh
 npm ci
 npm run desktop
 ```
 
-Rust was installed at `/Users/bigbobby/.cargo/bin` on this machine without changing shell profiles. If Cargo is not on your PATH, run `source /Users/bigbobby/.cargo/env` first.
+Cargo is installed at `/Users/bigbobby/.cargo/bin` on this machine. If needed, run `source /Users/bigbobby/.cargo/env` before the commands below.
 
 ```sh
-npm run test
-cargo test --manifest-path src-tauri/Cargo.toml
+npm test
+cargo test --release --manifest-path src-tauri/Cargo.toml
 npm run build
 npx playwright install chromium webkit
 npm run test:e2e
 npm run desktop:build
 ```
 
-`npm run dev` is a browser development harness. Its download-based file operations are only for development testing. The companion public website is a future portfolio of finished work, not a browser editing product.
+`npm run dev` serves a browser test harness with download-based file operations. The companion website displays exported work and does not implement the editor. `scripts/dependency-notices.py` collects licenses for the chosen Cargo target; see [dependencies](docs/dependencies.md). Signing and Windows workflows are documented in the implementation record.
 
 ## Placement and files
 
-Choose **Place** (`G`) and click or drag on a body surface. For the connected upper body, a surface click selects the trunk or corresponding arm chart. Numeric controls adjust position, width, rotation and stretch. **Orbit** (`V`), scroll, right-drag, camera presets and Fit control the view. On photographs, use the visible scale/rotation handles and optional protection masks.
+Choose **Place** (`G`) and click/drag a surface. Numeric controls adjust width, position, rotation and stretch. Enable connected placement to cross local chart seams; changing incompatible mesh revisions clears those anchors. **Orbit** (`V`), scroll, right-drag, presets and Fit model control the view. Turning on muscle colors does not alter saved artwork.
 
-Artwork appearance, visibility, locking, layer ordering and duplication remain available. Source cleanup applies to all instances; ink appearance remains per layer. Apply in the image studio is one project undo step. Each image brush stroke, crop drag and continuous adjustment-slider gesture is one editor undo step. In Crop mode, drag corners to resize, drag inside to move, or drag outside to draw another rectangle. Reset crop recovers the full image without losing brush edits. Cropping keeps each placed instance’s width and center and updates its height to match the new aspect ratio. Fit and 150–300% zoom scale the image to the available editor space.
+Save is `Cmd+S`, Save As `Shift+Cmd+S`, Open `Cmd+O`, Undo/Redo `Cmd+Z` / `Shift+Cmd+Z`, and Export `Cmd+E` (Ctrl equivalents in the Windows harness). Project history keeps 100 changes; image editing has its own session history. Applying image edits is one project undo step. Version 9 documents open versions 1–8 after validating and migrating them, keeping old surfaces intact. The first save of an older document creates a new copy.
 
-Save is `Cmd+S`, Save As is `Shift+Cmd+S`, and Open is `Cmd+O`. Undo/redo is `Cmd+Z` / `Shift+Cmd+Z` (Ctrl in the browser harness on Windows). Project undo holds 100 changes and resets on Open; undo history and camera position are not serialized. Export is `Cmd+E`: the selected PDF/SVG pattern format in Fashion; review images in Tattoo: 1800 × 1800 for 3D; photo export has a maximum 4000-pixel image edge plus its review footer. These dimensions do not guarantee equivalent source detail. Muscle-filter exports include the atlas attribution; skin-only and photograph reviews retain their existing footer.
+## Practical limits
 
-## Current boundaries
+- Anatomy, personal shape fitting, ink appearance and cloth are artistic approximations. No clinical, scan-reconstruction, healed-tattoo, fabric-accuracy or production-fit claims are made. Body fitting adjusts torso width/depth at three levels; full-body models omit the head.
+- Photo measurement assumes a flat plane and a known reference. It does not recover hidden seams, darts, facings or back pieces. Background removal is color-key based, not semantic segmentation.
+- Cloth currently has no self-collision or calibrated anisotropic fabric mechanics. Inspect the strain and seam report; validate a sewn toile and real cylinder sample before relying on fit.
+- Connected maps can fold on large curved regions; folded triangles are omitted and reported. Distortion is a geometric Jacobian estimate, not a calibrated skin-mechanics model.
+- Source limits: 24 assets, 24 layers, 8 body photos, 15 MB / 32 megapixels / 8192 pixels per source, 64 megapixels in total, 70 MB encoded images and 80 MB project file. Brush-point and geometry budgets are enforced on load. Two bounded workers run at once, with cancellation and a 60-second job limit.
+- Recovery copies are local, quota-limited and separate from explicit file saves. Project history and transient simulations are not serialized; editable drape setup is saved for recomputation.
+- Physical garment/stencil tests, qualified anatomy review, real-person fitting benchmarks, Windows/WebView2 qualification and public signing/notarization remain external evaluation steps. Automated checks do not substitute for them.
 
-- Fashion starts with one knit T-shirt template. Its three silhouette presets change actual drafting parameters. The shape handles constrain edits to neckline depth, body length and sleeve length; arbitrary point/curve CAD, darts, multi-size grading, woven blocks, artwork-on-garment previews, photo reconstruction and cloth simulation are not implemented. Sew a toile and check ribbing recovery before using final fabric.
-
-- Male and female anatomical surfaces with fit and average presets, complete arm/upper-body/leg sections, and the five legacy surfaces. No automatic personal reconstruction, clinical muscle segmentation, muscle-contraction simulation, garment simulation or AI inference.
-- Surface charts preserve attachment through model and pose changes but have local distortion, especially around joints, shoulders, hands and feet. A single upper-body layer does not paint seamlessly across the trunk/arm chart boundaries.
-- Ink color and lighting are artistic approximations. Background removal keys chosen colors; it does not recognize semantic subjects. Perspective correction and semantic subject segmentation remain future work.
-- Source limits: 24 assets and 24 layers; 15 MB, 32 megapixels and 8192 pixels per side per source; 64 megapixels across source imagery; 70 MB encoded image budget; 80 MB project file. Photo and cleanup mask budgets are validated on load.
-- Sources are embedded unchanged. Display processing uses up to 2048 pixels per image and 2048 × 2048 per surface chart. Transparent artwork export uses up to 4096 pixels.
-- Saves atomically replace the selected destination. Autosave and crash recovery are not implemented. Pending project changes are guarded on New/Open/close, and a pending image editor must be applied or canceled before quitting.
-- macOS Apple Silicon is the tested native target. Windows qualification, installers, file associations, distribution signing and notarization remain release work.
-
-See the [dependency inventory](docs/dependencies.md). Earlier milestones remain documented in [the original architecture](docs/architecture.md), [the photo workflow plan](docs/advanced-studio-plan.md) and [its verification](docs/advanced-verification.md). The original research report is alongside the repository in `../tattoo-fashion-research-2026-11-03/`.
-
-The 0.8 update adds source-image stencils / contours, perspective corner placement, manual pattern geometry, local recovery and named checkpoints. See [editing and recovery](docs/editing-recovery-update.md) and the [complete status ledger](docs/studio-completion-status.md) for behavior and remaining scope.
+Earlier milestones are preserved in `docs/` as historical records. The current implementation and verification records supersede their old “not implemented” lists.
