@@ -14,7 +14,7 @@ test("local recovery survives reload and checkpoints remain separate from later 
   await page
     .getByRole("spinbutton", { name: "Chest / full bust", exact: true })
     .press("Enter");
-  await expect(page.getByLabel("Open project library")).toContainText(
+  await expect(page.getByLabel("Local recovery status")).toContainText(
     "Local copy up to date",
   );
   await page.reload();
@@ -47,7 +47,7 @@ test("local recovery survives reload and checkpoints remain separate from later 
   await page
     .getByRole("spinbutton", { name: "Neckline depth", exact: true })
     .press("Enter");
-  await expect(page.getByLabel("Open project library")).toContainText(
+  await expect(page.getByLabel("Local recovery status")).toContainText(
     "Local copy up to date",
   );
   await page.getByLabel("Open project library").click();

@@ -1,3 +1,4 @@
+import { CommandMenu } from "./CommandMenu";
 import { skinTones } from "./skin-tones";
 import { musclePoseArms, type MusclePose } from "./muscle-pose";
 import { PortfolioStudio } from "./PortfolioStudio";
@@ -20,6 +21,12 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   ArrowDown,
+  Search,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Scissors,
+  PenTool,
+  LayoutGrid,
   ArrowLeft,
   ArrowUp,
   Check,
@@ -220,9 +227,9 @@ export function App() {
       ({ present: blankProject(), past: [], future: [] }) as History<Project>,
   );
   const project = history.present;
-  const [fashionMode, setFashionMode] = useState<"patterns" | "vectors">(
-    "patterns",
-  );
+  const [fashionMode, setFashionMode] = useState<
+    "patterns" | "vectors" | "assets"
+  >("patterns");
   const [studio, setStudio] = useState<"tattoo" | "fashion">("tattoo");
   const patternExporter = useRef<(() => Promise<void>) | null>(null);
   const [workspace, setWorkspace] = useState<"surface" | "photo">("surface");
@@ -239,6 +246,23 @@ export function App() {
     text: string;
     error?: boolean;
   } | null>(null);
+  const [commandsOpen, setCommandsOpen] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        if (
+          document.querySelector('[role="dialog"]') &&
+          !document.querySelector(".command-menu")
+        )
+          return;
+        e.preventDefault();
+        setCommandsOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, []);
   const [help, setHelp] = useState(false);
   const [library, setLibrary] = useState(false);
   const [recovery, setRecovery] = useState("Checking local copies…");
@@ -625,7 +649,7 @@ export function App() {
         dispatch({ type: "reset", value: p });
         setSaved(p);
         setStudio(p.fashion ? "fashion" : "tattoo");
-        setPath(JSON.parse(text).version < 11 ? null : filePath);
+        setPath(JSON.parse(text).version < 12 ? null : filePath);
         setPhotoId(p.photos[0]?.id);
         setWorkspace(p.photos.length ? "photo" : "surface");
         setSelected(
@@ -638,8 +662,8 @@ export function App() {
         scene.current?.view("front", p.body.length);
         setView("front");
         alert(
-          JSON.parse(text).version < 11
-            ? "Legacy project opened without changing placement. Save creates a new v11 copy."
+          JSON.parse(text).version < 12
+            ? "Legacy project opened without changing placement. Save creates a new v12 copy."
             : "Project opened. All original image integrity checks passed.",
         );
       } catch (error) {
@@ -1009,7 +1033,7 @@ export function App() {
       : null;
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${focusMode ? "focus-workspace" : ""}`}>
       <input
         className="file-input"
         ref={photoInput}
@@ -1057,7 +1081,7 @@ export function App() {
           <span>
             FORM<span className="brand-slash"> / </span>STUDIO
           </span>
-          <span className="build-badge">EARLY BUILD</span>
+          <span className="build-badge">LOCAL WORKSPACE</span>
         </div>
         <nav className="studio-switch" aria-label="Studio section">
           <button
@@ -1082,11 +1106,23 @@ export function App() {
         </nav>
         <div className="topbar-actions">
           <button
+            className="quick-actions-trigger"
+            aria-label="Quick actions (⌘K)"
+            onClick={(e) => {
+              e.currentTarget.focus();
+              setCommandsOpen(true);
+            }}
+          >
+            <Search size={15} />
+            <span>Quick actions</span>
+            <kbd>⌘ K</kbd>
+          </button>
+          <button
             className="local-library-button"
             aria-label="Open project library"
             onClick={() => setLibrary(true)}
           >
-            <FolderOpen size={14} /> Project library <small>{recovery}</small>
+            <FolderOpen size={14} /> Project library
           </button>
           <IconButton
             label="Help and keyboard shortcuts"
@@ -1106,9 +1142,11 @@ export function App() {
               {studio === "fashion" ? "FASHION STUDIO" : "TATTOO STUDIO"}{" "}
               <span>/</span>{" "}
               {studio === "fashion"
-                ? fashionMode === "vectors"
-                  ? "VECTOR PACKS"
-                  : "PATTERN DESIGN"
+                ? fashionMode === "assets"
+                  ? "ASSET LIBRARY"
+                  : fashionMode !== "patterns"
+                    ? "VECTOR PACKS"
+                    : "PATTERN DESIGN"
                 : "COMPOSITION"}
             </div>
             <input
@@ -1121,7 +1159,10 @@ export function App() {
               }}
             />
           </div>
-          <span className={`save-state ${dirty ? "dirty" : ""}`}>
+          <span
+            className={`save-state ${dirty ? "dirty" : ""}`}
+            title={recovery}
+          >
             <i />
             {dirty ? "Unsaved changes" : path ? "Saved" : "New study"}
           </span>
@@ -1171,23 +1212,87 @@ export function App() {
               <ChevronDown size={13} />
             </button>
           </div>
-          <button
-            className="primary"
-            onClick={() =>
-              studio === "fashion"
-                ? void patternExporter.current?.()
-                : void exportImage()
-            }
-            disabled={busy || !ready}
-          >
-            <Download size={15} />{" "}
-            {studio === "fashion"
-              ? fashionMode === "vectors"
-                ? "Export pack"
-                : "Export pattern"
-              : "Export review"}
-          </button>
+          {!(studio === "fashion" && fashionMode === "vectors") && (
+            <button
+              className="primary"
+              onClick={() =>
+                studio === "fashion"
+                  ? void patternExporter.current?.()
+                  : void exportImage()
+              }
+              disabled={busy || !ready}
+            >
+              <Download size={15} />{" "}
+              {studio === "fashion"
+                ? fashionMode !== "patterns"
+                  ? "Export pack"
+                  : "Export pattern"
+                : "Export review"}
+            </button>
+          )}
         </div>
+      </div>
+      <div className="workspace-nav">
+        <span className="workspace-nav-label">
+          {studio === "fashion" ? "FASHION WORKSPACE" : "TATTOO WORKSPACE"}
+        </span>
+        {studio === "fashion" ? (
+          <nav aria-label="Fashion workspaces">
+            <button
+              aria-label="Open pattern workspace"
+              className={fashionMode === "patterns" ? "active" : ""}
+              aria-pressed={fashionMode === "patterns"}
+              onClick={() => setFashionMode("patterns")}
+            >
+              <Scissors size={15} />
+              Patterns<span>65</span>
+            </button>
+            <button
+              aria-label="Open vector workspace"
+              className={fashionMode === "vectors" ? "active" : ""}
+              aria-pressed={fashionMode === "vectors"}
+              onClick={() => setFashionMode("vectors")}
+            >
+              <PenTool size={15} />
+              Vector packs
+            </button>
+            <button
+              aria-label="Browse garment library"
+              className={fashionMode === "assets" ? "active" : ""}
+              aria-pressed={fashionMode === "assets"}
+              onClick={() => {
+                setFashionMode("assets");
+                setFocusMode(false);
+              }}
+            >
+              <LayoutGrid size={15} />
+              Asset library<span>112</span>
+            </button>
+          </nav>
+        ) : (
+          <span className="workspace-context">
+            {workspace === "surface"
+              ? "Compose on the body. Inspect from every angle."
+              : "Place artwork on your reference photographs."}
+          </span>
+        )}
+        {!(studio === "fashion" && fashionMode === "assets") && (
+          <button
+            className="focus-toggle"
+            aria-label={
+              focusMode ? "Show workspace panels" : "Hide panels for focus mode"
+            }
+            aria-pressed={focusMode}
+            onClick={() => setFocusMode((v) => !v)}
+          >
+            {focusMode ? (
+              <PanelLeftOpen size={15} />
+            ) : (
+              <PanelLeftClose size={15} />
+            )}
+            <span>{focusMode ? "Show panels" : "Focus mode"}</span>
+          </button>
+        )}
       </div>
       {studio === "fashion" && (
         <Suspense
@@ -1199,6 +1304,7 @@ export function App() {
             key={project.id}
             value={project.fashion ?? initialFashion}
             onModeChange={setFashionMode}
+            mode={fashionMode}
             assets={project.assets}
             body={project.body}
             onChange={editFashion}
@@ -2729,10 +2835,12 @@ export function App() {
       <footer className="statusbar">
         <span>
           <span className="status-dot" />
-          {busy ? "Working locally…" : "All processing on this device"}
+          <span role="status" aria-label="Local recovery status">
+            {busy ? "Working locally…" : recovery}
+          </span>
           <span className="status-separator">/</span>
           {studio === "fashion"
-            ? fashionMode === "vectors"
+            ? fashionMode !== "patterns"
               ? "Technical flats · specification units in pack"
               : "Pattern units · millimeters"
             : workspace === "photo"
@@ -2745,14 +2853,14 @@ export function App() {
             title="Toggle rendering diagnostics"
           >
             {studio === "fashion"
-              ? fashionMode === "vectors"
+              ? fashionMode !== "patterns"
                 ? "Editable garment flats"
                 : "Parametric pattern drafting"
               : showStats
                 ? `Orbit p95 ${stats.p95.toFixed(1)} ms · ${stats.frames} frames · ${stats.triangles.toLocaleString()} triangles`
                 : "WebGL 2 · Surface mapping"}
           </button>
-          <span className="status-separator">/</span>FORM STUDIO 0.11
+          <span className="status-separator">/</span>FORM STUDIO 0.12
         </span>
       </footer>
       {notice && (
@@ -2870,6 +2978,91 @@ export function App() {
           }}
         />
       )}
+      {commandsOpen && (
+        <CommandMenu
+          close={() => setCommandsOpen(false)}
+          commands={[
+            {
+              id: "tattoo",
+              label: "Tattoo studio",
+              description: "Body placement, anatomy and artwork",
+              run: () => setStudio("tattoo"),
+            },
+            ...(["patterns", "vectors", "assets"] as const).map((mode) => ({
+              id: mode,
+              label:
+                mode === "patterns"
+                  ? "Sewing patterns"
+                  : mode === "vectors"
+                    ? "Vector packs"
+                    : "Garment asset library",
+              description:
+                mode === "patterns"
+                  ? "65 measurement-driven sewing designs"
+                  : mode === "vectors"
+                    ? "Editable garment flats and manufacturer handoff"
+                    : "112 imported sheets · search, preview and place",
+              disabled: busy || !ready,
+              run: () => {
+                setStudio("fashion");
+                setFashionMode(mode);
+                setFocusMode(false);
+                if (!project.fashion)
+                  change({ ...project, fashion: newFashion() });
+              },
+            })),
+            {
+              id: "library",
+              label: "Project library",
+              description: "Recovery copies, saved projects and checkpoints",
+              run: () => setLibrary(true),
+            },
+            {
+              id: "save",
+              label: "Save project",
+              description: "Save a local .formstudio file",
+              keys: "⌘ S",
+              disabled: busy,
+              run: () => void save(),
+            },
+            {
+              id: "open",
+              label: "Open project",
+              description: "Continue an existing project",
+              keys: "⌘ O",
+              disabled: busy,
+              run: open,
+            },
+            {
+              id: "new",
+              label: "New project",
+              description: "Start a fresh composition",
+              disabled: busy,
+              run: create,
+            },
+            {
+              id: "portfolio",
+              label: "Portfolio export",
+              description: "Share finished work in a standalone gallery",
+              disabled: busy || !ready,
+              run: () => setPortfolioOpen(true),
+            },
+            {
+              id: "focus",
+              label: focusMode ? "Show workspace panels" : "Focus mode",
+              description: "Expand the canvas and hide side panels",
+              disabled: studio === "fashion" && fashionMode === "assets",
+              run: () => setFocusMode((v) => !v),
+            },
+            {
+              id: "help",
+              label: "Help & shortcuts",
+              description: "Navigation, editing and export controls",
+              run: () => setHelp(true),
+            },
+          ]}
+        />
+      )}
       {help && (
         <div className="modal-backdrop" onClick={() => setHelp(false)}>
           <section
@@ -2889,7 +3082,9 @@ export function App() {
             <p>
               Import artwork, choose a complete body section, then compose from
               every angle. In Fashion, enter measurements, adjust the pattern
-              and export at actual size.
+              and export at actual size. Use Vector packs for garment drawings
+              and manufacturer handoff, or browse the Asset library to start
+              from your imported designs.
             </p>
             <div className="shortcut-list">
               {[
@@ -2897,6 +3092,7 @@ export function App() {
                 ["Place artwork on the surface", "G"],
                 ["Save / Save As", "⌘S / ⇧⌘S"],
                 ["Open a project", "⌘O"],
+                ["Quick actions & workspace search", "⌘K"],
                 ["Undo / Redo", "⌘Z / ⇧⌘Z"],
                 ["Export current workspace", "⌘E"],
               ].map(([label, key]) => (

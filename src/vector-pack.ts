@@ -1,3 +1,4 @@
+import { VectorPackSchema as LegacyVectorPackSchema } from "./legacy-vector-v1";
 import { z } from "zod";
 const number = (min: number, max: number) =>
   z.number().finite().min(min).max(max);
@@ -14,11 +15,15 @@ export const VectorLayerSchema = z
     id: z.string().uuid(),
     name: text(80),
     view: z.enum(["front", "back"]),
-    nodes: z.array(VectorNodeSchema).min(2).max(250),
+    nodes: z.array(VectorNodeSchema).min(2).max(2000),
+    contours: z
+      .array(z.array(VectorNodeSchema).min(2).max(2000))
+      .max(5000)
+      .optional(),
     closed: z.boolean(),
     fill: z.union([z.literal("none"), z.string().regex(/^#[0-9a-fA-F]{6}$/)]),
     stroke: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-    strokeWidth: number(0.2, 12),
+    strokeWidth: number(0, 12),
     dashed: z.boolean(),
     visible: z.boolean(),
     locked: z.boolean(),
@@ -36,7 +41,7 @@ const CalloutSchema = z
   .strict();
 export const VectorPackSchema = z
   .object({
-    version: z.literal(1),
+    version: z.literal(2),
     name: text(100),
     style: text(80),
     revision: text(60),
@@ -90,17 +95,38 @@ export const VectorPackSchema = z
         code: "custom",
         message: "Each measurement needs a value slot for every size",
       });
-    if (p.layers.reduce((n, l) => n + l.nodes.length, 0) > 10000)
+    if (
+      p.layers.reduce(
+        (n, l) => n + allContours(l).reduce((n, c) => n + c.length, 0),
+        0,
+      ) > 60000
+    )
       c.addIssue({
         code: "custom",
-        message: "Vector pack exceeds 10,000 nodes",
+        message: "Vector pack exceeds 60,000 anchors",
       });
   });
 export type VectorPack = z.infer<typeof VectorPackSchema>;
 export type VectorLayer = z.infer<typeof VectorLayerSchema>;
 export type VectorNode = z.infer<typeof VectorNodeSchema>;
 export type VectorView = VectorLayer["view"];
-export function vectorPath(l: Pick<VectorLayer, "nodes" | "closed">) {
+export function allContours(l: Pick<VectorLayer, "nodes" | "contours">) {
+  return [l.nodes, ...(l.contours ?? [])];
+}
+export function setContour(l: VectorLayer, index: number, nodes: VectorNode[]) {
+  if (index === 0) return { ...l, nodes };
+  return {
+    ...l,
+    contours: l.contours?.map((c, i) => (i === index - 1 ? nodes : c)),
+  };
+}
+export function vectorPath(
+  l: Pick<VectorLayer, "nodes" | "closed" | "contours">,
+): string {
+  if (l.contours?.length)
+    return allContours(l)
+      .map((nodes) => vectorPath({ nodes, closed: l.closed }))
+      .join(" ");
   const p = (v: { x: number; y: number }) =>
     `${v.x.toFixed(2)} ${v.y.toFixed(2)}`;
   const segment = (a: VectorNode, b: VectorNode) =>
@@ -125,26 +151,31 @@ export function mapLayer(
       ...(n.in ? { in: fn(n.in) } : {}),
       ...(n.out ? { out: fn(n.out) } : {}),
     })),
+    ...(l.contours
+      ? {
+          contours: l.contours.map(
+            (nodes) => mapLayer({ ...l, nodes, contours: undefined }, fn).nodes,
+          ),
+        }
+      : {}),
   };
 }
 export function layerBounds(l: VectorLayer) {
-  const pts = l.nodes.flatMap((n) => [
-    n,
-    ...(n.in ? [n.in] : []),
-    ...(n.out ? [n.out] : []),
-  ]);
-  const x = Math.min(...pts.map((p) => p.x)),
-    y = Math.min(...pts.map((p) => p.y));
+  const pts = allContours(l)
+    .flat()
+    .flatMap((n) => [n, ...(n.in ? [n.in] : []), ...(n.out ? [n.out] : [])]);
+  const x = pts.reduce((a, p) => Math.min(a, p.x), Infinity),
+    y = pts.reduce((a, p) => Math.min(a, p.y), Infinity);
   return {
     x,
     y,
-    width: Math.max(...pts.map((p) => p.x)) - x,
-    height: Math.max(...pts.map((p) => p.y)) - y,
+    width: pts.reduce((a, p) => Math.max(a, p.x), -Infinity) - x,
+    height: pts.reduce((a, p) => Math.max(a, p.y), -Infinity) - y,
   };
 }
 export function newVectorPack(): VectorPack {
   return {
-    version: 1,
+    version: 2,
     name: "Untitled garment",
     style: "STYLE-001",
     revision: "A",
@@ -160,8 +191,13 @@ export function newVectorPack(): VectorPack {
   };
 }
 export function parseVectorPack(raw: string) {
-  if (raw.length > 3000000) throw new Error("Vector pack exceeds 3 MB.");
-  return VectorPackSchema.parse(JSON.parse(raw));
+  if (raw.length > 15000000) throw new Error("Vector pack exceeds 15 MB.");
+  return VectorPackSchema.parse(migrateVectorPack(JSON.parse(raw)));
+}
+export function migrateVectorPack(raw: unknown) {
+  if (raw && typeof raw === "object" && "version" in raw && raw.version === 1)
+    return { ...LegacyVectorPackSchema.parse(raw), version: 2 };
+  return raw;
 }
 export function resizeSizes(pack: VectorPack, sizes: string[]): VectorPack {
   return {
@@ -204,7 +240,7 @@ export function insertVectorAnchor(
     index < 0 ||
     index >= layer.nodes.length ||
     (!layer.closed && index === layer.nodes.length - 1) ||
-    layer.nodes.length >= 250
+    layer.nodes.length >= 2000
   )
     return layer;
   const nodes = structuredClone(layer.nodes),

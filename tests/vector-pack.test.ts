@@ -97,7 +97,7 @@ test("pack and project round-trip reject damaged geometry, duplicate IDs, and in
     p = { ...blankProject(), fashion: f };
   expect(await parseProject(JSON.stringify(p))).toEqual(p);
   const old = { ...blankProject(), version: 10, fashion: newFashion() };
-  expect((await parseProject(JSON.stringify(old))).version).toBe(11);
+  expect((await parseProject(JSON.stringify(old))).version).toBe(12);
   await expect(
     parseProject(JSON.stringify({ ...old, fashion: f })),
   ).rejects.toThrow("version 10");

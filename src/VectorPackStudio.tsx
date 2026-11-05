@@ -1,3 +1,5 @@
+import { GarmentAssetLibrary } from "./GarmentAssetLibrary";
+import { placeGarment } from "./garment-library";
 import {
   useEffect,
   useRef,
@@ -19,6 +21,8 @@ import {
 import type { Fashion } from "./fashion-model";
 import {
   VectorPackSchema,
+  allContours,
+  setContour,
   insertVectorAnchor,
   mapLayer,
   layerBounds,
@@ -89,6 +93,8 @@ function Num({
   );
 }
 type Props = {
+  openLibrary: boolean;
+  onLibraryChange: (open: boolean) => void;
   value: Fashion;
   onChange: (f: Fashion) => void;
   begin: () => void;
@@ -104,6 +110,8 @@ type Props = {
   close: () => void;
 };
 export function VectorPackStudio({
+  openLibrary,
+  onLibraryChange,
   value,
   onChange,
   begin,
@@ -120,15 +128,19 @@ export function VectorPackStudio({
 }: Props) {
   const fallback = useRef(templatePack("T-shirt"));
   const pack = value.vectorPack ?? fallback.current;
+  const [contour, setContourIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null),
     [node, setNode] = useState<number | null>(null),
     [view, setView] = useState<VectorView>("front");
-  const [tab, setTab] = useState<"drawing" | "specs" | "materials" | "notes">(
-      "drawing",
-    ),
+  const [tab, setTab] = useState<
+      "drawing" | "assets" | "specs" | "materials" | "notes"
+    >("drawing"),
     [tool, setTool] = useState<"select" | "nodes" | "pen" | "callout">(
       "select",
     );
+  useEffect(() => {
+    setTab((t) => (openLibrary ? "assets" : t === "assets" ? "drawing" : t));
+  }, [openLibrary]);
   const [template, setTemplate] = useState<FlatTemplate>("T-shirt"),
     [component, setComponent] =
       useState<(typeof componentNames)[number]>("Patch pocket");
@@ -145,6 +157,7 @@ export function VectorPackStudio({
     pack: VectorPack;
     layer?: string;
     node?: number;
+    contour?: number;
     handle?: "in" | "out";
     callout?: string;
     label?: boolean;
@@ -161,8 +174,13 @@ export function VectorPackStudio({
     }
     onChange({ ...value, vectorPack: checked.data });
   };
+  useEffect(() => {
+    setContourIndex(0);
+    setNode(null);
+  }, [selected]);
   const layer = pack.layers.find((l) => l.id === selected),
-    currentNode = node === null ? undefined : layer?.nodes[node],
+    activeNodes = layer ? (allContours(layer)[contour] ?? layer.nodes) : [],
+    currentNode = node === null ? undefined : activeNodes[node],
     call = pack.callouts.find((c) => c.id === callout);
   const updateLayer = (patch: Partial<VectorLayer>) => {
     if (layer)
@@ -175,7 +193,13 @@ export function VectorPackStudio({
   };
   const updateNode = (n: VectorNode) => {
     if (layer && node !== null)
-      updateLayer({ nodes: layer.nodes.map((p, i) => (i === node ? n : p)) });
+      updateLayer(
+        setContour(
+          layer,
+          contour,
+          activeNodes.map((p, i) => (i === node ? n : p)),
+        ),
+      );
   };
   const addLayer = (l: VectorLayer) => {
     change({ ...pack, layers: [...pack.layers, l] });
@@ -293,6 +317,7 @@ export function VectorPackStudio({
       pack,
       layer: id,
       node: ni,
+      contour,
       handle,
       callout: ci,
       label,
@@ -329,9 +354,10 @@ export function VectorPackStudio({
         layers: g.pack.layers.map((l) => {
           if (l.id !== g.layer) return l;
           if (g.node === undefined) return mapLayer(l, shift);
-          return {
-            ...l,
-            nodes: l.nodes.map((n, i) =>
+          return setContour(
+            l,
+            g.contour ?? 0,
+            (allContours(l)[g.contour ?? 0] ?? l.nodes).map((n, i) =>
               i !== g.node
                 ? n
                 : g.handle
@@ -342,7 +368,7 @@ export function VectorPackStudio({
                       ...(n.out ? { out: shift(n.out) } : {}),
                     },
             ),
-          };
+          );
         }),
       });
   };
@@ -385,7 +411,10 @@ export function VectorPackStudio({
     }
   };
   return (
-    <main className="vector-studio" aria-label="Vector pack studio">
+    <main
+      className={`vector-studio ${tab === "assets" ? "assets-open" : ""}`}
+      aria-label="Vector pack studio"
+    >
       <header className="vector-top">
         <button onClick={close}>
           <ArrowLeft size={15} /> Pattern studio
@@ -432,11 +461,15 @@ export function VectorPackStudio({
             key={t}
             aria-pressed={tab === t}
             className={tab === t ? "active" : ""}
-            onClick={() => setTab(t)}
+            onClick={() => {
+              setTab(t);
+              onLibraryChange(false);
+            }}
           >
             {
               {
                 drawing: "Technical flats",
+                assets: "Asset library",
                 specs: "Size specification",
                 materials: "Materials & trims",
                 notes: "Style & instructions",
@@ -448,9 +481,47 @@ export function VectorPackStudio({
           STYLE {pack.style} / REV {pack.revision}
         </span>
       </nav>
-      {tab === "drawing" ? (
+      {tab === "assets" ? (
+        <GarmentAssetLibrary
+          busy={busy}
+          notify={notify}
+          onPlace={(layers, replace, name) => {
+            const next = placeGarment(pack, layers, replace);
+            if (
+              (replace || !pack.layers.length) &&
+              (flatTemplates.includes(pack.name as FlatTemplate) ||
+                pack.name === "Untitled garment")
+            )
+              next.name = name;
+            change(next);
+            setTab("drawing");
+            onLibraryChange(false);
+            setSelected(layers[0]?.id ?? null);
+            setView(layers[0]?.view ?? "front");
+            setCallout(null);
+            setPen([]);
+            setTool("select");
+            notify(
+              "Garment paths added. Select a layer to recolor or reshape it.",
+            );
+          }}
+        />
+      ) : tab === "drawing" ? (
         <div className="vector-drawing">
           <aside className="vector-sidebar">
+            <button
+              className="asset-library-entry"
+              onClick={() => {
+                setTab("assets");
+                onLibraryChange(true);
+              }}
+            >
+              <Layers size={18} />
+              <span>
+                <strong>Browse garment assets</strong>
+                <small>112 imported designs →</small>
+              </span>
+            </button>
             <span className="eyebrow">STARTER FLATS</span>
             <label>
               Garment template
@@ -602,7 +673,7 @@ export function VectorPackStudio({
                 e.target.value = "";
                 if (!f) return;
                 try {
-                  if (f.size > 3000000) throw new Error("Maximum 3 MB");
+                  if (f.size > 15000000) throw new Error("Maximum 15 MB");
                   const imported = parseVectorPack(await f.text());
                   change(imported);
                   setSelected(null);
@@ -627,6 +698,7 @@ export function VectorPackStudio({
                   onClick={() => {
                     setTool(t);
                     setPen([]);
+                    if (t !== "nodes") setNode(null);
                   }}
                 >
                   {t === "pen" ? <PenTool size={14} /> : null}
@@ -734,6 +806,7 @@ export function VectorPackStudio({
                           <path
                             d={vectorPath(l)}
                             fill={l.fill}
+                            fillRule={l.contours ? "evenodd" : "nonzero"}
                             stroke={l.stroke}
                             strokeWidth={l.strokeWidth}
                             strokeDasharray={l.dashed ? "5 4" : undefined}
@@ -797,7 +870,7 @@ export function VectorPackStudio({
                           {l.id === selected &&
                             tool === "nodes" &&
                             !l.locked &&
-                            l.nodes.map((n, i) => (
+                            activeNodes.map((n, i) => (
                               <g key={i}>
                                 {i === node &&
                                   (["in", "out"] as const).map(
@@ -1005,7 +1078,7 @@ export function VectorPackStudio({
                   <Num
                     label="Stroke width"
                     value={layer.strokeWidth}
-                    min={0.2}
+                    min={0}
                     max={12}
                     step={0.2}
                     onChange={(n) => updateLayer({ strokeWidth: n })}
@@ -1131,6 +1204,25 @@ export function VectorPackStudio({
                       Send behind
                     </button>
                   </div>
+                  {tool === "nodes" && layer.contours?.length ? (
+                    <label>
+                      Contour
+                      <select
+                        aria-label="Selected contour"
+                        value={contour}
+                        onChange={(e) => {
+                          setContourIndex(Number(e.target.value));
+                          setNode(null);
+                        }}
+                      >
+                        {allContours(layer).map((_, i) => (
+                          <option key={i} value={i}>
+                            Contour {i + 1}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
                   {tool === "nodes" && (
                     <label>
                       Anchor
@@ -1146,7 +1238,7 @@ export function VectorPackStudio({
                         }
                       >
                         <option value="">Choose anchor</option>
-                        {layer.nodes.map((_, i) => (
+                        {activeNodes.map((_, i) => (
                           <option key={i} value={i}>
                             Anchor {i + 1}
                           </option>
@@ -1154,16 +1246,25 @@ export function VectorPackStudio({
                       </select>
                     </label>
                   )}
-                  {currentNode && node !== null && (
+                  {tool === "nodes" && currentNode && node !== null && (
                     <div className="vector-node-editor">
                       <strong>Anchor {node + 1}</strong>
                       <button
                         disabled={
-                          layer.nodes.length >= 250 ||
-                          (!layer.closed && node === layer.nodes.length - 1)
+                          activeNodes.length >= 2000 ||
+                          (!layer.closed && node === activeNodes.length - 1)
                         }
                         onClick={() => {
-                          updateLayer(insertVectorAnchor(layer, node));
+                          updateLayer(
+                            setContour(
+                              layer,
+                              contour,
+                              insertVectorAnchor(
+                                { ...layer, nodes: activeNodes },
+                                node,
+                              ).nodes,
+                            ),
+                          );
                           setNode(node + 1);
                         }}
                       >
@@ -1267,11 +1368,15 @@ export function VectorPackStudio({
                         Corner anchor
                       </button>
                       <button
-                        disabled={layer.nodes.length <= 2}
+                        disabled={activeNodes.length <= 2}
                         onClick={() => {
-                          updateLayer({
-                            nodes: layer.nodes.filter((_, i) => i !== node),
-                          });
+                          updateLayer(
+                            setContour(
+                              layer,
+                              contour,
+                              activeNodes.filter((_, i) => i !== node),
+                            ),
+                          );
                           setNode(null);
                         }}
                       >

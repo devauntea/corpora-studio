@@ -1,4 +1,4 @@
-# Fashion workspace — 0.11
+# Fashion workspace — 0.12
 
 Form Studio includes 65 measurement-driven FreeSewing designs and a separate vector-pack workspace. Both work locally in the packaged desktop application and save in the same project as tattoo work.
 
@@ -31,6 +31,18 @@ Open **Fashion → Vector packs**. Start with T-shirt, tank top, sweatshirt, hoo
 
 Project Undo/Redo, local recovery, checkpoints, save and reopen include the vector pack. Standalone vector-pack JSON can be exported/imported; import is validated and undoable. Arbitrary Illustrator/SVG files are not parsed into this editor in this release. Exported SVG paths can be edited in other vector applications.
 
+## Imported garment assets
+
+Open **Fashion → Asset library** from the workspace tabs. The supplied `vectors.zip` contains **112 PNG sheets**, not Illustrator/SVG source vectors. All originals are preserved byte-for-byte. The collection includes 217 separated garment/accessory views across Tops, Hoodies, Knitwear, Outerwear, Bottoms, Headwear and Accessories.
+
+Search names, filter categories, or favorite assets for later. Select a sheet, choose a view, and compare **Original** with **Vector trace**. Place a selected view on either artboard, or place a two-view sheet as a front/back pair. **Replace drawings on destination** replaces only the destination drawings and callouts; measurement and material records stay intact. Placement is a single undo step. Generic starter names follow the replacement asset; custom style names remain unchanged.
+
+Each trace has editable Fabric, Highlights and/or Linework layers. Recolor a layer or edit its geometry. Dense linework uses compound contours, including interior holes; choose a contour and anchor under **Edit points**. Transforms apply to the selected color layer, so move related layers consistently when changing the whole drawing. Fine stitching is traced geometry, not a procedural stitch object. Automatic traces can differ from the source; inspect the original when refining manufacturing details. These are design references, not measured cutting patterns.
+
+Favorites are local to this installation. Selected paths are embedded in saved projects and editable JSON, so they do not depend on the library after placement. The original source images remain in the bundled local collection; exports contain editable vectors rather than embedded PNGs. Source inventory, hashes and conversion details are in `public/garment-assets/catalog.json` and `provenance.json`.
+
+**Cmd/Ctrl+K** opens searchable quick actions. Use arrow keys and Enter to navigate, or Escape to close. The workspace tabs retain the current project while switching between patterns, flats and the library. **Focus mode** hides side panels in the tattoo, pattern and flat canvases; **Show panels** restores editing controls.
+
 ## Manufacturer handoff
 
 **Export vector pack** or **Cmd+E** exports the chosen format. ZIP contains:
@@ -45,10 +57,10 @@ PDF, combined SVG and editable JSON are also available separately. Native export
 
 ## Persistence and bounds
 
-Format **11** freezes format 10's project/fashion validators before migration. Formats 1–10 remain readable; old body geometry is retained, and the first save of an older file creates a new copy. Each project holds one editable vector pack; use projects/checkpoints or JSON files for separate styles/revisions.
+Format **12** freezes format 11's project/fashion/vector validators before migration. Formats 1–11 remain readable; old body geometry is retained, and the first save of an older file creates a new copy. Each project holds one editable vector pack; use projects/checkpoints or JSON files for separate styles/revisions.
 
-Limits: 200 paths, 250 anchors per path, 10,000 anchors total, 40 callouts, 60 measurements, 60 material rows and eight sizes. Finite coordinate/range checks, strict object schemas, duplicate-ID rejection and size-table consistency checks apply to imports and project loading. Vector JSON imports are limited to 3 MB and generated exports to 30 MB.
+Vector pack format 2 adds compound contours and reads validated format 1 packs. Limits: 200 layers, 2,000 anchors per contour, up to 5,001 contours per layer, 60,000 anchors total, 40 callouts, 60 measurements, 60 material rows and eight sizes. Finite coordinate/range checks, strict object schemas, duplicate-ID rejection and size-table consistency checks apply to imports and project loading. Vector JSON imports are limited to 15 MB and generated exports to 30 MB.
 
 ## Verification
 
-See [fashion expansion verification](fashion-expansion-0.11.md) for browser, native, geometry and artifact checks. Automated draft checks verify usable numeric output and software behavior, not sewn fit or the correctness of every upstream option combination.
+See [garment library and UI verification](garment-library-0.12.md) and [fashion expansion verification](fashion-expansion-0.11.md) for browser, native, geometry and artifact checks. Automated draft checks verify usable numeric output and software behavior, not sewn fit or the correctness of every upstream option combination.

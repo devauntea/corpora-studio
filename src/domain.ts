@@ -1,3 +1,5 @@
+import { migrateVectorPack } from "./vector-pack";
+import { ProjectSchema as LegacyV11ProjectSchema } from "./legacy-v11";
 import { ProjectSchema as LegacyV10ProjectSchema } from "./legacy-v10";
 import { ProjectSchema as LegacyV9ProjectSchema } from "./legacy-v9";
 import { BodyStudySchema, FitShapeSchema } from "./body-fitting";
@@ -328,7 +330,7 @@ export const PhotoSchema = z
 export const ProjectSchema = z
   .object({
     format: z.literal("form-studio"),
-    version: z.literal(11),
+    version: z.literal(12),
     units: z.literal("mm"),
     id: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -450,7 +452,7 @@ export type Asset = Project["assets"][number];
 export function blankProject(): Project {
   return {
     format: "form-studio",
-    version: 11,
+    version: 12,
     units: "mm",
     id: crypto.randomUUID(),
     name: "Untitled composition",
@@ -628,6 +630,24 @@ export async function parseProject(text: string): Promise<Project> {
     const old = LegacyV10ProjectSchema.safeParse(json);
     if (!old.success) throw new Error("Invalid version 10 project");
     json = { ...old.data, version: 11 };
+  }
+  if ((json as { version?: number })?.version === 11) {
+    const old = LegacyV11ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Invalid version 11 project");
+    json = {
+      ...old.data,
+      version: 12,
+      ...(old.data.fashion
+        ? {
+            fashion: {
+              ...old.data.fashion,
+              ...(old.data.fashion.vectorPack
+                ? { vectorPack: migrateVectorPack(old.data.fashion.vectorPack) }
+                : {}),
+            },
+          }
+        : {}),
+    };
   }
   const result = ProjectSchema.safeParse(json);
   if (!result.success)

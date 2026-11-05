@@ -7,7 +7,7 @@ The 0.10 body pass adds torso-only upper bodies, revised chest/back forms and mu
 ## Delivered workflows
 
 1. 65 searchable garment designs through a generic FreeSewing adapter; reusable measurement profiles and interchange; nested size series; fabric/ease records; custom formula-driven pattern construction.
-2. Vector packs with 12 original front/back flat starters, custom path/curve editing, construction callouts, material records and size specifications; editable SVG, vector PDF, CSV and ZIP handoff. These are design flats, not automatically generated cutting patterns.
+2. Vector packs with 12 original front/back flat starters and 112 imported PNG sheets converted into 217 editable views, custom path/curve editing, construction callouts, material records and size specifications; editable SVG, vector PDF, CSV and ZIP handoff. These are design flats, not automatically generated cutting patterns.
 3. Calibrated flat-lay photo measurements, pointer/keyboard adjustment, explicit hidden-construction and ease assumptions, transfer to draft measurements and error exports.
 4. Local bounded cloth preview from triangulated panels, stitch ranges, pins and body contact; cylinder benchmark and observation/report export. Self-contact and measured fabric calibration are not implemented.
 5. Versioned continuous full-body/neck coverage, fit/average bodies, colored muscle guidance, cross-chart connected placements and Jacobian distortion inspection.
@@ -16,7 +16,7 @@ The 0.10 body pass adds torso-only upper bodies, revised chest/back forms and mu
 8. Centerline contour selection, millimeter line widths, per-printer calibration, true-size tiled PDF/PNG and DPI metadata.
 9. Bounded cancellable workers, keyboard alternatives and automated accessibility checks, native export, static portfolio bundle/gallery, qualification CI and credential-dependent signing pipelines.
 
-The 0.11 fashion expansion is described in the [fashion guide](fashion-workspace.md).
+The 0.12 garment library and navigation update is described in the [fashion guide](fashion-workspace.md). It adds searchable categories/favorites, source/trace previews, quick actions and canvas focus mode.
 
 See [implementation details and limits](next-features-implementation.md) and [release verification](next-features-verification.md).
 

@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import "./style.css";
+import "./workspace-ux.css";
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },

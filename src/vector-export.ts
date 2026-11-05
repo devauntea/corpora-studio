@@ -3,6 +3,7 @@ import { zipSync, strToU8 } from "fflate";
 import {
   VectorPackSchema,
   vectorPath,
+  allContours,
   type VectorPack,
   type VectorView,
   type VectorLayer,
@@ -37,7 +38,7 @@ export function vectorSvg(input: VectorPack, view?: VectorView) {
           .filter((l) => l.view === v && l.visible)
           .map(
             (l) =>
-              `<path id="layer-${l.id}" data-name="${esc(l.name)}" data-material="${esc(l.material)}" d="${vectorPath(l)}" fill="${l.fill}" stroke="${l.stroke}" stroke-width="${l.strokeWidth}" stroke-linejoin="round" stroke-linecap="round"${l.dashed ? ' stroke-dasharray="5 4"' : ""}><title>${esc(l.name)}</title></path>`,
+              `<path id="layer-${l.id}" data-name="${esc(l.name)}" data-material="${esc(l.material)}" d="${vectorPath(l)}" fill="${l.fill}" fill-rule="${l.contours ? "evenodd" : "nonzero"}" stroke="${l.stroke}" stroke-width="${l.strokeWidth}" stroke-linejoin="round" stroke-linecap="round"${l.dashed ? ' stroke-dasharray="5 4"' : ""}><title>${esc(l.name)}</title></path>`,
           )
           .join("")}${p.callouts
           .filter((c) => c.view === v)
@@ -117,9 +118,7 @@ function drawLayer(doc: jsPDF, l: VectorLayer, offset: number) {
     offset + p.x * scale,
     yy + p.y * scale,
   ];
-  const ops: { op: "m" | "l" | "c" | "h"; c: number[] }[] = [
-    { op: "m", c: xy(l.nodes[0]) },
-  ];
+  const ops: { op: "m" | "l" | "c" | "h"; c: number[] }[] = [];
   const segment = (
     a: VectorLayer["nodes"][number],
     b: VectorLayer["nodes"][number],
@@ -129,10 +128,13 @@ function drawLayer(doc: jsPDF, l: VectorLayer, offset: number) {
         ? { op: "c", c: [...xy(a.out ?? a), ...xy(b.in ?? b), ...xy(b)] }
         : { op: "l", c: xy(b) },
     );
-  l.nodes.slice(1).forEach((n, i) => segment(l.nodes[i], n));
-  if (l.closed) {
-    segment(l.nodes.at(-1)!, l.nodes[0]);
-    ops.push({ op: "h", c: [] });
+  for (const nodes of allContours(l)) {
+    ops.push({ op: "m", c: xy(nodes[0]) });
+    nodes.slice(1).forEach((n, i) => segment(nodes[i], n));
+    if (l.closed) {
+      segment(nodes.at(-1)!, nodes[0]);
+      ops.push({ op: "h", c: [] });
+    }
   }
   doc.setDrawColor(l.stroke);
   doc.setLineWidth(l.strokeWidth * scale);
@@ -141,7 +143,8 @@ function drawLayer(doc: jsPDF, l: VectorLayer, offset: number) {
   if (l.fill === "none") doc.stroke();
   else {
     doc.setFillColor(l.fill);
-    doc.fillStroke();
+    if (l.strokeWidth === 0) l.contours ? doc.fillEvenOdd() : doc.fill();
+    else l.contours ? doc.fillStrokeEvenOdd() : doc.fillStroke();
   }
 }
 export function vectorPdf(input: VectorPack): Uint8Array {

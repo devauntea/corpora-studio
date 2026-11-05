@@ -120,6 +120,7 @@ type ViewBox = { x: number; y: number; width: number; height: number };
 export function FashionWorkspace({
   value,
   onModeChange,
+  mode,
   assets,
   body,
   onChange,
@@ -136,7 +137,8 @@ export function FashionWorkspace({
   exporter,
 }: {
   value: Fashion;
-  onModeChange: (mode: "patterns" | "vectors") => void;
+  onModeChange: (mode: "patterns" | "vectors" | "assets") => void;
+  mode: "patterns" | "vectors" | "assets";
   assets: Asset[];
   body: Body;
   onChange: (f: Fashion, asset?: Asset) => void;
@@ -152,11 +154,9 @@ export function FashionWorkspace({
   name: string;
   exporter: RefObject<(() => Promise<void>) | null>;
 }) {
-  const [vectorOpen, setVectorOpen] = useState(false);
-  useEffect(
-    () => onModeChange(vectorOpen ? "vectors" : "patterns"),
-    [vectorOpen, onModeChange],
-  );
+  const vectorOpen = mode !== "patterns";
+  const setVectorOpen = (open: boolean) =>
+    onModeChange(open ? "vectors" : "patterns");
   const [catalogSearch, setCatalogSearch] = useState("");
   const [catalogCategory, setCatalogCategory] = useState("All");
   const [clothOpen, setClothOpen] = useState(false);
@@ -348,6 +348,8 @@ export function FashionWorkspace({
   if (vectorOpen)
     return (
       <VectorPackStudio
+        openLibrary={mode === "assets"}
+        onLibraryChange={(open) => onModeChange(open ? "assets" : "vectors")}
         value={value}
         onChange={onChange}
         begin={onBegin}

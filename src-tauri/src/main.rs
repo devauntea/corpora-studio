@@ -41,7 +41,8 @@ fn validate_envelope(content: &str) -> Result<(), String> {
             && v["version"] != 8
             && v["version"] != 9
             && v["version"] != 10
-            && v["version"] != 11)
+            && v["version"] != 11
+            && v["version"] != 12)
     {
         return Err("Unsupported project format or version.".into());
     }
@@ -240,7 +241,7 @@ fn vector_pack_bytes(data: &str, format: &str) -> Result<Vec<u8>, String> {
         "pdf" => bytes.starts_with(b"%PDF-"),
         "svg" => bytes.starts_with(b"<?xml") && std::str::from_utf8(&bytes).is_ok(),
         "json" => serde_json::from_slice::<serde_json::Value>(&bytes)
-            .map(|v| v["version"] == 1 && v["layers"].is_array())
+            .map(|v| (v["version"] == 1 || v["version"] == 2) && v["layers"].is_array())
             .unwrap_or(false),
         _ => false,
     };
@@ -555,6 +556,7 @@ mod tests {
             ("pdf", &b"%PDF-test"[..]),
             ("svg", &b"<?xml version=\"1.0\"?><svg/>"[..]),
             ("json", &b"{\"version\":1,\"layers\":[]}"[..]),
+            ("json", &b"{\"version\":2,\"layers\":[]}"[..]),
         ] {
             let data = base64::engine::general_purpose::STANDARD.encode(bytes);
             assert_eq!(vector_pack_bytes(&data, format).unwrap(), bytes);
@@ -590,5 +592,6 @@ mod tests {
         assert!(validate_envelope(r#"{"format":"form-studio","version":9}"#).is_ok());
         assert!(validate_envelope(r#"{"format":"form-studio","version":10}"#).is_ok());
         assert!(validate_envelope(r#"{"format":"form-studio","version":11}"#).is_ok());
+        assert!(validate_envelope(r#"{"format":"form-studio","version":12}"#).is_ok());
     }
 }
