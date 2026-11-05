@@ -10,7 +10,7 @@
     "Z-Anatomy \u2014 The libre 3D atlas of anatomy \u2014 CC-BY-SA 4.0",
     "Original model: Kousaku Okubo; Z-Anatomy design, 3D and anatomy: Gauthier Kervyn and contributors"
   ],
-  "adaptations": "Selected superficial muscle meshes registered to male/female skin landmarks and projected into a per-vertex color and identity field. Original palette and connective-tissue masks. No source definitions, organs, brain, ear or kidney models included. Revision 3 adds topology-aware label cleanup and smoothed categorical weights; the original field and sources are retained. Revision 4 extends registered coverage through a continuous pelvis and neck on full-body surfaces, with the same categorical smoothing and original palette.",
+  "adaptations": "Selected superficial muscle meshes registered to male/female skin landmarks and projected into a per-vertex color and identity field. Original palette and connective-tissue masks. No source definitions, organs, brain, ear or kidney models included. Revision 3 adds topology-aware label cleanup and smoothed categorical weights; the original field and sources are retained. Revision 4 extends registered coverage through a continuous pelvis and neck on full-body surfaces, with the same categorical smoothing and original palette. Revision 5 preserves registered labels on the refined skin and interpolates categorical weights at neck, isolated-leg and torso shoulder cuts; inherited shoulder/neck T-junctions are conformed.",
   "derivedFiles": [
     "public/anatomy/muscle-field-v2-male.bin",
     "public/anatomy/muscle-field-v2-male.json",
@@ -23,7 +23,11 @@
     "public/anatomy/muscle-field-v4-male.bin",
     "public/anatomy/muscle-field-v4-male.json",
     "public/anatomy/muscle-field-v4-female.bin",
-    "public/anatomy/muscle-field-v4-female.json"
+    "public/anatomy/muscle-field-v4-female.json",
+    "public/anatomy/muscle-field-v5-male.bin",
+    "public/anatomy/muscle-field-v5-male.json",
+    "public/anatomy/muscle-field-v5-female.bin",
+    "public/anatomy/muscle-field-v5-female.json"
   ],
-  "regeneration": "scripts/bake-muscle-atlas.py; input surfaces from scripts/build-detailed-anatomy.py; revision 3 fields: scripts/refine-body-surfaces.py; revision 4: same pipeline with --full-body (intermediates in .tools/anatomy)"
+  "regeneration": "scripts/bake-muscle-atlas.py; input surfaces from scripts/build-detailed-anatomy.py; revision 3 fields: scripts/refine-body-surfaces.py; revision 4: same pipeline with --full-body (intermediates in .tools/anatomy); revision 5: scripts/build-reference-bodies.py"
 }

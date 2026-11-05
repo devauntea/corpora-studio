@@ -1012,7 +1012,8 @@ button.primary:not(:disabled):hover {
   gap: 16px;
 }
 .skin-swatches {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
   gap: 8px;
 }
 .skin-swatches button {
@@ -2025,4 +2026,48 @@ select:focus-visible {
   padding-top: 14px;
 }
 
-.point-inputs{display:flex;gap:8px;border:1px solid #444;padding:8px;margin:8px 0;min-width:0}.point-inputs legend{font-size:11px}.point-inputs label{min-width:0;flex:1}.point-inputs input{width:100%;box-sizing:border-box}.lattice-controls{padding:8px 12px;max-height:180px;overflow:auto;background:#202020}.lattice-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.point-inputs {
+  display: flex;
+  gap: 8px;
+  border: 1px solid #444;
+  padding: 8px;
+  margin: 8px 0;
+  min-width: 0;
+}
+.point-inputs legend {
+  font-size: 11px;
+}
+.point-inputs label {
+  min-width: 0;
+  flex: 1;
+}
+.point-inputs input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.lattice-controls {
+  padding: 8px 12px;
+  max-height: 180px;
+  overflow: auto;
+  background: #202020;
+}
+.lattice-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.reference-stage .viewport-heading h1 {
+  color: #eeeae6;
+}
+.reference-stage .viewport-heading p,
+.reference-stage .eyebrow,
+.reference-stage .interaction-hint,
+.reference-stage .axis-indicator {
+  color: #b8b5b1;
+}
+.reference-stage .approx-badge {
+  color: #d4d0cb;
+  background: #38383c;
+  border-color: #5b5b60;
+}

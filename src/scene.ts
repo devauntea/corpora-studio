@@ -2,6 +2,7 @@ import { compositeProject } from "./layer-groups";
 import { HumanSurface, loadHuman, muscleAtHit } from "./anatomy";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import {
   circumference,
   artworkRatio,
@@ -133,6 +134,7 @@ export class StudioScene {
   grid: THREE.GridHelper;
   events: SceneEvents;
   host: HTMLElement;
+  studioEnvironment: THREE.WebGLRenderTarget;
   cleanups: (() => void)[] = [];
 
   constructor(host: HTMLElement, events: SceneEvents) {
@@ -150,6 +152,11 @@ export class StudioScene {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
+    const room = new RoomEnvironment();
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.studioEnvironment = pmrem.fromScene(room, 0.055);
+    room.dispose();
+    pmrem.dispose();
     this.renderer.domElement.setAttribute(
       "aria-label",
       "Interactive 3D body surface. Use the Place tool to position artwork, or Orbit to rotate the view.",
@@ -166,8 +173,11 @@ export class StudioScene {
     this.controls.minPolarAngle = Math.PI * 0.12;
     this.controls.target.set(0, 0, 0);
     this.controls.update();
-    this.scene.add(new THREE.HemisphereLight("#ffffff", "#777777", 1.15));
+    const hemisphere = new THREE.HemisphereLight("#ffffff", "#777777", 1.15);
+    hemisphere.name = "studio-hemisphere";
+    this.scene.add(hemisphere);
     const key = new THREE.DirectionalLight("#ffffff", 2.2);
+    key.name = "studio-key";
     key.position.set(-180, 300, 300);
     key.castShadow = true;
     key.shadow.mapSize.set(2048, 2048);
@@ -178,6 +188,7 @@ export class StudioScene {
     key.shadow.bias = -0.0008;
     this.scene.add(key);
     const fill = new THREE.DirectionalLight("#ffffff", 0.75);
+    fill.name = "studio-fill";
     fill.position.set(180, 20, -150);
     this.scene.add(fill);
     this.canvas.width = this.canvas.height = ATLAS;
@@ -383,6 +394,23 @@ export class StudioScene {
         : undefined;
     if (this.disposed || version !== this.paintVersion || humanData === null)
       return false;
+    const referenceBody =
+      project.body.kind === "human-v1" &&
+      (project.body.model?.revision ?? 0) >= 5;
+    this.scene.environment = referenceBody
+      ? this.studioEnvironment.texture
+      : null;
+    this.scene.environmentIntensity = 0.085;
+    this.renderer.setClearColor(referenceBody ? "#29292c" : "#e5e5e5");
+    (
+      this.scene.getObjectByName("studio-hemisphere") as THREE.HemisphereLight
+    ).intensity = referenceBody ? 0.48 : 1.15;
+    (
+      this.scene.getObjectByName("studio-key") as THREE.DirectionalLight
+    ).intensity = referenceBody ? 2.0 : 2.2;
+    (
+      this.scene.getObjectByName("studio-fill") as THREE.DirectionalLight
+    ).intensity = referenceBody ? 0.65 : 0.75;
     if (
       !this.project ||
       geometryKey(this.project.body) !== geometryKey(project.body)
@@ -606,6 +634,7 @@ export class StudioScene {
     });
     this.ink.clear();
     this.texture.dispose();
+    this.studioEnvironment.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }

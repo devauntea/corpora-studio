@@ -100,7 +100,7 @@ test("fashion drafting, constrained shape editing, history, exports and shared p
   await (await save).saveAs(projectPath);
   const stored = JSON.parse(await fs.readFile(projectPath, "utf8"));
   expect(stored.fashion.notes).toBe("Cotton jersey. Test ribbing recovery.");
-  expect(stored.version).toBe(9);
+  expect(stored.version).toBe(10);
   expect(stored.layers).toHaveLength(1);
   await page.screenshot({ path: testInfo.outputPath("fashion-workspace.png") });
   await page.getByRole("button", { name: "Tattoo", exact: true }).click();

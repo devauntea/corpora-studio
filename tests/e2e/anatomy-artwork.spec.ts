@@ -14,7 +14,7 @@ test("whole sections, chart selection, muscle guide and posed project round trip
   ).toBeVisible();
   await page.getByRole("button", { name: "Body model", exact: true }).click();
   await expect(page.getByLabel("Body region")).toHaveValue("full-arm");
-  await page.getByLabel("Body region").selectOption("upper-body");
+  await page.getByLabel("Body region").selectOption("full-body");
   await page.getByRole("switch", { name: "Muscle anatomy guide" }).click();
   await expect(page.locator(".muscle-legend")).toContainText(
     "Pectoralis major",
@@ -59,10 +59,10 @@ test("whole sections, chart selection, muscle guide and posed project round trip
   const file = info.outputPath("posed.formstudio");
   await (await download).saveAs(file);
   const p = JSON.parse(await fs.readFile(file, "utf8"));
-  expect(p.version).toBe(9);
+  expect(p.version).toBe(10);
   expect(p.body).toMatchObject({
     kind: "human-v1",
-    section: "upper-body",
+    section: "full-body",
     flex: 0,
     armPose: {
       left: { flex: 90, raise: 65, twist: -45 },
@@ -84,7 +84,7 @@ test("whole sections, chart selection, muscle guide and posed project round trip
   await page.screenshot({ path: info.outputPath("bent-leg.png") });
   await page.getByLabel("Project file", { exact: true }).setInputFiles(file);
   // A loaded project restores its body, pose, map and placement chart.
-  await expect(page.getByLabel("Body region")).toHaveValue("upper-body");
+  await expect(page.getByLabel("Body region")).toHaveValue("full-body");
   await expect(
     page.getByRole("spinbutton", { name: "Elbow flex" }),
   ).toHaveValue("90");

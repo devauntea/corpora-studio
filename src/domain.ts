@@ -1,3 +1,4 @@
+import { ProjectSchema as LegacyV9ProjectSchema } from "./legacy-v9";
 import { BodyStudySchema, FitShapeSchema } from "./body-fitting";
 import { LatticeSchema } from "./lattice-warp";
 import { ProjectSchema as LegacyV8ProjectSchema } from "./legacy-v8";
@@ -119,6 +120,10 @@ const HumanBodySchema = z
     build: finite(0.75, 1.35),
     fitting: FitShapeSchema.optional(),
     muscularity: finite(0, 1),
+    musclePose: z
+      .enum(["relaxed", "chest-flex", "back-flex", "double-biceps"])
+      .optional(),
+    muscleTension: finite(0, 1).optional(),
     flex: finite(0, 110),
     armPose: z
       .object({ left: ArmPoseSchema, right: ArmPoseSchema })
@@ -127,7 +132,12 @@ const HumanBodySchema = z
     anatomy: z.boolean(),
     model: z
       .object({
-        revision: z.union([z.literal(2), z.literal(3), z.literal(4)]),
+        revision: z.union([
+          z.literal(2),
+          z.literal(3),
+          z.literal(4),
+          z.literal(5),
+        ]),
         sex: z.enum(["male", "female"]),
         physique: z.enum(["fit", "average"]),
         anatomyOpacity: finite(0, 1),
@@ -251,7 +261,12 @@ export const LayerSchema = LegacyLayerSchema.extend({
   surface: z
     .object({
       vertex: finite(0, 249999).int(),
-      revision: z.union([z.literal(2), z.literal(3), z.literal(4)]),
+      revision: z.union([
+        z.literal(2),
+        z.literal(3),
+        z.literal(4),
+        z.literal(5),
+      ]),
       sex: z.enum(["male", "female"]),
     })
     .strict()
@@ -312,7 +327,7 @@ export const PhotoSchema = z
 export const ProjectSchema = z
   .object({
     format: z.literal("form-studio"),
-    version: z.literal(9),
+    version: z.literal(10),
     units: z.literal("mm"),
     id: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -343,11 +358,12 @@ export const ProjectSchema = z
     if (
       p.body.kind === "human-v1" &&
       (p.body.section === "full-body" || p.body.section === "neck") &&
-      p.body.model?.revision !== 4
+      (p.body.model?.revision ?? 0) < 4
     )
       c.addIssue({
         code: "custom",
-        message: "Full body and neck require the continuous revision 4 surface",
+        message:
+          "Full body and neck require the continuous revision 4 or later surface",
       });
     const issue = (message: string) => c.addIssue({ code: "custom", message });
     if (
@@ -433,7 +449,7 @@ export type Asset = Project["assets"][number];
 export function blankProject(): Project {
   return {
     format: "form-studio",
-    version: 9,
+    version: 10,
     units: "mm",
     id: crypto.randomUUID(),
     name: "Untitled composition",
@@ -601,6 +617,11 @@ export async function parseProject(text: string): Promise<Project> {
     const old = LegacyV8ProjectSchema.safeParse(json);
     if (!old.success) throw new Error("Unsupported or damaged v8 project.");
     json = { ...old.data, version: 9 };
+  }
+  if ((json as { version?: number })?.version === 9) {
+    const old = LegacyV9ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Invalid version 9 project");
+    json = { ...old.data, version: 10 };
   }
   const result = ProjectSchema.safeParse(json);
   if (!result.success)
@@ -849,14 +870,16 @@ export function humanBody(
         ? {
             ...previous.model,
             revision:
-              section === "full-body" || section === "neck"
-                ? 4
-                : previous.model.revision === 4
-                  ? 3
-                  : previous.model.revision,
+              previous.model.revision === 5
+                ? 5
+                : section === "full-body" || section === "neck"
+                  ? 4
+                  : previous.model.revision === 4
+                    ? 3
+                    : previous.model.revision,
           }
         : {
-            revision: section === "full-body" || section === "neck" ? 4 : 3,
+            revision: 5,
             sex: "male",
             physique: "fit",
             anatomyOpacity: 0.85,
@@ -869,7 +892,10 @@ export function bodyZones(body: Body): SurfaceZone[] {
   if (body.kind !== "human-v1") return [];
   if (body.section === "full-body") return [...surfaceZones];
   if (body.section === "neck") return ["neck"];
-  if (body.section === "upper-body") return ["trunk", "left-arm", "right-arm"];
+  if (body.section === "upper-body")
+    return (body.model?.revision ?? 0) >= 5
+      ? ["trunk", "neck"]
+      : ["trunk", "left-arm", "right-arm"];
   return [
     `${body.side}-${body.section === "full-arm" ? "arm" : "leg"}` as SurfaceZone,
   ];
@@ -885,13 +911,21 @@ export function humanScale(body: HumanBody) {
     body.length /
     (body.section === "full-body"
       ? body.model?.sex === "female"
-        ? 15.5677456856
-        : 15.5738158226
+        ? (body.model?.revision ?? 0) >= 5
+          ? 15.1677456856
+          : 15.5677456856
+        : (body.model?.revision ?? 0) >= 5
+          ? 15.1738158226
+          : 15.5738158226
       : body.section === "neck"
-        ? 1.4
+        ? (body.model?.revision ?? 0) >= 5
+          ? 1
+          : 1.4
         : body.section === "upper-body"
           ? body.model
-            ? 5.7
+            ? body.model.revision >= 5
+              ? 6.4
+              : 5.7
             : 5.5
           : body.section === "full-arm"
             ? 7.9
@@ -914,12 +948,16 @@ export function humanChartSize(body: HumanBody, zone = bodyZones(body)[0]) {
       body.build,
     height:
       (zone === "neck"
-        ? 1.4
+        ? (body.model?.revision ?? 0) >= 5
+          ? 1
+          : 1.4
         : zone === "trunk"
           ? body.model
-            ? body.model.revision === 4
-              ? 5.4
-              : 5.7
+            ? body.model.revision === 5
+              ? 6.4
+              : body.model.revision >= 4
+                ? 5.4
+                : 5.7
             : 5.5
           : zone?.endsWith("leg")
             ? 9

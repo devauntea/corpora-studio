@@ -1,5 +1,6 @@
+import { referenceSkin } from "./reference-skin";
 import * as THREE from "three";
-import type { HumanBody } from "./domain";
+import { humanScale, type HumanBody } from "./domain";
 import { muscleGroups } from "./muscles";
 export type DetailLandmarks = {
   wrist: number[];
@@ -43,16 +44,21 @@ export function addSculptedSurfaceDetail(
     toeJoints: { value: landmarks.toes.flat().map(vec) },
     detailScale: {
       value:
-        body.length /
-        (body.section === "upper-body"
-          ? 570
-          : body.section === "full-arm"
-            ? 790
-            : 900),
+        body.model?.revision === 5
+          ? humanScale(body) / 100
+          : body.length /
+            (body.section === "upper-body"
+              ? 570
+              : body.section === "full-arm"
+                ? 790
+                : 900),
     },
   };
   material.userData.surfaceUniforms = uniforms;
-  material.customProgramCacheKey = () => "surface-v3-sculpt-1";
+  material.customProgramCacheKey = () =>
+    body.model!.revision >= 5
+      ? "surface-v5-reference-1"
+      : "surface-v3-sculpt-1";
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader =
@@ -229,5 +235,6 @@ export function addSculptedSurfaceDetail(
       roughnessFactor = clamp(roughnessFactor + (poreNoise-0.5)*0.06*(1.0-anatomyMix) + anatomyMix*0.08,0.4,0.9);
     `,
     );
+    if (body.model!.revision >= 5) referenceSkin(shader);
   };
 }

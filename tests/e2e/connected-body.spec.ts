@@ -23,14 +23,12 @@ test("continuous body, neck and connected distortion placement survive saving", 
             .getAttribute("data-rendered-body")) || "{}",
         ),
       )
-      .toMatchObject({ section, model: { revision: 4 } });
+      .toMatchObject({ section, model: { revision: 5 } });
   await page.getByLabel("Body region").selectOption("full-body");
   await ready("full-body");
-  await page
-    .locator(".viewport")
-    .screenshot({
-      path: `qa/next-features/full-body-${info.project.name}.png`,
-    });
+  await page.locator(".viewport").screenshot({
+    path: `qa/next-features/full-body-${info.project.name}.png`,
+  });
   await page.getByRole("switch", { name: "Muscle anatomy guide" }).click();
   await expect
     .poll(async () =>
@@ -41,11 +39,9 @@ test("continuous body, neck and connected distortion placement survive saving", 
       ),
     )
     .toMatchObject({ anatomy: true });
-  await page
-    .locator(".viewport")
-    .screenshot({
-      path: `qa/next-features/full-anatomy-${info.project.name}.png`,
-    });
+  await page.locator(".viewport").screenshot({
+    path: `qa/next-features/full-anatomy-${info.project.name}.png`,
+  });
   await page.getByLabel("Body region").selectOption("neck");
   await ready("neck");
   await page
@@ -73,17 +69,15 @@ test("continuous body, neck and connected distortion placement survive saving", 
   await expect(
     page.getByText(/mapped triangles\. 95th percentile/),
   ).toBeVisible();
-  await page
-    .locator(".viewport")
-    .screenshot({
-      path: `qa/next-features/connected-${info.project.name}.png`,
-    });
+  await page.locator(".viewport").screenshot({
+    path: `qa/next-features/connected-${info.project.name}.png`,
+  });
   const dl = page.waitForEvent("download");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   const path = info.outputPath("connected.formstudio");
   await (await dl).saveAs(path);
   const saved = JSON.parse(await fs.readFile(path, "utf8"));
-  expect(saved.layers[0].surface).toMatchObject({ revision: 4, sex: "male" });
+  expect(saved.layers[0].surface).toMatchObject({ revision: 5, sex: "male" });
   await page
     .getByRole("switch", { name: "Connected surface placement" })
     .click();

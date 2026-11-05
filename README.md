@@ -1,10 +1,11 @@
-# Form Studio 0.9.0
+# Form Studio 0.10.0
 
 A local desktop studio for tattoo composition, artwork preparation and measurement-driven fashion design.
 
-Open `releases/Form Studio 0.9.0.app` on this Mac. Save work in an older session before switching versions; previous release bundles are preserved.
+Open `releases/Form Studio 0.10.0.app` on this Mac. Save work in an older session before switching versions; previous release bundles are preserved.
 
 - **Body studio:** fit/average male and female full arms, upper bodies, full legs, neck and full body from the neck down. Toggle the colored muscle guide, pose arms independently and inspect named regions. Connected placements cross chart boundaries; distortion inspection reports triangle stretch.
+- **Body revision 5:** torso-only upper bodies, rounded lower pectorals, clearer back muscle planes, fuller average builds, clean section cuts, refined skin/nail shading and 30 skin colors. Chest flex, back flex and full-body double-biceps presets deform the tattoo-bearing surface. Older saved bodies retain their original mesh. See the [body review](docs/body-fidelity-0.10.md).
 - **Personal fitting:** import front/side photographs, confirm landmarks, enter height and optional tape measurements, optimize locally, review residuals and apply the fitted torso shape.
 - **Artwork studio:** crop; key a light, dark or sampled background; erase/restore; draw pressure-sensitive strokes; adjust tone and contrast; export transparent PNG. Original images remain embedded unchanged.
 - **Stencil studio:** select traced centerlines, set line width in millimeters, calibrate a printer with a 50 mm square, and export mirrored or normal true-size PDF/PNG with physical resolution metadata.
@@ -43,7 +44,7 @@ npm run desktop:build
 
 Choose **Place** (`G`) and click/drag a surface. Numeric controls adjust width, position, rotation and stretch. Enable connected placement to cross local chart seams; changing incompatible mesh revisions clears those anchors. **Orbit** (`V`), scroll, right-drag, presets and Fit model control the view. Turning on muscle colors does not alter saved artwork.
 
-Save is `Cmd+S`, Save As `Shift+Cmd+S`, Open `Cmd+O`, Undo/Redo `Cmd+Z` / `Shift+Cmd+Z`, and Export `Cmd+E` (Ctrl equivalents in the Windows harness). Project history keeps 100 changes; image editing has its own session history. Applying image edits is one project undo step. Version 9 documents open versions 1–8 after validating and migrating them, keeping old surfaces intact. The first save of an older document creates a new copy.
+Save is `Cmd+S`, Save As `Shift+Cmd+S`, Open `Cmd+O`, Undo/Redo `Cmd+Z` / `Shift+Cmd+Z`, and Export `Cmd+E` (Ctrl equivalents in the Windows harness). Project history keeps 100 changes; image editing has its own session history. Applying image edits is one project undo step. Version 10 documents open versions 1–9 after validating and migrating them, keeping old surfaces intact. The first save of an older document creates a new copy.
 
 ## Practical limits
 

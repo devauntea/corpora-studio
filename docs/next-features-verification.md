@@ -29,3 +29,7 @@ A private showcase of selected studies was published from source commit `fc4cd29
 The final Mac application was rebuilt after the focus fix, copied to `releases/Form Studio 0.9.0.app`, and passed ad-hoc `codesign --verify --deep --strict`. It was launched. Executable SHA-256: `2e71c041a185cc48b51be9d4f8c0761024861075a9a91a8c63240b004bea929b`. Both attempts to inspect the native app were blocked by the locked Mac; native save/open/portfolio system dialogs remain unverified. The user was asked to unlock it. A browser test is not evidence of native dialog interaction.
 
 Developer ID and notarization environment checks both returned false. No Apple notarization was attempted. Windows qualification and signed-release workflows were created but were not run on a Windows host. No sewn toile, physical cylinder sample, tape-measured garment/body cohort, artist stencil-paper test or qualified anatomy review was performed. Synthetic test inputs are not physical validation observations.
+
+## Follow-up on native dialogs
+
+After the user unlocked the Mac, the packaged 0.9 native Save As panel was observed. A complete save/open/portfolio-export round trip was not finished before the user redirected work to body fidelity. That native round trip remains unverified; it is not represented as a successful check. The later body work is recorded in [0.10 body fidelity](body-fidelity-0.10.md).

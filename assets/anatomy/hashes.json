@@ -39,6 +39,10 @@
   "human-v4-female.json": "ac1064b8cad865d586f72a079ea165c8afd0afe60a418af24af2c0aef0113bcf",
   "human-v4-male.bin": "dc9c87696b95efc4e743150cf42db7da737081819125b1d2ba51056974fe1fb0",
   "human-v4-male.json": "8061aa759af8e26c548ff68fea373fc0a1834849582110e0bceeb9b26ef21538",
+  "human-v5-female.bin": "902d5ccab2a7cb2065d4345f28a24e79942d996bb8691c5a8c8d9911327d94f3",
+  "human-v5-female.json": "ae4c07d040a75b5f2fedb12441738f87d4921722c454e26d0cb76060bed2a714",
+  "human-v5-male.bin": "a0a75eb3d98da76d1ba0fa70aee18f941d1a6eb663515dd78fcb590b4f6ab580",
+  "human-v5-male.json": "a653419206760d4e67a5cf05dd1db527ef2572b347f7fb4fb80e628e8e012973",
   "muscle-field-v2-female.bin": "f2af8ef9d9c919365d40914e318ff4e227b126f1f0fd249e65dc513dc4fc1f4d",
   "muscle-field-v2-female.json": "62232f9131b137f4539d702e7653094450aba73000b5ab23539fde67ea408295",
   "muscle-field-v2-male.bin": "2013cf02efd785c5919355491cdbed231919e0b61c593b5ccfc73fce07eb6f8d",
@@ -50,5 +54,11 @@
   "muscle-field-v4-female.bin": "5fc17653499fbd4724531a0f71baca7a1ce613dfd45dfce92c9bf0eb7834a1a3",
   "muscle-field-v4-female.json": "90dc1d3ac88d372e7221245cc57465205e9a3f716eb6e8b622a84a0f645fbbe4",
   "muscle-field-v4-male.bin": "ad27b72bfb1a2bf4a54d9574ec7ffe5c39c6803fa71b1ee462eedf4f2133f5d6",
-  "muscle-field-v4-male.json": "c5f19ab8393f649ce3674aa4aaf5d3e6ab76037073fc05203c52fac7d35fd49b"
+  "muscle-field-v4-male.json": "c5f19ab8393f649ce3674aa4aaf5d3e6ab76037073fc05203c52fac7d35fd49b",
+  "muscle-field-v5-female.bin": "9f6151972ab6e8e3774509d3890f40f9ab53fa5f93899b345ef3f0e37e9e5dfb",
+  "muscle-field-v5-female.json": "b2d8ca0d8d94b752457f459464e14f5313ec1042c87423b1de11ea225456432a",
+  "muscle-field-v5-male.bin": "3d135a7470f798af6b668045b8b3ee8872a8808e92a65b03dea1d26f9266fddd",
+  "muscle-field-v5-male.json": "8582f31425d2c8150693f917e9f07fb8b138c1c339ca608a4ba3bc7f8a46d7df",
+  "skin-occlusion-v5-female.bin": "bc09e27be101f0c0a7a2d8b3a6851d888e82e55abae8c29415dc93d73ca81c98",
+  "skin-occlusion-v5-male.bin": "4fe03d785a868d2a7c8b8777650cae7170697c69e1d693df054bb50a390c034e"
 }

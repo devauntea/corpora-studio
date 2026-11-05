@@ -83,6 +83,12 @@ test("detailed body library, registered muscle filter and saved choices", async 
       path: info.outputPath(`anatomy-${view.toLowerCase()}.png`),
     });
   }
+  await expect(
+    page.getByRole("spinbutton", { name: "Elbow flex", exact: true }),
+  ).toHaveCount(0);
+  await page.getByLabel("Body region").selectOption("full-arm");
+  await ready({ section: "full-arm" });
+  await page.getByRole("switch", { name: "Muscle anatomy guide" }).click();
   await page.getByRole("button", { name: "Bent 90°", exact: true }).click();
   await ready({ armPose: { left: { flex: 90 } } });
   await page.getByRole("button", { name: "front", exact: true }).click();
@@ -94,9 +100,9 @@ test("detailed body library, registered muscle filter and saved choices", async 
   const file = info.outputPath("detailed.formstudio");
   await (await downloading).saveAs(file);
   const saved = JSON.parse(await fs.readFile(file, "utf8"));
-  expect(saved.version).toBe(9);
+  expect(saved.version).toBe(10);
   expect(saved.body.model).toEqual({
-    revision: 3,
+    revision: 5,
     sex: "male",
     physique: "fit",
     anatomyOpacity: 1,

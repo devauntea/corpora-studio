@@ -1,4 +1,5 @@
 import { deformBodyPoint } from "./body-fitting";
+import { flexTorso } from "./muscle-pose";
 import { SurfaceDecals } from "./surface-decals";
 import * as THREE from "three";
 import {
@@ -21,8 +22,11 @@ export type HumanMeshData = {
   muscleColors?: Uint8Array;
   muscleIds?: Uint8Array;
   muscleInfluences?: Uint8Array;
+  skinOcclusion?: Uint8Array;
   detailLandmarks?: DetailLandmarks;
   parts: number[][];
+  sectionLegs?: number[][];
+  sectionTorso?: number[];
   joints: Record<
     "L" | "R",
     Record<"shoulder" | "elbow" | "wrist" | "hip" | "knee" | "ankle", number[]>
@@ -65,15 +69,27 @@ export function loadHuman(body?: HumanBody): Promise<HumanMeshData> {
         const sculpted = body!.model!.revision >= 3;
         if (field.length !== meta.vertexCount * (sculpted ? 12 : 4))
           throw new Error("The muscle atlas does not match this body.");
+        let skinOcclusion: Uint8Array | undefined;
+        if (meta.occlusion) {
+          const response = await fetch(`/anatomy/${meta.occlusion.buffer}`);
+          if (!response.ok)
+            throw new Error("The skin detail field could not load.");
+          skinOcclusion = new Uint8Array(await response.arrayBuffer());
+          if (skinOcclusion.length !== meta.vertexCount * 2)
+            throw new Error("The skin detail field does not match this body.");
+        }
         return {
           vertices,
-          parts,
+          parts: meta.sectionLegParts ? parts.slice(0, 6) : parts,
+          sectionLegs: meta.sectionLegParts ? parts.slice(6, 8) : undefined,
+          sectionTorso: meta.sectionTorsoPart ? parts[8] : undefined,
           joints: meta.joints,
           muscleColors: field.subarray(0, meta.vertexCount * 3),
           muscleIds: field.subarray(meta.vertexCount * 3, meta.vertexCount * 4),
           muscleInfluences: sculpted
             ? field.subarray(meta.vertexCount * 4)
             : undefined,
+          skinOcclusion,
           detailLandmarks: meta.detailLandmarks,
         };
       })().catch((e) => {
@@ -130,6 +146,13 @@ export function muscleAtHit(hit: THREE.Intersection): number | undefined {
 }
 
 export function humanGeometries(data: HumanMeshData, body: HumanBody) {
+  const torsoOnly = body.model?.revision === 5 && body.section === "upper-body";
+  const part = (zone: SurfaceZone) =>
+    torsoOnly && zone === "trunk" && data.sectionTorso
+      ? data.sectionTorso
+      : body.section === "full-leg" && data.sectionLegs
+        ? data.sectionLegs[zone.startsWith("left") ? 0 : 1]
+        : data.parts[zones.indexOf(zone)];
   const scale = humanScale(body);
   const points: THREE.Vector3[] = [],
     rests: THREE.Vector3[] = [];
@@ -156,7 +179,14 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
       upperLength: elbow.distanceTo(shoulder),
       flexAxis: isLeg
         ? new THREE.Vector3(-1, 0, 0)
-        : new THREE.Vector3(armAxis.y, -armAxis.x, 0).normalize(),
+        : new THREE.Vector3(armAxis.y, -armAxis.x, 0)
+            .normalize()
+            .applyAxisAngle(
+              armAxis,
+              body.model?.revision === 5 && body.musclePose === "double-biceps"
+                ? (-sign * Math.PI) / 2
+                : 0,
+            ),
       flex: THREE.MathUtils.degToRad(isLeg ? body.flex : pose.flex),
       twist: THREE.MathUtils.degToRad(sign * pose.twist),
       raise: THREE.MathUtils.degToRad(sign * (pose.raise - 20)),
@@ -167,16 +197,21 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
     const rest = vector(v),
       p = vector(
         deformBodyPoint(
-          rest
-            .clone()
-            .addScaledVector(vector(v.slice(3, 6)), body.muscularity)
-            .toArray(),
+          flexTorso(
+            rest
+              .clone()
+              .addScaledVector(vector(v.slice(3, 6)), body.muscularity)
+              .toArray(),
+            v.slice(6),
+            body,
+          ),
           v.slice(6),
           body.fitting,
         ),
       );
     rests.push(rest);
     for (const rig of rigs) {
+      if (torsoOnly) continue;
       const {
         k,
         shoulder,
@@ -213,7 +248,17 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
         v[k + (isLeg ? 2 : 1)],
         !!body.model,
       );
-      if (!isLeg) blendJoint(p, shoulder, zAxis, raise, v[k], !!body.model);
+      if (!isLeg) {
+        // A detached arm rotates as a whole at the shoulder. Blending that
+        // rotation into an absent torso bends its cut rim and folds the cap.
+        const weight =
+          body.model?.revision === 5 && body.section === "full-arm"
+            ? body.side === (k === 6 ? "left" : "right")
+              ? 1
+              : 0
+            : v[k];
+        blendJoint(p, shoulder, zAxis, raise, weight, !!body.model);
+      }
     }
     p.x *= body.build;
     p.z *= body.build;
@@ -223,7 +268,7 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
   const centerBounds = new THREE.Box3();
   // Framing remains fixed across poses and morphs, so changing flex does not move the whole model.
   for (const zone of selected)
-    for (const i of data.parts[zones.indexOf(zone)]) {
+    for (const i of part(zone)) {
       const p = rests[i].clone();
       if (zone.endsWith("arm")) {
         const sign = zone.startsWith("left") ? 1 : -1,
@@ -246,11 +291,18 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
       3,
     ),
   );
-  whole.setIndex(data.parts.flat());
+  whole.setIndex(
+    torsoOnly && data.sectionTorso
+      ? [...data.sectionTorso, ...data.parts[5]]
+      : body.section === "full-leg" && data.sectionLegs
+        ? data.sectionLegs.flat()
+        : data.parts.flat(),
+  );
   whole.computeVertexNormals();
   const normals = whole.getAttribute("normal");
   const result = selected.map((zone) => {
     const positions: number[] = [],
+      occlusion: number[] = [],
       uv: number[] = [],
       ns: number[] = [],
       colors: number[] = [],
@@ -259,7 +311,7 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
       musclePalette: number[] = [],
       muscleWeights: number[] = [],
       sourceIds: number[] = [];
-    const indices = data.parts[zones.indexOf(zone)];
+    const indices = part(zone);
     const side = zone.startsWith("right") ? "R" : "L",
       j = joints[side];
     const arm = zone.endsWith("arm"),
@@ -279,16 +331,18 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
       if (zone === "neck")
         return [
           0.5 + Math.atan2(p.x, p.z + 0.15) / (Math.PI * 2),
-          (p.y - 6) / 1.4,
+          (p.y - 6) / ((body.model?.revision ?? 0) >= 5 ? 1 : 1.4),
         ];
       if (!arm && !leg)
         return [
           0.5 + Math.atan2(p.x, p.z + 0.15) / (Math.PI * 2),
-          body.model?.revision === 4
-            ? (p.y - 0.6) / 5.4
-            : body.model
-              ? (p.y - 1.2) / 5.7
-              : (p.y - 1.5) / 5.5,
+          body.model?.revision === 5
+            ? (p.y - 0.6) / 6.4
+            : (body.model?.revision ?? 0) >= 4
+              ? (p.y - 0.6) / 5.4
+              : body.model
+                ? (p.y - 1.2) / 5.7
+                : (p.y - 1.5) / 5.5,
         ];
       const q = p.clone().sub(start),
         along = q.dot(axis),
@@ -322,6 +376,13 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
       for (let c = 0; c < 3; c++) {
         const i = ids[c];
         positions.push(...points[i].toArray());
+        occlusion.push(
+          data.skinOcclusion
+            ? (data.skinOcclusion[i * 2] * (1 - body.muscularity) +
+                data.skinOcclusion[i * 2 + 1] * body.muscularity) /
+                255
+            : 1,
+        );
         sourceIds.push(i);
         if (data.muscleColors) {
           const color = new THREE.Color().setRGB(
@@ -364,6 +425,10 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     g.setAttribute("normal", new THREE.Float32BufferAttribute(ns, 3));
+    g.setAttribute(
+      "skinOcclusion",
+      new THREE.Float32BufferAttribute(occlusion, 1),
+    );
     g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
     g.setAttribute(
       "sourceIndex",
@@ -557,15 +622,24 @@ export class HumanSurface {
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.wrapS = THREE.RepeatWrapping;
       texture.anisotropy = 8;
-      const mesh = new THREE.Mesh(
-        geometry,
-        new THREE.MeshStandardMaterial({
-          map: texture,
-          vertexColors: !!body.model,
-          roughness: (body.model?.revision ?? 0) >= 3 ? 0.66 : 0.78,
-          side: THREE.DoubleSide,
-        }),
-      );
+      const material =
+        (body.model?.revision ?? 0) >= 5
+          ? new THREE.MeshPhysicalMaterial({
+              map: texture,
+              vertexColors: true,
+              roughness: 0.49,
+              side: THREE.DoubleSide,
+              envMapIntensity: 0.45,
+              ior: 1.4,
+              specularIntensity: 0.6,
+            })
+          : new THREE.MeshStandardMaterial({
+              map: texture,
+              vertexColors: !!body.model,
+              roughness: (body.model?.revision ?? 0) >= 3 ? 0.66 : 0.78,
+              side: THREE.DoubleSide,
+            });
+      const mesh = new THREE.Mesh(geometry, material);
       if ((body.model?.revision ?? 0) >= 3)
         addSculptedSurfaceDetail(
           mesh.material as THREE.MeshStandardMaterial,
@@ -640,6 +714,24 @@ export class HumanSurface {
           ),
         );
       normal.normalize();
+      if (body.model?.revision === 5) {
+        // Ear clipping respects a concave axillary rim; a center fan can cross
+        // the skin and expose a triangular flap below the shoulder section.
+        const u = loop[0].clone().sub(center).normalize();
+        const v = new THREE.Vector3().crossVectors(normal, u).normalize();
+        const ring = loop.slice(0, -1);
+        const flat = ring.map((p) => {
+          const d = p.clone().sub(center);
+          return new THREE.Vector2(d.dot(u), d.dot(v));
+        });
+        for (const triangle of THREE.ShapeUtils.triangulateShape(flat, [])) {
+          for (const index of triangle) {
+            capPositions.push(...ring[index].toArray());
+            capNormals.push(...normal.toArray());
+          }
+        }
+        continue;
+      }
       for (let i = 0; i < loop.length - 1; i++) {
         capPositions.push(
           ...center.toArray(),

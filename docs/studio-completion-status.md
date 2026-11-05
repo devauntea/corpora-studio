@@ -2,6 +2,8 @@
 
 The desktop app is the editing product. The separate portfolio displays finished exports. Version 0.9 implements software in all eight areas of `next-features-research.md`; the entire platform is not represented as physically or publicly qualified.
 
+The 0.10 body pass adds torso-only upper bodies, revised chest/back forms and muscle-flex presets. See [body fidelity and verification](body-fidelity-0.10.md). Near-1:1 similarity to the supplied commercial reference models is still not established.
+
 ## Delivered workflows
 
 1. Five garment designs through a generic FreeSewing adapter; reusable measurement profiles and interchange; nested size series; fabric/ease records; custom formula-driven pattern construction.

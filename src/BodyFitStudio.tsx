@@ -81,7 +81,12 @@ export function BodyFitStudio({
     setMessage("");
     try {
       BodyStudySchema.parse(study);
-      const target = photoFitTargets(study, project.assets, sex),
+      const target = photoFitTargets(
+          study,
+          project.assets,
+          sex,
+          body.model!.revision === 5 ? 5 : 4,
+        ),
         data = await loadHuman(body);
       if (c.signal.aborted) return;
       const vertices = new Float32Array(data.vertices.length * 3);
@@ -110,6 +115,7 @@ export function BodyFitStudio({
           length: target.length,
           sex,
           muscularity: body.muscularity,
+          modelRevision: body.model!.revision === 5 ? 5 : 4,
         },
       });
       setMessage("Fit computed. Review the residuals before applying.");
@@ -425,7 +431,7 @@ export function BodyFitStudio({
                       muscularity: r.muscularity,
                       fitting: r.shape,
                       model: {
-                        revision: 4,
+                        revision: r.modelRevision ?? 4,
                         sex: r.sex,
                         physique: r.muscularity > 0.5 ? "fit" : "average",
                         anatomyOpacity: 0.85,

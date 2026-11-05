@@ -1,0 +1,157 @@
+{
+  "vertexCount": 156419,
+  "groups": [
+    {
+      "name": "Pectoralis major",
+      "color": "#cb827b"
+    },
+    {
+      "name": "Rectus abdominis",
+      "color": "#be6485"
+    },
+    {
+      "name": "External oblique",
+      "color": "#8582b5"
+    },
+    {
+      "name": "Serratus anterior",
+      "color": "#c78091"
+    },
+    {
+      "name": "Trapezius",
+      "color": "#d18d96"
+    },
+    {
+      "name": "Latissimus dorsi",
+      "color": "#8aa6b8"
+    },
+    {
+      "name": "Infraspinatus",
+      "color": "#98bfb3"
+    },
+    {
+      "name": "Teres major",
+      "color": "#b39cbd"
+    },
+    {
+      "name": "Deltoid",
+      "color": "#b87da8"
+    },
+    {
+      "name": "Biceps brachii",
+      "color": "#9d81c4"
+    },
+    {
+      "name": "Triceps brachii",
+      "color": "#8bb9c5"
+    },
+    {
+      "name": "Brachialis",
+      "color": "#bb93b0"
+    },
+    {
+      "name": "Brachioradialis",
+      "color": "#a4be83"
+    },
+    {
+      "name": "Pronator teres",
+      "color": "#ca9a87"
+    },
+    {
+      "name": "Flexor carpi radialis",
+      "color": "#9c90bb"
+    },
+    {
+      "name": "Flexor carpi ulnaris",
+      "color": "#72ab9e"
+    },
+    {
+      "name": "Palmaris longus",
+      "color": "#d0ad7e"
+    },
+    {
+      "name": "Finger flexors",
+      "color": "#b7a0c5"
+    },
+    {
+      "name": "Extensor digitorum",
+      "color": "#9791bd"
+    },
+    {
+      "name": "Extensor carpi radialis",
+      "color": "#83b8b4"
+    },
+    {
+      "name": "Extensor carpi ulnaris",
+      "color": "#c193a7"
+    },
+    {
+      "name": "Thumb extensors",
+      "color": "#bfad82"
+    },
+    {
+      "name": "Rectus femoris",
+      "color": "#bd849a"
+    },
+    {
+      "name": "Vastus lateralis",
+      "color": "#b6bf7d"
+    },
+    {
+      "name": "Vastus medialis",
+      "color": "#9babc5"
+    },
+    {
+      "name": "Sartorius",
+      "color": "#cd9787"
+    },
+    {
+      "name": "Adductors",
+      "color": "#a894b9"
+    },
+    {
+      "name": "Tensor fasciae latae",
+      "color": "#9fb782"
+    },
+    {
+      "name": "Hamstrings",
+      "color": "#ae8bba"
+    },
+    {
+      "name": "Gastrocnemius",
+      "color": "#ba8195"
+    },
+    {
+      "name": "Soleus",
+      "color": "#8bb8aa"
+    },
+    {
+      "name": "Tibialis anterior",
+      "color": "#879dc2"
+    },
+    {
+      "name": "Fibularis",
+      "color": "#b3ba87"
+    },
+    {
+      "name": "Gluteus",
+      "color": "#c58e85"
+    },
+    {
+      "name": "Sternocleidomastoid",
+      "color": "#8cafb5"
+    },
+    {
+      "name": "Spinal extensors",
+      "color": "#aa9bbf"
+    }
+  ],
+  "license": "CC-BY-SA-4.0",
+  "source": "Z-Anatomy / BodyParts3D",
+  "revision": "679bc9bf746fdc2671398aa3857a8acff263a0fb",
+  "sha256": "9f6151972ab6e8e3774509d3890f40f9ab53fa5f93899b345ef3f0e37e9e5dfb",
+  "format": 5,
+  "bytesPerVertex": 12,
+  "influenceChannels": "4 uint8 palette indices (36=connective), then 4 uint8 weights per vertex",
+  "modifications": "Topology-aware label cleanup and smoothed categorical probabilities; original palette. The renderer adds authored fascicle and connective-tissue detail. Revision 5 retains vertex identities and interpolates categorical weights at neck, isolated-leg and torso shoulder cuts."
+}

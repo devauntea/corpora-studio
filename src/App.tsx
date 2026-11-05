@@ -1,3 +1,5 @@
+import { skinTones } from "./skin-tones";
+import { musclePoseArms, type MusclePose } from "./muscle-pose";
 import { PortfolioStudio } from "./PortfolioStudio";
 import { BodyFitStudio } from "./BodyFitStudio";
 import { LayerGroups } from "./LayerGroups";
@@ -620,7 +622,7 @@ export function App() {
         dispatch({ type: "reset", value: p });
         setSaved(p);
         setStudio(p.fashion ? "fashion" : "tattoo");
-        setPath(JSON.parse(text).version < 9 ? null : filePath);
+        setPath(JSON.parse(text).version < 10 ? null : filePath);
         setPhotoId(p.photos[0]?.id);
         setWorkspace(p.photos.length ? "photo" : "surface");
         setSelected(
@@ -633,7 +635,7 @@ export function App() {
         scene.current?.view("front", p.body.length);
         setView("front");
         alert(
-          JSON.parse(text).version < 9
+          JSON.parse(text).version < 10
             ? "Legacy project opened without changing placement. Save creates a new v8 copy."
             : "Project opened. All original image integrity checks passed.",
         );
@@ -1405,7 +1407,7 @@ export function App() {
         </aside>
 
         <section
-          className={`viewport ${workspace === "photo" ? "photo-mode" : ""} ${dragover ? "drag-over" : ""}`}
+          className={`viewport ${workspace === "photo" ? "photo-mode" : project.body.kind === "human-v1" && (project.body.model?.revision ?? 0) >= 5 ? "reference-stage" : ""} ${dragover ? "drag-over" : ""}`}
           aria-label="Tattoo workspace"
           onDragOver={(e) => {
             if (e.dataTransfer.types.includes("Files")) {
@@ -1534,7 +1536,7 @@ export function App() {
             >
               <Minus size={19} />
             </IconButton>
-            <IconButton label="Fit model" onClick={() => chooseView("front")}>
+            <IconButton label="Fit model" onClick={() => chooseView(view)}>
               <Maximize size={18} />
             </IconButton>
           </div>
@@ -2095,7 +2097,7 @@ export function App() {
                       aria-hidden="true"
                     >
                       {project.body.section === "upper-body" ? (
-                        <path d="M33 8v7l-14 6-7 22-6 25 5 2 10-23 5-14 2 16-3 18h30l-3-18 2-16 5 14 10 23 5-2-6-25-7-22-14-6V8M28 29l12 4 12-4M40 33v26" />
+                        <path d="M33 8v7L17 22l-6 9 12 8 5-5 1 15-4 18h30l-4-18 1-15 5 5 12-8-6-9-16-7V8M28 29l12 4 12-4M40 33v26" />
                       ) : project.body.section === "full-arm" ? (
                         <path d="M33 8c-10 4-12 15-8 26l8 17 3 18 4 5 2-2-1-12 4 8 3-1-3-18-6-18c2-10 2-20-6-23ZM29 31l8 4M34 49l8-2" />
                       ) : (
@@ -2155,6 +2157,12 @@ export function App() {
                                 e.target.value as (typeof regions)[number],
                                 project.body,
                               );
+                        if (
+                          body.kind === "human-v1" &&
+                          body.model &&
+                          e.target.value === "upper-body"
+                        )
+                          body.model.revision = 5;
                         change({
                           ...project,
                           body,
@@ -2179,7 +2187,11 @@ export function App() {
                           Full arm · shoulder to fingertips
                         </option>
                         <option value="upper-body">
-                          Upper body · chest, back & arms
+                          {project.body.kind === "human-v1" &&
+                          project.body.section === "upper-body" &&
+                          (project.body.model?.revision ?? 0) < 5
+                            ? "Upper body · with arms (legacy)"
+                            : "Upper body · torso only"}
                         </option>
                         <option value="full-leg">
                           Full leg · thigh to toes
@@ -2262,7 +2274,7 @@ export function App() {
                         <div className="section-label">
                           <span>BODY LIBRARY</span>
                         </div>
-                        {(project.body.model?.revision ?? 0) < 3 && (
+                        {(project.body.model?.revision ?? 0) < 5 && (
                           <p className="field-note">
                             Saved surface preserved. Choose a body preset below
                             to use the latest sculpt.
@@ -2282,11 +2294,7 @@ export function App() {
                                 if (project.body.kind !== "human-v1") return;
                                 editBody({
                                   model: {
-                                    revision:
-                                      project.body.section === "full-body" ||
-                                      project.body.section === "neck"
-                                        ? 4
-                                        : 3,
+                                    revision: 5,
                                     sex,
                                     physique:
                                       project.body.model?.physique ?? "fit",
@@ -2320,11 +2328,7 @@ export function App() {
                                   muscularity: physique === "fit" ? 1 : 0,
                                   build: 1,
                                   model: {
-                                    revision:
-                                      project.body.section === "full-body" ||
-                                      project.body.section === "neck"
-                                        ? 4
-                                        : 3,
+                                    revision: 5,
                                     sex: project.body.model?.sex ?? "male",
                                     physique,
                                     anatomyOpacity:
@@ -2363,12 +2367,72 @@ export function App() {
                                 ? "Includes shoulder cap, upper arm, elbow, forearm and hand."
                                 : project.body.section === "full-leg"
                                   ? "Includes thigh, knee, calf, ankle and foot."
-                                  : "Connected neck, shoulders, chest, abdomen, back and both complete arms."}{" "}
+                                  : project.body.model?.revision === 5
+                                    ? "Torso only: neck, shoulders, chest, abdomen and back. Full arms are a separate template."
+                                    : "Connected chest, abdomen, back and both complete arms."}{" "}
                           Scale is approximate; local chart distortion varies.
                         </p>
                         <div className="section-label">
                           <span>ANATOMY & MOVEMENT</span>
                         </div>
+                        {project.body.model?.revision === 5 &&
+                          ["upper-body", "full-body"].includes(
+                            project.body.section,
+                          ) && (
+                            <>
+                              <label className="select-field">
+                                Muscle pose
+                                <select
+                                  aria-label="Muscle pose"
+                                  value={project.body.musclePose ?? "relaxed"}
+                                  onChange={(e) => {
+                                    const body = project.body;
+                                    if (body.kind !== "human-v1") return;
+                                    const musclePose = e.target
+                                      .value as MusclePose;
+                                    editBody({
+                                      musclePose,
+                                      muscleTension: body.muscleTension ?? 0.8,
+                                      ...(body.section === "full-body"
+                                        ? {
+                                            armPose: musclePoseArms(musclePose),
+                                          }
+                                        : {}),
+                                    });
+                                  }}
+                                >
+                                  <option value="relaxed">Relaxed</option>
+                                  <option value="chest-flex">Chest flex</option>
+                                  <option value="back-flex">Back flex</option>
+                                  {project.body.section === "full-body" && (
+                                    <option value="double-biceps">
+                                      Double biceps
+                                    </option>
+                                  )}
+                                </select>
+                              </label>
+                              {project.body.musclePose &&
+                                project.body.musclePose !== "relaxed" && (
+                                  <NumberField
+                                    label="Muscle tension"
+                                    value={
+                                      (project.body.muscleTension ?? 0.8) * 100
+                                    }
+                                    min={0}
+                                    max={100}
+                                    unit="%"
+                                    onChange={(value) =>
+                                      editBody({ muscleTension: value / 100 })
+                                    }
+                                  />
+                                )}
+                              <p className="field-note">
+                                Compare relaxed and flexed shapes. Your tattoo
+                                follows the surface. Flex is an artistic
+                                preview.
+                              </p>
+                            </>
+                          )}
                         <Toggle
                           label="Muscle anatomy guide"
                           checked={project.body.anatomy}
@@ -2401,71 +2465,86 @@ export function App() {
                             }}
                           />
                         )}
-                        {project.body.section === "upper-body" && (
-                          <div className="segmented" aria-label="Arm to pose">
-                            {(["left", "right"] as const).map((side) => (
-                              <button
-                                key={side}
-                                className={
-                                  project.body.side === side ? "active" : ""
+                        {project.body.section !== "neck" &&
+                          !(
+                            project.body.section === "upper-body" &&
+                            project.body.model?.revision === 5
+                          ) && (
+                            <>
+                              {["upper-body", "full-body"].includes(
+                                project.body.section,
+                              ) && (
+                                <div
+                                  className="segmented"
+                                  aria-label="Arm to pose"
+                                >
+                                  {(["left", "right"] as const).map((side) => (
+                                    <button
+                                      key={side}
+                                      className={
+                                        project.body.side === side
+                                          ? "active"
+                                          : ""
+                                      }
+                                      onClick={() => editBody({ side })}
+                                    >
+                                      {side === "left"
+                                        ? "Pose left arm"
+                                        : "Pose right arm"}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                              <NumberField
+                                label={
+                                  project.body.section === "full-leg"
+                                    ? "Knee flex"
+                                    : "Elbow flex"
                                 }
-                                onClick={() => editBody({ side })}
-                              >
-                                {side === "left"
-                                  ? "Pose left arm"
-                                  : "Pose right arm"}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        <NumberField
-                          label={
-                            project.body.section === "full-leg"
-                              ? "Knee flex"
-                              : "Elbow flex"
-                          }
-                          value={
-                            project.body.section === "full-leg"
-                              ? project.body.flex
-                              : armPose(project.body).flex
-                          }
-                          min={0}
-                          max={110}
-                          unit="°"
-                          onChange={(flex) => editPose({ flex })}
-                        />
-                        {project.body.section !== "full-leg" && (
-                          <>
-                            <NumberField
-                              label="Shoulder elevation"
-                              value={armPose(project.body).raise}
-                              min={0}
-                              max={120}
-                              unit="°"
-                              onChange={(raise) => editPose({ raise })}
-                            />
-                            <NumberField
-                              label="Forearm rotation"
-                              value={armPose(project.body).twist}
-                              min={-90}
-                              max={90}
-                              unit="°"
-                              onChange={(twist) => editPose({ twist })}
-                            />
-                          </>
-                        )}
-                        <div className="segmented">
-                          <button
-                            onClick={() =>
-                              editPose({ flex: 0, raise: 0, twist: 0 })
-                            }
-                          >
-                            Relaxed
-                          </button>
-                          <button onClick={() => editPose({ flex: 90 })}>
-                            Bent 90°
-                          </button>
-                        </div>
+                                value={
+                                  project.body.section === "full-leg"
+                                    ? project.body.flex
+                                    : armPose(project.body).flex
+                                }
+                                min={0}
+                                max={110}
+                                unit="°"
+                                onChange={(flex) => editPose({ flex })}
+                              />
+                              {project.body.section !== "full-leg" && (
+                                <>
+                                  <NumberField
+                                    label="Shoulder elevation"
+                                    value={armPose(project.body).raise}
+                                    min={0}
+                                    max={120}
+                                    unit="°"
+                                    onChange={(raise) => editPose({ raise })}
+                                  />
+                                  <NumberField
+                                    label="Forearm rotation"
+                                    value={armPose(project.body).twist}
+                                    min={-90}
+                                    max={90}
+                                    unit="°"
+                                    onChange={(twist) => editPose({ twist })}
+                                  />
+                                </>
+                              )}
+                              <div className="segmented">
+                                <button
+                                  onClick={() =>
+                                    editPose({ flex: 0, raise: 0, twist: 0 })
+                                  }
+                                >
+                                  Relaxed
+                                </button>
+                                <button onClick={() => editPose({ flex: 90 })}>
+                                  Bent 90°
+                                </button>
+                              </div>
+                            </>
+                          )}
                         {project.body.anatomy && (
                           <div className="muscle-legend">
                             {project.body.model
@@ -2477,7 +2556,11 @@ export function App() {
                                         ? i >= 8 && i <= 21
                                         : project.body.section === "full-leg"
                                           ? i >= 22 && i <= 33
-                                          : i <= 21 || i >= 34),
+                                          : project.body.section ===
+                                                "upper-body" &&
+                                              project.body.model?.revision === 5
+                                            ? i <= 8 || i >= 34
+                                            : i <= 21 || i >= 34),
                                   )
                                   .map((g) => (
                                     <div key={g.name}>
@@ -2503,7 +2586,11 @@ export function App() {
                         )}
                         <p className="field-note">
                           {project.body.section === "upper-body" &&
+                            project.body.model?.revision !== 5 &&
                             "Pose each arm independently. Use Fit model to frame a raised pose. "}
+                          {project.body.section === "upper-body" &&
+                            project.body.model?.revision === 5 &&
+                            "Torso only, with closed shoulder ends. Choose Full arm to design a sleeve. "}
                           {project.body.model
                             ? "Registered superficial muscle map. Colors identify muscle groups; point at the model for names and flow. "
                             : "Schematic superficial muscle guide. "}
@@ -2583,15 +2670,7 @@ export function App() {
                     <span>SURFACE TONE</span>
                   </div>
                   <div className="skin-swatches">
-                    {[
-                      "#d4d0cb",
-                      "#e0bfa5",
-                      "#c49b7d",
-                      "#af805e",
-                      "#8c5f43",
-                      "#654532",
-                      "#453328",
-                    ].map((skin) => (
+                    {skinTones.map((skin) => (
                       <button
                         aria-label={`Skin tone ${skin}`}
                         style={{ background: skin }}
@@ -2656,7 +2735,7 @@ export function App() {
                 ? `Orbit p95 ${stats.p95.toFixed(1)} ms · ${stats.frames} frames · ${stats.triangles.toLocaleString()} triangles`
                 : "WebGL 2 · Surface mapping"}
           </button>
-          <span className="status-separator">/</span>FORM STUDIO 0.9
+          <span className="status-separator">/</span>FORM STUDIO 0.10
         </span>
       </footer>
       {notice && (

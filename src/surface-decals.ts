@@ -117,7 +117,15 @@ export class SurfaceDecals {
           map = await mapSurfaceInWorker(
             {
               positions,
-              indices: new Uint32Array(this.data.parts.flat()),
+              indices: new Uint32Array(
+                this.body.model!.revision >= 5
+                  ? [...this.charts.values()].flatMap(({ mesh }) =>
+                      Array.from(
+                        mesh.geometry.getAttribute("sourceIndex").array,
+                      ),
+                    )
+                  : this.data.parts.flat(),
+              ),
               seed: a.vertex,
               radius,
             },
