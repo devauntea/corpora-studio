@@ -3,7 +3,7 @@ import { BodyStudySchema, FitShapeSchema } from "./legacy-body-fitting-v9";
 import { LatticeSchema } from "./lattice-warp";
 import { QuadSchema } from "./photo-warp";
 import { ProcessingSchema } from "./image-processing";
-import { FashionSchema } from "./fashion-model";
+import { FashionSchema } from "./legacy-fashion-v10";
 import { z } from "zod";
 
 const finite = (min: number, max: number) =>

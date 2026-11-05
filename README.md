@@ -1,8 +1,8 @@
-# Form Studio 0.10.0
+# Form Studio 0.11.0
 
 A local desktop studio for tattoo composition, artwork preparation and measurement-driven fashion design.
 
-Open `releases/Form Studio 0.10.0.app` on this Mac. Save work in an older session before switching versions; previous release bundles are preserved.
+Open `releases/Form Studio 0.11.0.app` on this Mac. Save work in an older session before switching versions; previous release bundles are preserved.
 
 - **Body studio:** fit/average male and female full arms, upper bodies, full legs, neck and full body from the neck down. Toggle the colored muscle guide, pose arms independently and inspect named regions. Connected placements cross chart boundaries; distortion inspection reports triangle stretch.
 - **Body revision 5:** torso-only upper bodies, rounded lower pectorals, clearer back muscle planes, fuller average builds, clean section cuts, refined skin/nail shading and 30 skin colors. Chest flex, back flex and full-body double-biceps presets deform the tattoo-bearing surface. Older saved bodies retain their original mesh. See the [body review](docs/body-fidelity-0.10.md).
@@ -10,7 +10,8 @@ Open `releases/Form Studio 0.10.0.app` on this Mac. Save work in an older sessio
 - **Artwork studio:** crop; key a light, dark or sampled background; erase/restore; draw pressure-sensitive strokes; adjust tone and contrast; export transparent PNG. Original images remain embedded unchanged.
 - **Stencil studio:** select traced centerlines, set line width in millimeters, calibrate a printer with a 50 mm square, and export mirrored or normal true-size PDF/PNG with physical resolution metadata.
 - **Photo composition:** placement, perspective corners, nine-point lattice, numeric keyboard controls, existing-ink protection, groups and review export.
-- **Fashion:** Teagan T-shirt, Brian bodice, Titan trousers, Sarah skirt and Simon woven shirt; required measurements and options; reusable profiles, JSON/SMIS interchange, independently drafted nested sizes and grade checks; fabric records and ease warnings.
+- **Fashion:** 65 searchable FreeSewing sewing patterns across tops, outerwear, bottoms, dresses, underwear, blocks and accessories; required measurements and options; reusable profiles, JSON/SMIS interchange, independently drafted nested sizes and grade checks; fabric records and ease warnings.
+- **Vector packs:** 12 editable front/back garment-flat starters; custom paths and Bezier editing; pockets/collars/cuffs/trims; construction callouts, size specifications and bills of materials. Export editable SVG, vector PDF, CSV and a manufacturer ZIP. See the [fashion guide](docs/fashion-workspace.md).
 - **Pattern construction:** custom panels, formula-linked anchors and cubic controls, per-edge allowances, grainlines, notches and dart guides. SVG and overlapping A4/Letter PDF exports retain true dimensions and calibration squares.
 - **Garment photo measurements:** four-corner reference calibration, editable endpoints, explicit ease/hidden-layer assumptions, draft-input transfer and tape/error CSV.
 - **3D drape:** arrange triangulated pattern panels, pair stitch ranges, set pins and material controls, run a local visual simulation against the body and export reports. A cylinder benchmark accepts a measured physical sample for comparison.
@@ -44,7 +45,7 @@ npm run desktop:build
 
 Choose **Place** (`G`) and click/drag a surface. Numeric controls adjust width, position, rotation and stretch. Enable connected placement to cross local chart seams; changing incompatible mesh revisions clears those anchors. **Orbit** (`V`), scroll, right-drag, presets and Fit model control the view. Turning on muscle colors does not alter saved artwork.
 
-Save is `Cmd+S`, Save As `Shift+Cmd+S`, Open `Cmd+O`, Undo/Redo `Cmd+Z` / `Shift+Cmd+Z`, and Export `Cmd+E` (Ctrl equivalents in the Windows harness). Project history keeps 100 changes; image editing has its own session history. Applying image edits is one project undo step. Version 10 documents open versions 1–9 after validating and migrating them, keeping old surfaces intact. The first save of an older document creates a new copy.
+Save is `Cmd+S`, Save As `Shift+Cmd+S`, Open `Cmd+O`, Undo/Redo `Cmd+Z` / `Shift+Cmd+Z`, and Export `Cmd+E` (Ctrl equivalents in the Windows harness). Project history keeps 100 changes; image editing has its own session history. Applying image edits is one project undo step. Version 11 documents open versions 1–10 after validating and migrating them, keeping old surfaces intact. The first save of an older document creates a new copy.
 
 ## Practical limits
 

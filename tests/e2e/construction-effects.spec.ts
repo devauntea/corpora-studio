@@ -74,7 +74,7 @@ test("manual curves, edge allowances, notches and darts persist independently of
   const file = info.outputPath("construction.formstudio");
   await (await download).saveAs(file);
   const stored = JSON.parse(await fs.readFile(file, "utf8"));
-  expect(stored.version).toBe(10);
+  expect(stored.version).toBe(11);
   expect(stored.fashion.construction.front.darts).toHaveLength(1);
   expect(stored.fashion.construction.front.allowances).toContain(18);
   await page.getByRole("button", { name: "New project", exact: true }).click();

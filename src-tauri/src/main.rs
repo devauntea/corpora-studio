@@ -40,7 +40,8 @@ fn validate_envelope(content: &str) -> Result<(), String> {
             && v["version"] != 7
             && v["version"] != 8
             && v["version"] != 9
-            && v["version"] != 10)
+            && v["version"] != 10
+            && v["version"] != 11)
     {
         return Err("Unsupported project format or version.".into());
     }
@@ -213,6 +214,58 @@ async fn save_pattern(
         let Some(path) = rfd::FileDialog::new()
             .add_filter("Sewing pattern", &[format.as_str()])
             .set_file_name(format!("{safe}-pattern.{format}"))
+            .save_file()
+        else {
+            return Ok(None);
+        };
+        atomic_write(&path, &bytes)?;
+        Ok(Some(path.to_string_lossy().into_owned()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn vector_pack_bytes(data: &str, format: &str) -> Result<Vec<u8>, String> {
+    if data.len() > 40_000_004 {
+        return Err("Vector export exceeds 30 MB.".into());
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|_| "Invalid vector pack bytes.")?;
+    if bytes.len() > 30_000_000 {
+        return Err("Vector export exceeds 30 MB.".into());
+    }
+    let valid = match format {
+        "zip" => bytes.starts_with(b"PK\x03\x04"),
+        "pdf" => bytes.starts_with(b"%PDF-"),
+        "svg" => bytes.starts_with(b"<?xml") && std::str::from_utf8(&bytes).is_ok(),
+        "json" => serde_json::from_slice::<serde_json::Value>(&bytes)
+            .map(|v| v["version"] == 1 && v["layers"].is_array())
+            .unwrap_or(false),
+        _ => false,
+    };
+    if valid {
+        Ok(bytes)
+    } else {
+        Err("Expected a generated vector pack ZIP, PDF, SVG or JSON.".into())
+    }
+}
+#[tauri::command]
+async fn save_vector_pack(
+    data: String,
+    name: String,
+    format: String,
+) -> Result<Option<String>, String> {
+    let bytes = vector_pack_bytes(&data, &format)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let safe: String = name
+            .chars()
+            .filter(|c| c.is_alphanumeric() || " -_".contains(*c))
+            .take(80)
+            .collect();
+        let Some(path) = rfd::FileDialog::new()
+            .add_filter("Vector pack", &[format.as_str()])
+            .set_file_name(format!("{safe}-vector-pack.{format}"))
             .save_file()
         else {
             return Ok(None);
@@ -426,6 +479,7 @@ fn main() {
             save_project,
             save_review,
             save_pattern,
+            save_vector_pack,
             save_text_file,
             save_portfolio,
             close_app,
@@ -495,6 +549,21 @@ mod tests {
         }
     }
     #[test]
+    fn vector_exports_validate_format_and_preserve_bytes() {
+        for (format, bytes) in [
+            ("zip", &b"PK\x03\x04test"[..]),
+            ("pdf", &b"%PDF-test"[..]),
+            ("svg", &b"<?xml version=\"1.0\"?><svg/>"[..]),
+            ("json", &b"{\"version\":1,\"layers\":[]}"[..]),
+        ] {
+            let data = base64::engine::general_purpose::STANDARD.encode(bytes);
+            assert_eq!(vector_pack_bytes(&data, format).unwrap(), bytes);
+            assert!(vector_pack_bytes(&data, "exe").is_err());
+        }
+        assert!(vector_pack_bytes("bad", "zip").is_err());
+    }
+
+    #[test]
     fn pattern_exports_validate_format_and_preserve_bytes() {
         let pdf = b"%PDF-1.4\nexample";
         let data = base64::engine::general_purpose::STANDARD.encode(pdf);
@@ -520,5 +589,6 @@ mod tests {
         assert!(validate_envelope(r#"{"format":"form-studio","version":8}"#).is_ok());
         assert!(validate_envelope(r#"{"format":"form-studio","version":9}"#).is_ok());
         assert!(validate_envelope(r#"{"format":"form-studio","version":10}"#).is_ok());
+        assert!(validate_envelope(r#"{"format":"form-studio","version":11}"#).is_ok());
     }
 }

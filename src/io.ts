@@ -151,3 +151,37 @@ export async function savePortfolio(bytes: Uint8Array, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   return "Downloaded portfolio";
 }
+
+export async function saveVectorPack(
+  bytes: Uint8Array,
+  name: string,
+  format: "zip" | "pdf" | "svg" | "json",
+) {
+  if (bytes.length > 30000000) throw new Error("Vector export exceeds 30 MB.");
+  if (native) {
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 8192)
+      binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+    return invoke<string | null>("save_vector_pack", {
+      data: btoa(binary),
+      name,
+      format,
+    });
+  }
+  const url = URL.createObjectURL(
+    new Blob([bytes as Uint8Array<ArrayBuffer>], {
+      type: {
+        zip: "application/zip",
+        pdf: "application/pdf",
+        svg: "image/svg+xml",
+        json: "application/json",
+      }[format],
+    }),
+  );
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${name.replace(/[^a-zA-Z0-9 _-]/g, "-").slice(0, 80) || "garment"}-vector-pack.${format}`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return "Downloaded vector pack";
+}

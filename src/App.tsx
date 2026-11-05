@@ -220,6 +220,9 @@ export function App() {
       ({ present: blankProject(), past: [], future: [] }) as History<Project>,
   );
   const project = history.present;
+  const [fashionMode, setFashionMode] = useState<"patterns" | "vectors">(
+    "patterns",
+  );
   const [studio, setStudio] = useState<"tattoo" | "fashion">("tattoo");
   const patternExporter = useRef<(() => Promise<void>) | null>(null);
   const [workspace, setWorkspace] = useState<"surface" | "photo">("surface");
@@ -622,7 +625,7 @@ export function App() {
         dispatch({ type: "reset", value: p });
         setSaved(p);
         setStudio(p.fashion ? "fashion" : "tattoo");
-        setPath(JSON.parse(text).version < 10 ? null : filePath);
+        setPath(JSON.parse(text).version < 11 ? null : filePath);
         setPhotoId(p.photos[0]?.id);
         setWorkspace(p.photos.length ? "photo" : "surface");
         setSelected(
@@ -635,8 +638,8 @@ export function App() {
         scene.current?.view("front", p.body.length);
         setView("front");
         alert(
-          JSON.parse(text).version < 10
-            ? "Legacy project opened without changing placement. Save creates a new v8 copy."
+          JSON.parse(text).version < 11
+            ? "Legacy project opened without changing placement. Save creates a new v11 copy."
             : "Project opened. All original image integrity checks passed.",
         );
       } catch (error) {
@@ -1102,7 +1105,11 @@ export function App() {
             <div className="breadcrumb">
               {studio === "fashion" ? "FASHION STUDIO" : "TATTOO STUDIO"}{" "}
               <span>/</span>{" "}
-              {studio === "fashion" ? "PATTERN DESIGN" : "COMPOSITION"}
+              {studio === "fashion"
+                ? fashionMode === "vectors"
+                  ? "VECTOR PACKS"
+                  : "PATTERN DESIGN"
+                : "COMPOSITION"}
             </div>
             <input
               aria-label="Project name"
@@ -1174,7 +1181,11 @@ export function App() {
             disabled={busy || !ready}
           >
             <Download size={15} />{" "}
-            {studio === "fashion" ? "Export pattern" : "Export review"}
+            {studio === "fashion"
+              ? fashionMode === "vectors"
+                ? "Export pack"
+                : "Export pattern"
+              : "Export review"}
           </button>
         </div>
       </div>
@@ -1185,7 +1196,9 @@ export function App() {
           }
         >
           <FashionWorkspace
+            key={project.id}
             value={project.fashion ?? initialFashion}
+            onModeChange={setFashionMode}
             assets={project.assets}
             body={project.body}
             onChange={editFashion}
@@ -2719,7 +2732,9 @@ export function App() {
           {busy ? "Working locally…" : "All processing on this device"}
           <span className="status-separator">/</span>
           {studio === "fashion"
-            ? "Pattern units · millimeters"
+            ? fashionMode === "vectors"
+              ? "Technical flats · specification units in pack"
+              : "Pattern units · millimeters"
             : workspace === "photo"
               ? "Photo coordinates · uncalibrated"
               : "Millimeters"}
@@ -2730,12 +2745,14 @@ export function App() {
             title="Toggle rendering diagnostics"
           >
             {studio === "fashion"
-              ? "Parametric pattern drafting"
+              ? fashionMode === "vectors"
+                ? "Editable garment flats"
+                : "Parametric pattern drafting"
               : showStats
                 ? `Orbit p95 ${stats.p95.toFixed(1)} ms · ${stats.frames} frames · ${stats.triangles.toLocaleString()} triangles`
                 : "WebGL 2 · Surface mapping"}
           </button>
-          <span className="status-separator">/</span>FORM STUDIO 0.10
+          <span className="status-separator">/</span>FORM STUDIO 0.11
         </span>
       </footer>
       {notice && (

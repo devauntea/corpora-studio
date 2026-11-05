@@ -1,3 +1,4 @@
+import { patternCatalog } from "./pattern-catalog";
 import { designNames } from "./fashion-model";
 import {
   layoutBounds,
@@ -73,8 +74,8 @@ export function patternSvg(draft: PatternDraft, f: Fashion, name: string) {
     height = b.height + 110;
   return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${b.width.toFixed(3)}mm" height="${height.toFixed(3)}mm" viewBox="${b.x} ${b.y - 110} ${b.width} ${height}">
 <title>${xml(name)} — sewing pattern in millimeters</title>
-<desc>Drafted locally using FreeSewing ${xml(designNames[f.design ?? "teagan"])} 4.10.2. ${manual ? "Manual pieces use their saved per-edge allowances." : `Seam allowance ${f.seamAllowance} mm; body and sleeve hems ${f.seamAllowance * 3} mm.`} Verify with a toile. Print at 100 percent.</desc>
-<g fill="#222" font-family="Arial, sans-serif"><text x="${b.x + 20}" y="${b.y - 85}" font-size="12">${xml(name)}</text><text x="${b.x + 20}" y="${b.y - 68}" font-size="6">${xml(f.profile)} · 1 SVG unit = 1 mm · Print at 100%</text><text x="${b.x + 20}" y="${b.y - 54}" font-size="5">Solid: cut · Dashed: stitch · Crosses: matching marks · ${manual ? "Manual pieces: individual edge allowances" : `SA ${f.seamAllowance} mm / hems ${f.seamAllowance * 3} mm`}</text><text x="${b.x + 20}" y="${b.y - 40}" font-size="5">${xml(designNames[f.design ?? "teagan"])} · Verify finishing and fit in a toile before cutting final fabric.</text></g>
+<desc>Drafted locally using FreeSewing ${xml(designNames[f.design ?? "teagan"])} 4.10.2. ${manual ? "Manual pieces use their saved per-edge allowances." : `Base seam allowance ${f.seamAllowance} mm; hems and folds follow the design rules.`} Assembly guide: ${patternCatalog[f.design ?? "teagan"].source} Verify with a toile. Print at 100 percent.</desc>
+<g fill="#222" font-family="Arial, sans-serif"><text x="${b.x + 20}" y="${b.y - 85}" font-size="12">${xml(name)}</text><text x="${b.x + 20}" y="${b.y - 68}" font-size="6">${xml(f.profile)} · 1 SVG unit = 1 mm · Print at 100%</text><text x="${b.x + 20}" y="${b.y - 54}" font-size="5">Solid: cut · Dashed: stitch · Crosses: matching marks · ${manual ? "Manual pieces: individual edge allowances" : `Base SA ${f.seamAllowance} mm / design-specific hems`}</text><text x="${b.x + 20}" y="${b.y - 40}" font-size="5">${xml(designNames[f.design ?? "teagan"])} · Verify finishing and fit in a toile before cutting final fabric.</text></g>
 <rect x="${b.x + b.width - 80}" y="${b.y - 90}" width="50" height="50" fill="none" stroke="#222" stroke-width="0.3"/>
 <text x="${b.x + b.width - 55}" y="${b.y - 30}" font-family="Arial, sans-serif" font-size="5" text-anchor="middle">50 × 50 mm</text>
 ${layoutPieces(draft, f)
@@ -119,13 +120,13 @@ export async function patternPdf(
     "Each piece has its own grid: rows top to bottom, columns left to right.",
     f.construction && Object.keys(f.construction).length
       ? "Manual pieces: individual edge allowances. Other pieces use the draft settings."
-      : `Seam allowance: ${f.seamAllowance} mm. Body and sleeve hems: ${f.seamAllowance * 3} mm.`,
+      : `Base seam allowance: ${f.seamAllowance} mm. Hems and folds follow the design rules.`,
     "Solid lines: cut. Dashed: stitch. Crosses: matching marks.",
     "Follow the cut instruction printed on each piece.",
     (f.design ?? "teagan") === "teagan"
       ? `Neckband: ${Math.round(f.bandRatio * 100)}% of neck opening; finished width ${f.bandWidth} mm.`
       : "Hem, fold and finishing lines follow this design. Read the assembly guide.",
-    "Test the recorded fabric and sew a toile before cutting final fabric.",
+    `Assembly guide: ${patternCatalog[f.design ?? "teagan"].source}`,
   ];
   instructions.forEach((line, i) => doc.text(line, 15, 45 + i * 5));
   doc.setDrawColor(0);

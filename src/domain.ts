@@ -1,3 +1,4 @@
+import { ProjectSchema as LegacyV10ProjectSchema } from "./legacy-v10";
 import { ProjectSchema as LegacyV9ProjectSchema } from "./legacy-v9";
 import { BodyStudySchema, FitShapeSchema } from "./body-fitting";
 import { LatticeSchema } from "./lattice-warp";
@@ -327,7 +328,7 @@ export const PhotoSchema = z
 export const ProjectSchema = z
   .object({
     format: z.literal("form-studio"),
-    version: z.literal(10),
+    version: z.literal(11),
     units: z.literal("mm"),
     id: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -449,7 +450,7 @@ export type Asset = Project["assets"][number];
 export function blankProject(): Project {
   return {
     format: "form-studio",
-    version: 10,
+    version: 11,
     units: "mm",
     id: crypto.randomUUID(),
     name: "Untitled composition",
@@ -622,6 +623,11 @@ export async function parseProject(text: string): Promise<Project> {
     const old = LegacyV9ProjectSchema.safeParse(json);
     if (!old.success) throw new Error("Invalid version 9 project");
     json = { ...old.data, version: 10 };
+  }
+  if ((json as { version?: number })?.version === 10) {
+    const old = LegacyV10ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Invalid version 10 project");
+    json = { ...old.data, version: 11 };
   }
   const result = ProjectSchema.safeParse(json);
   if (!result.success)

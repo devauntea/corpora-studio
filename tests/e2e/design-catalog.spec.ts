@@ -13,7 +13,7 @@ test("garment catalog, profiles, size series and interchange", async ({
     page.getByText("Enter required measurements:", { exact: false }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Add missing lower-body sample values" })
+    .getByRole("button", { name: "Add missing sample measurements" })
     .click();
   await expect(
     page.getByRole("img", { name: "Sewing pattern canvas" }),

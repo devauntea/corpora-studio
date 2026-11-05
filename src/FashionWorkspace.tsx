@@ -1,3 +1,5 @@
+import { VectorPackStudio } from "./VectorPackStudio";
+import { patternCatalog } from "./pattern-catalog";
 import { ClothStudio } from "./ClothStudio";
 import { GarmentPhotoStudio } from "./GarmentPhotoStudio";
 import type { Asset, Body } from "./domain";
@@ -10,6 +12,7 @@ import {
   designIds,
   designNames,
   lowerBodySample,
+  catalogSample,
   sampleFabric,
   type DesignId,
 } from "./fashion-model";
@@ -116,6 +119,7 @@ function Field({
 type ViewBox = { x: number; y: number; width: number; height: number };
 export function FashionWorkspace({
   value,
+  onModeChange,
   assets,
   body,
   onChange,
@@ -132,6 +136,7 @@ export function FashionWorkspace({
   exporter,
 }: {
   value: Fashion;
+  onModeChange: (mode: "patterns" | "vectors") => void;
   assets: Asset[];
   body: Body;
   onChange: (f: Fashion, asset?: Asset) => void;
@@ -147,6 +152,13 @@ export function FashionWorkspace({
   name: string;
   exporter: RefObject<(() => Promise<void>) | null>;
 }) {
+  const [vectorOpen, setVectorOpen] = useState(false);
+  useEffect(
+    () => onModeChange(vectorOpen ? "vectors" : "patterns"),
+    [vectorOpen, onModeChange],
+  );
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogCategory, setCatalogCategory] = useState("All");
   const [clothOpen, setClothOpen] = useState(false);
   const [photoStudy, setPhotoStudy] = useState(false);
   const [grades, setGrades] = useState(false);
@@ -231,6 +243,7 @@ export function FashionWorkspace({
     }
   };
   useEffect(() => {
+    if (vectorOpen) return;
     exporter.current = doExport;
     return () => {
       exporter.current = null;
@@ -332,6 +345,24 @@ export function FashionWorkspace({
     },
     [onCommit],
   );
+  if (vectorOpen)
+    return (
+      <VectorPackStudio
+        value={value}
+        onChange={onChange}
+        begin={onBegin}
+        commit={onCommit}
+        undo={undo}
+        redo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        busy={busy}
+        setBusy={setBusy}
+        notify={notify}
+        exporter={exporter}
+        close={() => setVectorOpen(false)}
+      />
+    );
   return (
     <main className="fashion-workspace" aria-label="Fashion pattern studio">
       {clothOpen && draft && (
@@ -381,6 +412,53 @@ export function FashionWorkspace({
             Drafted from your measurements.
           </p>
         </div>
+        <button
+          className="wide-button vector-entry"
+          onClick={() => setVectorOpen(true)}
+        >
+          Vector packs <span>Garment flats & manufacturer handoff →</span>
+        </button>
+        <div className="catalog-filter">
+          <label>
+            Search {designIds.length} patterns
+            <input
+              aria-label="Search patterns"
+              placeholder="Hoodie, dress, trousers…"
+              value={catalogSearch}
+              onChange={(e) => setCatalogSearch(e.target.value)}
+            />
+          </label>
+          <label>
+            Category
+            <select
+              aria-label="Pattern category"
+              value={catalogCategory}
+              onChange={(e) => setCatalogCategory(e.target.value)}
+            >
+              <option>All</option>
+              {[
+                ...new Set(
+                  Object.values(patternCatalog).map((p) => p.category),
+                ),
+              ].map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+          </label>
+          <small>
+            {
+              designIds.filter(
+                (id) =>
+                  (catalogCategory === "All" ||
+                    patternCatalog[id].category === catalogCategory) &&
+                  (designNames[id] + " " + patternCatalog[id].description)
+                    .toLowerCase()
+                    .includes(catalogSearch.toLowerCase()),
+              ).length
+            }{" "}
+            matching patterns · FreeSewing / MIT
+          </small>
+        </div>
         <label className="fashion-text-field garment-selector">
           Garment design
           <select
@@ -401,11 +479,21 @@ export function FashionWorkspace({
               setGeometry(null);
             }}
           >
-            {designIds.map((id) => (
-              <option value={id} key={id}>
-                {designNames[id]}
-              </option>
-            ))}
+            {designIds
+              .filter(
+                (id) =>
+                  id === design ||
+                  ((catalogCategory === "All" ||
+                    patternCatalog[id].category === catalogCategory) &&
+                    (designNames[id] + " " + patternCatalog[id].description)
+                      .toLowerCase()
+                      .includes(catalogSearch.toLowerCase())),
+              )
+              .map((id) => (
+                <option value={id} key={id}>
+                  {designNames[id]}
+                </option>
+              ))}
           </select>
         </label>
         <div className="fashion-tabs">
@@ -476,13 +564,14 @@ export function FashionWorkspace({
                       ...value,
                       measurements: {
                         ...lowerBodySample,
+                        ...catalogSample,
                         ...value.measurements,
                       },
                       profile: "Sample measurements · verify before cutting",
                     })
                   }
                 >
-                  Add missing lower-body sample values
+                  Add missing sample measurements
                 </button>
               )}
               {measurementFields

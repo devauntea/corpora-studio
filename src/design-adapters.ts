@@ -1,7 +1,4 @@
-import { Brian } from "@freesewing/brian";
-import { Titan } from "@freesewing/titan";
-import { Sarah } from "@freesewing/sarah";
-import { Simon } from "@freesewing/simon";
+import { constructors } from "./pattern-engines";
 import { constructPiece } from "./pattern-geometry";
 import {
   designNames,
@@ -25,7 +22,6 @@ type Option = {
   max?: number;
   menu?: string;
 };
-const constructors = { brian: Brian, titan: Titan, sarah: Sarah, simon: Simon };
 export const designConfig = Object.fromEntries(
   Object.entries(constructors).map(([k, C]) => [k, new C({}).getConfig()]),
 ) as Record<
@@ -199,13 +195,46 @@ export function draftDesign(f: Fashion): PatternDraft {
       for (const name of names.slice(1)) seam = seam.join(part.paths[name]);
       seam = seam.close();
     }
-    if (!seam) throw new Error(`Missing boundary for ${key}`);
     const klass = (p: typeof seam) =>
       p.attributes?.list?.class?.join(" ") ?? "";
+    if (!seam) {
+      let boundaries = Object.entries(part.paths)
+        .filter(
+          ([, p]) =>
+            !p.hidden &&
+            !/\b(hidden|sa|dashed)\b/.test(klass(p)) &&
+            /\b(fabric|lining)\b/.test(klass(p)),
+        )
+        .map(([, p]) => p);
+      if (!boundaries.length && id === "crux")
+        boundaries = Object.entries(part.paths)
+          .filter(
+            ([k, p]) =>
+              /(?:Seam|Facing)$/.test(k) && p.ops.at(-1)?.type === "close",
+          )
+          .map(([, p]) => p);
+      if (!boundaries.length && id === "holmes" && part.paths.gore_seam)
+        boundaries = [part.paths.gore_seam];
+      if (!boundaries.length && id === "percy")
+        boundaries = [
+          "shortHem",
+          "newInseam",
+          "newOutseam",
+          "crossSeam",
+          "waist",
+        ]
+          .map((k) => part.paths[k])
+          .filter(Boolean);
+      if (!boundaries.length) throw new Error(`Missing boundary for ${key}`);
+      const first = boundaries[0].clone();
+      first.ops = boundaries.flatMap((p) => p.ops);
+      seam = first;
+    }
     const cuts = Object.entries(part.paths)
       .filter(
         ([k, p]) =>
           !p.hidden &&
+          !/\bhidden\b/.test(klass(p)) &&
           (/(^|\s)sa(\s|$)/.test(klass(p)) ||
             (id === "sarah" && /^(front|back)(Sa|Hem)$/.test(k))),
       )
@@ -214,7 +243,15 @@ export function draftDesign(f: Fashion): PatternDraft {
     const guideNames =
       /^(chest|waist|dart|helpers|hint|underCollar|saUndercollar|help|frontCenter|placketInnerFold|placketOuterFold|placketFold1|placketFold2|folds|pleats|placketCut|boxPleat|frenchBase|frenchSa)$/;
     const guides = Object.entries(part.paths)
-      .filter(([k, p]) => !p.hidden && guideNames.test(k))
+      .filter(
+        ([k, p]) =>
+          !p.hidden &&
+          !/\bhidden\b/.test(klass(p)) &&
+          (guideNames.test(k) ||
+            (!k.startsWith("__") &&
+              /\b(help|mark|dashed|dotted)\b/.test(klass(p)) &&
+              !/\bsa\b/.test(klass(p)))),
+      )
       .map(([, p]) => p.ops);
     const all = [seam, ...cuts];
     const boxes = all.map((p) => p.bbox());
@@ -277,9 +314,12 @@ export function draftDesign(f: Fashion): PatternDraft {
               { x: width / 2, y: height * 0.3 },
               { x: width / 2, y: height * 0.7 },
             ],
-      label: part.points.title
-        ? shift(part.points.title)
-        : { x: width / 2, y: height / 2 },
+      label:
+        part.points.title &&
+        Number.isFinite(part.points.title.x) &&
+        Number.isFinite(part.points.title.y)
+          ? shift(part.points.title)
+          : { x: width / 2, y: height / 2 },
       handles: [],
       hemY: 0,
       sleeveHalfWidth: 0,
@@ -297,6 +337,18 @@ export function draftDesign(f: Fashion): PatternDraft {
           for (const v of o.type === "curve" ? [o.to, o.cp1, o.cp2] : [o.to])
             if (!Number.isFinite(v.x) || !Number.isFinite(v.y))
               throw new Error(`Invalid curve in ${p.name}`);
+  for (const p of pieces)
+    for (const v of [
+      p.label,
+      ...p.grain,
+      ...p.notches.map((n) => n.point),
+      ...(p.marks ?? []).map((m) => m.point),
+    ]) {
+      if (!Number.isFinite(v.x) || !Number.isFinite(v.y))
+        throw new Error(
+          `Invalid construction mark in ${p.name}. Review the measurements and design options.`,
+        );
+    }
   const warnings = fabricWarnings(f);
   if (engine.setStores.some((s) => s.logs.warn.length))
     warnings.push(

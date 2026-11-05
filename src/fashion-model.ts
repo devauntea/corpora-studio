@@ -1,3 +1,5 @@
+import { VectorPackSchema } from "./vector-pack";
+import { designIds } from "./pattern-catalog";
 import { ClothSchema } from "./cloth-model";
 import { GarmentStudySchema } from "./garment-measure";
 import { ConstructionSetSchema } from "./fashion-construction";
@@ -15,7 +17,7 @@ export const measurementFields = [
   [
     "waist",
     "Waist",
-    500,
+    250,
     1500,
     "Around the natural waist, without pulling the tape tight.",
   ],
@@ -148,12 +150,105 @@ export const measurementFields = [
     500,
     "Vertically from natural waist to crotch / upper-leg level.",
   ],
+  [
+    "ankle",
+    "Ankle circumference",
+    150,
+    450,
+    "Around the ankle above its bones.",
+  ],
+  [
+    "bustFront",
+    "Front bust arc",
+    200,
+    1000,
+    "Across the fullest bust, from side seam to side seam.",
+  ],
+  [
+    "bustPointToUnderbust",
+    "Bust point to underbust",
+    30,
+    250,
+    "From the bust point down to the underbust crease.",
+  ],
+  ["bustSpan", "Bust span", 80, 400, "Distance between bust points."],
+  [
+    "crotchDepth",
+    "Seated crotch depth",
+    150,
+    500,
+    "Vertical distance from the waist to a flat seat while sitting.",
+  ],
+  [
+    "head",
+    "Head circumference",
+    350,
+    750,
+    "Around the head at its widest level.",
+  ],
+  ["heel", "Heel diagonal", 200, 550, "Around the heel and front ankle bend."],
+  [
+    "highBust",
+    "High bust circumference",
+    550,
+    1600,
+    "Around the torso above the fullest bust, beneath the arms.",
+  ],
+  [
+    "highBustFront",
+    "Front high bust arc",
+    200,
+    1000,
+    "Across the front high bust from side seam to side seam.",
+  ],
+  [
+    "hpsToWaistFront",
+    "High shoulder to front waist",
+    250,
+    750,
+    "From neck-shoulder junction over the bust to the front waist.",
+  ],
+  [
+    "inseam",
+    "Inseam",
+    400,
+    1100,
+    "From the crotch intersection down the inside leg to the floor.",
+  ],
+  [
+    "shoulderToElbow",
+    "Shoulder to elbow",
+    180,
+    500,
+    "From the shoulder tip to the elbow with the arm slightly bent.",
+  ],
+  [
+    "underbust",
+    "Underbust circumference",
+    450,
+    1500,
+    "Around the torso immediately below the bust.",
+  ],
+  [
+    "upperLeg",
+    "Upper leg circumference",
+    300,
+    1000,
+    "Around the fullest upper thigh.",
+  ],
+  [
+    "waistToUnderbust",
+    "Waist to underbust",
+    50,
+    350,
+    "Vertically from natural waist to the underbust crease.",
+  ],
 ] as const;
 export type MeasurementKey = (typeof measurementFields)[number][0];
 export const MeasurementsSchema = z
   .object({
     chest: n(600, 1600),
-    waist: n(500, 1500),
+    waist: n(250, 1500),
     hips: n(650, 1700),
     biceps: n(180, 600),
     neck: n(250, 600),
@@ -175,6 +270,21 @@ export const MeasurementsSchema = z
     waistToKnee: n(350, 850).optional(),
     waistToSeat: n(120, 400).optional(),
     waistToUpperLeg: n(200, 500).optional(),
+    ankle: n(150, 450).optional(),
+    bustFront: n(200, 1000).optional(),
+    bustPointToUnderbust: n(30, 250).optional(),
+    bustSpan: n(80, 400).optional(),
+    crotchDepth: n(150, 500).optional(),
+    head: n(350, 750).optional(),
+    heel: n(200, 550).optional(),
+    highBust: n(550, 1600).optional(),
+    highBustFront: n(200, 1000).optional(),
+    hpsToWaistFront: n(250, 750).optional(),
+    inseam: n(400, 1100).optional(),
+    shoulderToElbow: n(180, 500).optional(),
+    underbust: n(450, 1500).optional(),
+    upperLeg: n(300, 1000).optional(),
+    waistToUnderbust: n(50, 350).optional(),
   })
   .strict();
 export const optionFields = [
@@ -247,20 +357,23 @@ export const optionFields = [
 export type OptionKey = (typeof optionFields)[number][0];
 export const pieceIds = ["front", "back", "sleeve", "neckband"] as const;
 export type PieceId = string;
-export const designIds = [
-  "teagan",
-  "brian",
-  "titan",
-  "sarah",
-  "simon",
-] as const;
-export type DesignId = (typeof designIds)[number];
-export const designNames: Record<DesignId, string> = {
-  teagan: "Teagan · knit T-shirt",
-  brian: "Brian · bodice block",
-  titan: "Titan · trouser block",
-  sarah: "Sarah · skirt block",
-  simon: "Simon · woven shirt",
+export { designIds, designNames, type DesignId } from "./pattern-catalog";
+export const catalogSample = {
+  ankle: 230,
+  bustFront: 540,
+  bustPointToUnderbust: 90,
+  bustSpan: 200,
+  crotchDepth: 300,
+  head: 570,
+  heel: 340,
+  highBust: 920,
+  highBustFront: 470,
+  hpsToWaistFront: 480,
+  inseam: 780,
+  shoulderToElbow: 340,
+  underbust: 840,
+  upperLeg: 580,
+  waistToUnderbust: 150,
 };
 export const lowerBodySample = {
   seat: 1000,
@@ -308,6 +421,7 @@ export const sampleFabric = (): Fabric => ({
 const Position = z.object({ x: n(-2000, 2000), y: n(-2000, 2000) }).strict();
 export const FashionSchema = z
   .object({
+    vectorPack: VectorPackSchema.optional(),
     engine: z.literal("teagan-4.10.2-form-1"),
     profile: z.string().min(1).max(80),
     measurements: MeasurementsSchema,

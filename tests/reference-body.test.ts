@@ -69,7 +69,7 @@ test("version 9 preserves its original surface and rejects a forged revision 5",
   body.model!.revision = 3;
   const old = { ...blankProject(), version: 9, body };
   const next = await parseProject(JSON.stringify(old));
-  expect(next).toEqual({ ...old, version: 10 });
+  expect(next).toEqual({ ...old, version: 11 });
   body.model!.revision = 5;
   await expect(parseProject(JSON.stringify(old))).rejects.toThrow("version 9");
   expect(
