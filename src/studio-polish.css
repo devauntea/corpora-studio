@@ -417,9 +417,6 @@
     padding: 0 8px;
     font-size: 10px;
   }
-  .task-path button span {
-    display: none !important;
-  }
   .home-intro {
     gap: 16px;
   }

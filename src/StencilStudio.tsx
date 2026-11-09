@@ -216,7 +216,7 @@ export function StencilStudio({
         </header>
         <div className="stencil-body">
           <aside>
-            <h3>1 / Select the lines</h3>
+            <h3>01 / Select the lines</h3>
             <p>
               Trace the prepared artwork, then click lines to exclude them.
               Original pixels stay unchanged.
@@ -267,7 +267,7 @@ export function StencilStudio({
                 }}
               />
             </label>
-            <h3>2 / Physical output</h3>
+            <h3>02 / Physical output</h3>
             {field("Stencil width (mm)", settings.width, 10, 600, (v) =>
               updateSettings({ ...settings, width: v }),
             )}
@@ -322,7 +322,7 @@ export function StencilStudio({
               />
               Mirror for transfer
             </label>
-            <h3>3 / Printer calibration</h3>
+            <h3>03 / Printer calibration</h3>
             <p>
               Print the uncorrected sheet at 100%, then measure both sides of
               its square. Recalibrate after changing printer settings.

@@ -349,7 +349,7 @@ export function TextileStudio({
           <div className="textile-section-title">
             <div>
               <span className="eyebrow">01 / CHOOSE A PRINT</span>
-              <h4>Pattern library</h4>
+              <h4>Print library</h4>
             </div>
             <label>
               <span className="sr-only">Print category</span>

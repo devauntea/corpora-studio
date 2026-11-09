@@ -148,7 +148,7 @@ test("frozen specs, sample tolerances, colorways and export round trip", async (
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await fashion(page);
-  await page.getByRole("button", { name: /Vector packs/ }).click();
+  await page.getByRole("button", { name: "Open vector workspace" }).click();
   const tab = (name: string) =>
     page.locator(".vector-tabs").getByRole("button", { name, exact: true });
   await tab("Style & instructions").click();
@@ -272,7 +272,7 @@ test("callout links follow material renames and block export after linked record
   page,
 }) => {
   await fashion(page);
-  await page.getByRole("button", { name: /Vector packs/ }).click();
+  await page.getByRole("button", { name: "Open vector workspace" }).click();
   const tab = (name: string) =>
     page.locator(".vector-tabs").getByRole("button", { name, exact: true });
   await page.getByRole("button", { name: "Add callout", exact: true }).click();

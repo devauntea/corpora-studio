@@ -21,7 +21,7 @@ for (const [width, height] of [
     );
     await theme(page).selectOption("light");
     await page.getByRole("button", { name: "Fashion", exact: true }).click();
-    await page.getByRole("button", { name: /Vector packs/ }).click();
+    await page.getByRole("button", { name: "Open vector workspace" }).click();
     await expect(page.locator(".vector-canvas")).toBeVisible();
     const artColors = () =>
       page.locator(".vector-canvas path").evaluateAll((els) =>
@@ -250,9 +250,9 @@ test("dark fashion tools keep collection and production information readable", a
   await page
     .getByRole("button", { name: "Close construction", exact: true })
     .click();
-  await page.getByRole("button", { name: /Vector packs/ }).click();
+  await page.getByRole("button", { name: "Open vector workspace" }).click();
   await page
-    .getByRole("button", { name: "Browse garment library", exact: true })
+    .getByRole("button", { name: "Browse garment flats", exact: true })
     .click();
   await check(".garment-library", "dark-garment-assets");
   await page

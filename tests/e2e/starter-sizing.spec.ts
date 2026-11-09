@@ -24,7 +24,7 @@ test("pattern previews stage size changes and retain measurements and manual pie
     .getByRole("button", { name: "Preview & apply starter size" })
     .click();
   const dialog = page.getByRole("dialog", {
-    name: "Pattern library",
+    name: "Pattern catalog",
     exact: true,
   });
   await expect(dialog).toBeVisible();

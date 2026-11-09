@@ -549,7 +549,7 @@ export function FashionWorkspace({
       )}
       <aside className="fashion-library">
         <div className="fashion-heading">
-          <span className="eyebrow">GARMENT LIBRARY</span>
+          <span className="eyebrow">SELECTED PATTERN</span>
           <Shirt size={20} />
           <h2>
             {value.customDraftIds?.length
@@ -577,12 +577,6 @@ export function FashionWorkspace({
             Show template pieces
           </button>
         ) : null}
-        <button
-          className="wide-button vector-entry"
-          onClick={() => setVectorOpen(true)}
-        >
-          Vector packs <span>Garment flats & manufacturer handoff →</span>
-        </button>
         <details
           className="fashion-catalog"
           ref={catalogRef}
@@ -590,7 +584,7 @@ export function FashionWorkspace({
           onToggle={(e) => setCatalogOpen(e.currentTarget.open)}
         >
           <summary>
-            Pattern library <span>{designNames[design].split(" · ")[0]}</span>
+            Pattern catalog <span>{designNames[design].split(" · ")[0]}</span>
           </summary>
           <button
             className="pattern-browser-entry"

@@ -67,7 +67,7 @@ export function PatternCatalogBrowser({
     <dialog
       ref={dialog}
       className="pattern-catalog-dialog"
-      aria-label="Pattern library"
+      aria-label="Pattern catalog"
       onCancel={close}
     >
       <header>

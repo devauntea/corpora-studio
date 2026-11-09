@@ -59,7 +59,7 @@ test("vector workflow guides empty drawings, view selection and handoff intent",
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Fashion", exact: true }).click();
-  await page.getByRole("button", { name: /Vector packs/ }).click();
+  await page.getByRole("button", { name: "Open vector workspace" }).click();
   await page.getByRole("button", { name: "Blank canvas", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Start with a garment shape" }),

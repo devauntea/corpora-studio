@@ -9,13 +9,13 @@ for (const [width, height] of [
     await page.setViewportSize({ width, height });
     await page.goto("/");
     await page.getByRole("button", { name: "Fashion", exact: true }).click();
-    await page.getByRole("button", { name: /Vector packs/ }).click();
+    await page.getByRole("button", { name: "Open vector workspace" }).click();
     const canvas = page.locator(".vector-canvas-scroll");
     await expect(canvas).toBeVisible();
     const before = await canvas.boundingBox();
     expect(before!.height).toBeGreaterThan(width === 1080 ? 305 : 515);
     const library = page.getByRole("button", {
-      name: "Garment library panel",
+      name: "Garment flats panel",
       exact: true,
     });
     const inspector = page.getByRole("button", {

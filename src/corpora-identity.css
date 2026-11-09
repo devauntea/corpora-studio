@@ -359,3 +359,80 @@
 :root .workspace-nav .task-extra.active {
   color: var(--fs-ink);
 }
+/* Stencil studio controls follow the image studio beside it: numbered section
+   labels, themed fields and buttons, and the shared primary action colour. */
+:root .tattoo-stencil .stencil-body > aside h3 {
+  margin: 26px 0 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--fs-ink);
+}
+:root .tattoo-stencil .stencil-body > aside h3:first-child {
+  margin-top: 6px;
+}
+:root .tattoo-stencil .stencil-body > aside p {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--fs-muted);
+}
+:root .tattoo-stencil .stencil-body label {
+  margin: 14px 0;
+  font-size: 12px;
+  color: var(--fs-ink);
+}
+:root .tattoo-stencil .stencil-body :is(input:not([type="checkbox"]), select) {
+  min-height: 36px;
+  margin-top: 6px;
+  padding: 7px 10px;
+  border: 1px solid var(--fs-border);
+  border-radius: 6px;
+  background: var(--fs-field);
+  color: var(--fs-ink);
+  font: inherit;
+  font-size: 12px;
+}
+:root .tattoo-stencil .stencil-body > aside button,
+:root .tattoo-stencil > header > button {
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid var(--fs-border);
+  border-radius: 6px;
+  background: var(--fs-field);
+  color: var(--fs-ink);
+  font-size: 12px;
+}
+:root .tattoo-stencil .stencil-body > aside button:hover:not(:disabled),
+:root .tattoo-stencil > header > button:hover {
+  background: var(--fs-soft);
+}
+:root .tattoo-stencil .stencil-body > aside .fashion-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+:root .tattoo-stencil .stencil-body > aside .fashion-presets button {
+  flex: 1;
+}
+:root .tattoo-stencil input[type="checkbox"] {
+  accent-color: var(--cs-accent);
+}
+:root .tattoo-stencil > footer > button {
+  border: 1px solid var(--fs-border);
+  background: var(--fs-field);
+  color: var(--fs-ink);
+}
+:root .tattoo-stencil > footer > button:last-child:not(:disabled) {
+  border-color: var(--fs-selected);
+  background: var(--fs-selected);
+  color: var(--fs-on-selected);
+}
+@media (max-width: 1200px) {
+  :root .workspace-nav .task-extra {
+    margin-left: 6px;
+    padding: 0 9px 0 13px;
+    font-size: 11px;
+  }
+}

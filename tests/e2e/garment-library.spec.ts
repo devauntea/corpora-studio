@@ -9,10 +9,10 @@ async function openLibrary(page: Page) {
     page.getByRole("heading", { name: "Solar botanical" }),
   ).toBeVisible();
   await page.keyboard.press("ControlOrMeta+k");
-  await page.getByLabel("Search quick actions").fill("garment asset");
+  await page.getByLabel("Search quick actions").fill("garment flats");
   await page.getByLabel("Search quick actions").press("Enter");
   await expect(
-    page.getByRole("region", { name: "Garment asset library" }),
+    page.getByRole("region", { name: "Garment flats" }),
   ).toBeVisible();
 }
 test("imported garment views remain editable through undo, manufacturer export and project reopen", async ({
@@ -22,7 +22,7 @@ test("imported garment views remain editable through undo, manufacturer export a
   page.on("pageerror", (e) => errors.push(e.message));
   await openLibrary(page);
   await expect(page.locator(".garment-card")).toHaveCount(112);
-  await page.getByLabel("Search garment assets").fill("Hoodie");
+  await page.getByLabel("Search garment flats").fill("Hoodie");
   await page
     .getByRole("button", { name: "Preview Hoodie", exact: true })
     .click();
@@ -112,16 +112,16 @@ test("asset discovery, favorites, four-view accessories and keyboard navigation"
   await openLibrary(page);
   const categories = page.getByRole("navigation", { name: "Asset categories" });
   await categories.getByRole("button", { name: /Accessories/ }).click();
-  await page.getByLabel("Search garment assets").fill("Backpack");
+  await page.getByLabel("Search garment flats").fill("Backpack");
   await expect(page.locator(".garment-card")).toHaveCount(3);
-  await page.getByLabel("Search garment assets").fill("no matching garment");
+  await page.getByLabel("Search garment flats").fill("no matching garment");
   await expect(
     page.getByRole("heading", { name: "No matching assets" }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Show all assets", exact: true })
     .click();
-  await page.getByLabel("Search garment assets").fill("Hat Trucker");
+  await page.getByLabel("Search garment flats").fill("Hat Trucker");
   await page
     .getByRole("button", { name: "Favorite Hat Trucker", exact: true })
     .click();
@@ -182,7 +182,7 @@ test("asset discovery, favorites, four-view accessories and keyboard navigation"
     }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Browse garment library", exact: true })
+    .getByRole("button", { name: "Browse garment flats", exact: true })
     .click();
   await categories.getByRole("button", { name: /Favorites/ }).click();
   await expect(page.locator(".garment-card")).toHaveCount(1);

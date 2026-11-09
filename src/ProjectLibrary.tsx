@@ -1,4 +1,5 @@
 import { CheckpointCompare } from "./CheckpointCompare";
+import { useDialogReturnFocus } from "./dialog-focus";
 import { parseProject } from "./domain";
 import { useEffect, useState } from "react";
 import { FolderOpen, X, Trash2, Save } from "lucide-react";
@@ -21,6 +22,7 @@ export function ProjectLibrary({
   open: (content: string) => void;
   close: () => void;
 }) {
+  useDialogReturnFocus();
   const [comparison, setComparison] = useState<{
     name: string;
     project: Project;

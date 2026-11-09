@@ -771,7 +771,7 @@ export function VectorPackStudio({
             aria-label="Drawing panels"
           >
             <button
-              aria-label="Garment library panel"
+              aria-label="Garment flats panel"
               title={
                 libraryOpen ? "Hide garment library" : "Show garment library"
               }
@@ -844,7 +844,7 @@ export function VectorPackStudio({
               {
                 drawing: "Technical flats",
                 fabric: "Fabric & color",
-                assets: "Asset library",
+                assets: "Garment flats",
                 specs: "Size specification",
                 materials: "Materials & trims",
                 notes: "Style & instructions",
@@ -918,7 +918,7 @@ export function VectorPackStudio({
           <aside
             id="vector-library-panel"
             className="vector-sidebar"
-            aria-label="Garment library"
+            aria-label="Garment flats"
           >
             <button
               className="asset-library-entry"
@@ -928,8 +928,8 @@ export function VectorPackStudio({
             >
               <Layers size={18} />
               <span>
-                <strong>Browse garment assets</strong>
-                <small>112 imported designs →</small>
+                <strong>Browse garment flats</strong>
+                <small>112 imported flats →</small>
               </span>
             </button>
             <span className="eyebrow">STARTER FLATS</span>

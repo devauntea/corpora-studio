@@ -12,7 +12,7 @@ test("pattern construction detail is optional and does not edit the current draf
     .getByRole("button", { name: /Browse .* drafted patterns/ })
     .click();
   const dialog = page.getByRole("dialog", {
-    name: "Pattern library",
+    name: "Pattern catalog",
     exact: true,
   });
   const hero = dialog.locator(".pattern-catalog-hero img");

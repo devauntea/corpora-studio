@@ -12,7 +12,7 @@ test("vector drawings, editable geometry, specifications and manufacturer handof
     page.getByRole("heading", { name: "Solar botanical" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Fashion", exact: true }).click();
-  await page.getByRole("button", { name: /Vector packs/ }).click();
+  await page.getByRole("button", { name: "Open vector workspace" }).click();
   await expect(
     page.getByRole("heading", { name: "T-shirt", exact: true }),
   ).toBeVisible();
@@ -155,7 +155,7 @@ test("vector drawings, editable geometry, specifications and manufacturer handof
   await page
     .getByLabel("Project file", { exact: true })
     .setInputFiles(projectPath);
-  await page.getByRole("button", { name: /Vector packs/ }).click();
+  await page.getByRole("button", { name: "Open vector workspace" }).click();
   await expect(
     page.getByRole("heading", { name: "Studio utility hoodie", exact: true }),
   ).toBeVisible();
@@ -215,7 +215,7 @@ test("draw a custom flat, split curves, mirror and copy views with keyboard cont
     page.getByRole("heading", { name: "Solar botanical" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Fashion", exact: true }).click();
-  await page.getByRole("button", { name: /Vector packs/ }).click();
+  await page.getByRole("button", { name: "Open vector workspace" }).click();
   await page.getByRole("button", { name: "Blank canvas", exact: true }).click();
   await page.getByRole("button", { name: "Draw path", exact: true }).click();
   const svg = page.getByRole("group", { name: "Front and back garment flats" });

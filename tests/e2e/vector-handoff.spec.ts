@@ -10,7 +10,7 @@ async function open(page: Page) {
     page.getByRole("heading", { name: "Solar botanical" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Fashion", exact: true }).click();
-  await page.getByRole("button", { name: /Vector packs/ }).click();
+  await page.getByRole("button", { name: "Open vector workspace" }).click();
   await page.getByRole("button", { name: "Blank canvas", exact: true }).click();
 }
 test("SVG review, garment selection, keyboard transforms, undo, handoff and source retention", async ({

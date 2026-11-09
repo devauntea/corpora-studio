@@ -1484,7 +1484,7 @@ export function App() {
               <span>/</span>{" "}
               {studio === "fashion"
                 ? fashionMode === "assets"
-                  ? "ASSET LIBRARY"
+                  ? "GARMENT FLATS"
                   : fashionMode === "textiles"
                     ? "FABRIC & COLOR"
                     : fashionMode !== "patterns"
@@ -1622,7 +1622,7 @@ export function App() {
               Fabric & color
             </button>
             <button
-              aria-label="Browse garment library"
+              aria-label="Browse garment flats"
               className={fashionMode === "assets" ? "active" : ""}
               aria-pressed={fashionMode === "assets"}
               onClick={() => {
@@ -1631,7 +1631,7 @@ export function App() {
               }}
             >
               <LayoutGrid size={15} />
-              Asset library<span>112</span>
+              Garment flats<span>112</span>
             </button>
             <button
               onClick={() => setPatternSourcesOpen(true)}
@@ -4146,15 +4146,15 @@ export function App() {
                       ? "Vector packs"
                       : mode === "textiles"
                         ? "Fabric & color"
-                        : "Garment asset library",
+                        : "Garment flats",
                 description:
                   mode === "patterns"
                     ? "65 measurement-driven sewing designs"
                     : mode === "vectors"
-                      ? "Editable garment flats and manufacturer handoff"
+                      ? "Technical flats, specifications and manufacturer handoff"
                       : mode === "textiles"
                         ? "Prints, palettes and garment color studies"
-                        : "112 imported sheets · search, preview and place",
+                        : "112 imported flats · search, preview and place",
                 disabled: busy || !ready,
                 run: () => {
                   setStudio("fashion");
@@ -4240,7 +4240,7 @@ export function App() {
               Import artwork, choose a complete body section, then compose from
               every angle. In Fashion, enter measurements, adjust the pattern
               and export at actual size. Use Vector packs for garment drawings
-              and manufacturer handoff, or browse the Asset library to start
+              and manufacturer handoff, or browse the garment flats to start
               from your imported designs.
             </p>
             <div className="shortcut-list">

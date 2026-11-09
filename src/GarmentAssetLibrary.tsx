@@ -121,10 +121,10 @@ export function GarmentAssetLibrary({
     }
   };
   return (
-    <section className="garment-library" aria-label="Garment asset library">
+    <section className="garment-library" aria-label="Garment flats">
       <aside className="garment-categories">
         <span className="eyebrow">YOUR COLLECTION</span>
-        <h3>Garment assets</h3>
+        <h3>Garment flats</h3>
         <p>
           112 source sheets.
           <br />
@@ -172,7 +172,7 @@ export function GarmentAssetLibrary({
         <div className="garment-search">
           <Search size={17} />
           <input
-            aria-label="Search garment assets"
+            aria-label="Search garment flats"
             placeholder="Search hoodies, denim, hats…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}

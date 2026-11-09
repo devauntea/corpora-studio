@@ -10,7 +10,7 @@ for (const [width, height] of [
     await page.setViewportSize({ width, height });
     await page.goto("/");
     await page.getByRole("button", { name: "Fashion", exact: true }).click();
-    await page.getByRole("button", { name: /Vector packs/ }).click();
+    await page.getByRole("button", { name: "Open vector workspace" }).click();
     await page
       .getByRole("button", { name: "Fabric & color", exact: true })
       .click();
