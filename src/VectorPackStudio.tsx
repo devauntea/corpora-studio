@@ -14,7 +14,7 @@ import {
   reorderSelection,
 } from "./vector-selection";
 import { GarmentAssetLibrary } from "./GarmentAssetLibrary";
-import { placeGarment } from "./garment-library";
+import { garmentAssets, placeGarment } from "./garment-library";
 import {
   useEffect,
   useRef,
@@ -929,7 +929,11 @@ export function VectorPackStudio({
               <Layers size={18} />
               <span>
                 <strong>Browse garment flats</strong>
-                <small>112 imported flats →</small>
+                <small>
+                  {garmentAssets.length
+                    ? `${garmentAssets.length} imported flats →`
+                    : "Import your own flats →"}
+                </small>
               </span>
             </button>
             <span className="eyebrow">STARTER FLATS</span>

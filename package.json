@@ -115,5 +115,6 @@
     "lodash.set": "$lodash.set",
     "lodash.unset": "$lodash.unset"
   },
-  "author": "Devauntae Norman"
+  "author": "Devauntae Norman",
+  "license": "MIT"
 }

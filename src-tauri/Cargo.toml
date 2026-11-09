@@ -1,5 +1,6 @@
 [package]
 authors = ["Devauntae Norman"]
+license = "MIT"
 name = "form-studio"
 version = "0.23.0"
 edition = "2021"

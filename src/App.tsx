@@ -477,6 +477,13 @@ export function App() {
     return true;
   }, []);
   const dirty = project !== saved;
+  // Garment flats are installed locally; count them without loading Fashion up front.
+  const [flatCount, setFlatCount] = useState<number>();
+  useEffect(() => {
+    void import("./garment-library").then((m) =>
+      setFlatCount(m.garmentAssets.length),
+    );
+  }, []);
   // Which tattoo step the person is in: an open step dialog wins over the
   // placement mode underneath it.
   const tattooStep = bodyLibraryOpen
@@ -1631,7 +1638,7 @@ export function App() {
               }}
             >
               <LayoutGrid size={15} />
-              Garment flats<span>112</span>
+              Garment flats{flatCount ? <span>{flatCount}</span> : null}
             </button>
             <button
               onClick={() => setPatternSourcesOpen(true)}
@@ -4154,7 +4161,9 @@ export function App() {
                       ? "Technical flats, specifications and manufacturer handoff"
                       : mode === "textiles"
                         ? "Prints, palettes and garment color studies"
-                        : "112 imported flats · search, preview and place",
+                        : flatCount
+                          ? `${flatCount} imported flats · search, preview and place`
+                          : "Import garment flat drawings to search and place",
                 disabled: busy || !ready,
                 run: () => {
                   setStudio("fashion");

@@ -25,7 +25,33 @@ function readFavorites(): string[] {
     return [];
   }
 }
-export function GarmentAssetLibrary({
+type LibraryProps = {
+  onPlace: (layers: VectorLayer[], replace: boolean, name: string) => void;
+  busy: boolean;
+  notify: (message: string, error?: boolean) => void;
+};
+export function GarmentAssetLibrary(props: LibraryProps) {
+  if (!garmentAssets.length)
+    return (
+      <section
+        className="garment-library garment-library-empty"
+        aria-label="Garment flats"
+      >
+        <div>
+          <PackageOpen size={28} />
+          <h3>No garment flats installed</h3>
+          <p>
+            Garment flats are imported from your own drawings and stay on this
+            computer. Run <code>scripts/import-garment-assets.py</code> with a
+            zip of PNG flats, then restart Corpora Studio.
+          </p>
+          <p>Starter flats in Vector packs work without them.</p>
+        </div>
+      </section>
+    );
+  return <GarmentAssetBrowser {...props} />;
+}
+function GarmentAssetBrowser({
   onPlace,
   busy,
   notify,
@@ -126,7 +152,7 @@ export function GarmentAssetLibrary({
         <span className="eyebrow">YOUR COLLECTION</span>
         <h3>Garment flats</h3>
         <p>
-          112 source sheets.
+          {garmentAssets.length} source sheets.
           <br />
           Ready for your next design.
         </p>

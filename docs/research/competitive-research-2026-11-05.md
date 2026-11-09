@@ -1,6 +1,6 @@
 # Form Studio: competitive research and development strategy
 
-Research date: **5 November 2026**. Baseline: **Form Studio 0.12.0**, commit `44fbac7`, project format 12. This report proposes work; it does not implement it.
+Research date: **5 November 2026**. Baseline: **Form Studio 0.12.0**, commit `148ea33`, project format 12. This report proposes work; it does not implement it.
 
 **Recommendation:** make Form Studio dependable from editing through handoff before expanding into autonomous garment reconstruction or biomechanical simulation. The highest-return next release is **0.13 — Reliable editing and production handoff**: grouped garment editing, a clearly bounded SVG importer, export preflight, and real recipient/print trials. Establish a body-quality benchmark during the same milestone, then use it to drive the next tattoo-focused release.
 

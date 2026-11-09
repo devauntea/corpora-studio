@@ -2,6 +2,13 @@ import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
 import { unzipSync, strFromU8 } from "fflate";
+import { existsSync } from "node:fs";
+
+// Garment flats are installed locally and are not in the public repository.
+test.skip(
+  !existsSync("public/garment-assets/catalog.json"),
+  "Garment flats are not installed in this checkout.",
+);
 
 async function openLibrary(page: Page) {
   await page.goto("/");

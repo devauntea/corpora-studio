@@ -33,7 +33,7 @@ Project Undo/Redo, local recovery, checkpoints, save and reopen include the vect
 
 ## Imported garment assets
 
-Open **Fashion → Garment flats** from the workspace tabs. The supplied `vectors.zip` contains **112 PNG sheets**, not Illustrator/SVG source vectors. All originals are preserved byte-for-byte. The collection includes 217 separated garment/accessory views across Tops, Hoodies, Knitwear, Outerwear, Bottoms, Headwear and Accessories.
+Open **Fashion → Garment flats** from the workspace tabs. Flats are not part of the repository: import your own PNG sheets with `scripts/import-garment-assets.py path/to/flats.zip`, which traces them into the ignored `public/garment-assets/` folder. Originals are preserved byte-for-byte, and each sheet is split into its separate garment views and sorted into Tops, Hoodies, Knitwear, Outerwear, Bottoms, Headwear and Accessories.
 
 Search names, filter categories, or favorite assets for later. Select a sheet, choose a view, and compare **Original** with **Vector trace**. Place a selected view on either artboard, or place a two-view sheet as a front/back pair. **Replace drawings on destination** replaces only the destination drawings and callouts; measurement and material records stay intact. Placement is a single undo step. Generic starter names follow the replacement asset; custom style names remain unchanged.
 

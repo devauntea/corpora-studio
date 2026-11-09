@@ -4,7 +4,7 @@ Decision and implementation record, 3 November 2026. Milestone F02 extends the e
 
 ## Audit of the starting application
 
-The audited baseline is commit `da6447f`, following the F01 implementation. There were no uncommitted source changes. The stack remains Rust/Tauri 2, React/TypeScript and Three.js; no additional runtime package or hosted service was needed.
+The audited baseline is commit `7bc7cde`, following the F01 implementation. There were no uncommitted source changes. The stack remains Rust/Tauri 2, React/TypeScript and Three.js; no additional runtime package or hosted service was needed.
 
 | Existing area | Finding | F02 treatment |
 | --- | --- | --- |

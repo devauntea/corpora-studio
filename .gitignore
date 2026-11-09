@@ -25,3 +25,6 @@ coverage/
 *.log
 __pycache__/
 *.pyc
+
+# Garment flat drawings are installed locally (scripts/import-garment-assets.py)
+public/garment-assets/

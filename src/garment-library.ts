@@ -1,5 +1,4 @@
 import { groupSelection, pruneGroups } from "./vector-selection";
-import catalog from "../public/garment-assets/catalog.json";
 import { z } from "zod";
 import {
   VectorNodeSchema,
@@ -8,8 +7,29 @@ import {
   type VectorPack,
   type VectorView,
 } from "./vector-pack";
-export const garmentAssets = catalog;
-export type GarmentAsset = (typeof catalog)[number];
+export type GarmentAsset = {
+  id: string;
+  name: string;
+  category: string;
+  source: string;
+  sourceSize: number[];
+  sha256: string;
+  views: {
+    label: string;
+    file: string;
+    preview: string;
+    width: number;
+    height: number;
+    nodes: number;
+  }[];
+};
+// Garment flats are installed locally with scripts/import-garment-assets.py
+// and are not part of the repository, so the catalog is optional at build time.
+const installed = import.meta.glob<GarmentAsset[]>(
+  "../public/garment-assets/catalog.json",
+  { eager: true, import: "default" },
+);
+export const garmentAssets: GarmentAsset[] = Object.values(installed)[0] ?? [];
 export const assetUrl = (id: string, file: string) =>
   `${import.meta.env.BASE_URL}garment-assets/${encodeURIComponent(id)}/${encodeURIComponent(file)}`;
 const TraceSchema = z

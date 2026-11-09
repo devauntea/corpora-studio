@@ -436,3 +436,30 @@
     font-size: 11px;
   }
 }
+/* Shown in public checkouts, where garment flats are not installed. */
+:root .garment-library.garment-library-empty {
+  display: grid;
+  place-items: center;
+  padding: 48px 24px;
+  background: var(--fs-paper);
+  color: var(--fs-ink);
+}
+:root .garment-library-empty > div {
+  max-width: 440px;
+  text-align: center;
+}
+:root .garment-library-empty h3 {
+  margin: 14px 0 8px;
+  font-family: var(--fs-serif);
+  font-size: 24px;
+  font-weight: 400;
+}
+:root .garment-library-empty p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fs-muted);
+}
+:root .garment-library-empty svg {
+  color: var(--fs-muted);
+}
