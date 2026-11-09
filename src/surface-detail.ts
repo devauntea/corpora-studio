@@ -1,7 +1,8 @@
 import { referenceSkin } from "./reference-skin";
 import * as THREE from "three";
 import { humanScale, type HumanBody } from "./domain";
-import { muscleGroups } from "./muscles";
+import { muscleCatalog, detailedMuscleGroups } from "./muscles";
+import { addSkinMicrodetail, skinMicroUniforms } from "./skin-microdetail";
 export type DetailLandmarks = {
   wrist: number[];
   fingers: number[][][];
@@ -22,15 +23,18 @@ export function addSculptedSurfaceDetail(
 ) {
   const vec = (p: number[]) =>
     new THREE.Vector3(...(p as [number, number, number]));
+  const refined = body.model!.revision >= 8;
+  const catalog = muscleCatalog(body.model!.revision);
+  const colors = catalog.map((g) => new THREE.Color(g.color));
+  if (!refined) colors.push(new THREE.Color("#dfd4b5"));
   const uniforms = {
+    ...(refined ? skinMicroUniforms(body) : {}),
+    atlasParents: {
+      value: colors.map((_, i) => detailedMuscleGroups[i].parent),
+    },
     anatomyMix: { value: body.anatomy ? body.model!.anatomyOpacity : 0 },
     skinTint: { value: new THREE.Color(body.skin) },
-    atlasPalette: {
-      value: [
-        ...muscleGroups.map((g) => new THREE.Color(g.color)),
-        new THREE.Color("#dfd4b5"),
-      ],
-    },
+    atlasPalette: { value: colors },
     bodyJoints: {
       value: ["shoulder", "elbow", "wrist", "hip", "knee", "ankle"].map(
         (key) =>
@@ -44,7 +48,7 @@ export function addSculptedSurfaceDetail(
     toeJoints: { value: landmarks.toes.flat().map(vec) },
     detailScale: {
       value:
-        body.model?.revision === 5
+        (body.model?.revision ?? 0) >= 5
           ? humanScale(body) / 100
           : body.length /
             (body.section === "upper-body"
@@ -56,9 +60,11 @@ export function addSculptedSurfaceDetail(
   };
   material.userData.surfaceUniforms = uniforms;
   material.customProgramCacheKey = () =>
-    body.model!.revision >= 5
-      ? "surface-v5-reference-1"
-      : "surface-v3-sculpt-1";
+    refined
+      ? "surface-v8-heads-micro-1"
+      : body.model!.revision >= 5
+        ? "surface-v5-reference-1"
+        : "surface-v3-sculpt-1";
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader =
@@ -82,7 +88,8 @@ export function addSculptedSurfaceDetail(
       uniform float anatomyMix;
       uniform vec3 skinTint;
       uniform float detailScale;
-      uniform vec3 atlasPalette[37];
+      uniform vec3 atlasPalette[${colors.length}];
+      uniform float atlasParents[${colors.length}];
       uniform vec3 bodyJoints[6];
       uniform vec3 handJoints[20];
       uniform vec3 handNormal;
@@ -193,7 +200,7 @@ export function addSculptedSurfaceDetail(
       if(group==0 && vRest.z>.3) intersections=smoothstep(.010,.040,abs(vRest.x));
       atlasColor=mix(atlasColor,atlasPalette[36],max(septum*.72,1.0-intersections));
       diffuseColor.rgb *= mix(skinTint, atlasColor, anatomyMix);
-      float phase = musclePhase(vRest,group);
+      float phase = musclePhase(vRest,int(atlasParents[group]+.5));
       float fiberMask = (group==36 ? 0.0:1.0)*smoothstep(.10,.38,confidence)*intersections;
       // Fascicle bundles remain readable at normal working zoom; the fine
       // filaments and skin pores resolve only when the pixel footprint permits.
@@ -236,5 +243,6 @@ export function addSculptedSurfaceDetail(
     `,
     );
     if (body.model!.revision >= 5) referenceSkin(shader);
+    if (refined) addSkinMicrodetail(shader);
   };
 }

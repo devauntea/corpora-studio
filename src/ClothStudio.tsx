@@ -109,7 +109,9 @@ export function ClothStudio({
   const p = config.panels.find((p) => p.id === selected),
     piece = draft.pieces.find((d) => d.id === p?.pieceId);
   useEffect(() => {
-    dialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    dialog.current
+      ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+      ?.focus();
     return () => controller.current?.abort();
   }, []);
   useEffect(() => {
@@ -183,6 +185,7 @@ export function ClothStudio({
         ref={dialog}
         className="stencil-studio cloth-studio"
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-label="Garment drape studio"
         onKeyDown={(e) => {

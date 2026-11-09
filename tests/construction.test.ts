@@ -1,3 +1,4 @@
+import { newFashion as legacyFashion } from "../src/legacy-fashion-v18";
 import { describe, expect, it } from "vitest";
 import {
   allowanceOutline,
@@ -50,7 +51,7 @@ describe("manual pattern construction", () => {
   });
 
   it("migrates an unedited v7 project without altering either studio", async () => {
-    const p = { ...blankProject(), fashion: newFashion() };
+    const p = { ...blankProject(), fashion: legacyFashion() };
     expect(await parseProject(JSON.stringify({ ...p, version: 7 }))).toEqual(p);
   });
 

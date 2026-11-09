@@ -1,0 +1,55 @@
+.rotation-control {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 10px 0;
+}
+.rotation-control .number-field {
+  margin: 0;
+}
+.rotation-control > small {
+  display: block;
+  margin: 4px 0;
+  color: var(--muted, #777);
+  font-size: 11px;
+}
+.rotation-control input[type="range"] {
+  display: block;
+  width: 100%;
+  min-height: 30px;
+  margin: 4px 0;
+  accent-color: #292929;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.rotation-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+.inspector .rotation-steps button {
+  min-height: 30px;
+  padding: 4px 2px;
+  font-size: 11px;
+  background: #f8f8f6;
+  border: 1px solid #d6d6d2;
+  border-radius: 5px;
+  color: #333;
+  cursor: pointer;
+}
+.rotation-steps button:focus-visible,
+.rotation-control input:focus-visible {
+  outline: 2px solid #555;
+  outline-offset: 2px;
+}
+.inspector .rotation-steps button:hover {
+  background: #e9e9e5;
+}
+.rotation-presets {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.rotation-presets button {
+  flex: 1;
+  min-height: 32px;
+}

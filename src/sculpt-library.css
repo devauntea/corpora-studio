@@ -1,0 +1,96 @@
+.sculpt-library {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border, #d8d8d4);
+  border-radius: 8px;
+}
+.sculpt-library summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.sculpt-library summary span {
+  float: right;
+  color: var(--muted, #777);
+  font-weight: 400;
+}
+.sculpt-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 7px;
+}
+.inspector .sculpt-grid button {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #f4f3f0;
+  border: 1px solid #d5d4d0;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  color: #222;
+}
+.sculpt-grid button.active {
+  outline: 2px solid #222;
+  outline-offset: 1px;
+}
+.inspector .sculpt-grid button img {
+  display: block;
+  flex: none;
+  width: 100%;
+  height: 100px;
+  object-fit: contain;
+  background: #282828;
+}
+.inspector .sculpt-grid button span {
+  display: block;
+  padding: 7px;
+  font-size: 11px;
+  white-space: normal;
+}
+.sculpt-credit a {
+  color: inherit;
+  text-underline-offset: 2px;
+}
+.sculpt-selection {
+  width: 100%;
+  height: 150px;
+  object-fit: contain;
+  background: #282828;
+  border-radius: 6px;
+}
+
+/* Sculpt variants use the same thumbnail treatment as the full model library. */
+.sculpt-library {
+  padding: 14px;
+  border-color: var(--fs-border, #d5d1c7);
+  background: var(--fs-panel, #fbf9f4);
+}
+.sculpt-grid {
+  gap: 10px;
+  margin-top: 12px;
+}
+.inspector .sculpt-grid button {
+  background: var(--fs-panel, #fbf9f4);
+  border-color: var(--fs-border, #d5d1c7);
+}
+.inspector .sculpt-grid button span {
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.inspector .sculpt-grid button img {
+  height: 120px;
+  background: #292b28;
+}
+.sculpt-grid button:focus-visible {
+  outline: 2px solid var(--fs-ink, #242521);
+  outline-offset: 3px;
+}
+.sculpt-selection {
+  background: #292b28;
+}

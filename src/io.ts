@@ -1,5 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { sha256, type Asset } from "./domain";
+import { validateRasterPreview, RASTER_LIMITS } from "./raster-header";
 
 export const native = isTauri();
 export async function loadImage(src: string): Promise<HTMLImageElement> {
@@ -8,7 +9,7 @@ export async function loadImage(src: string): Promise<HTMLImageElement> {
   await image.decode();
   return image;
 }
-export async function assetFromFile(file: File): Promise<Asset> {
+export async function assetFromFile(file: File, maxPixels: number = RASTER_LIMITS.pixels): Promise<Asset> {
   const heic = /\.heic$/i.test(file.name) || file.type === "image/heic";
   if (!heic && !["image/png", "image/jpeg"].includes(file.type))
     throw new Error("Choose a PNG, JPEG, or HEIC image.");
@@ -23,22 +24,14 @@ export async function assetFromFile(file: File): Promise<Asset> {
   if (heic) data = `data:image/heic;base64,${data.split(",")[1]}`;
   const preview = heic
     ? native
-      ? await invoke<string>("decode_heic", { data: data.split(",")[1] })
+      ? await invoke<string>("decode_heic", { data: data.split(",")[1], maxPixels: Math.min(maxPixels, RASTER_LIMITS.pixels) })
       : undefined
     : undefined;
   if (heic && !preview)
     throw new Error(
       "Import HEIC in the desktop app, or choose PNG / JPEG in the browser preview.",
     );
-  const image = await loadImage(preview ?? data);
-  if (
-    image.width > 8192 ||
-    image.height > 8192 ||
-    image.width * image.height > 32_000_000
-  )
-    throw new Error(
-      "Use artwork up to 8192 pixels per side and 32 megapixels.",
-    );
+  const image = await validateRasterPreview(preview ?? data, undefined, maxPixels);
   return {
     id: crypto.randomUUID(),
     name: file.name.slice(0, 180),
@@ -65,7 +58,7 @@ export async function saveProject(
 ): Promise<string | null> {
   if (native) return invoke("save_project", { content, path, name });
   download(content, `${name}.formstudio`, "application/json");
-  return "Downloaded project";
+  return "Download requested";
 }
 export async function openProject(): Promise<{
   content: string;

@@ -1,3 +1,15 @@
+import { validateRasterPreview } from "./raster-header";
+import { validatePatternSourceAssets } from "./pattern-source";
+import { ProjectSchema as LegacyV18ProjectSchema } from "./legacy-v18";
+import { reviewSchema } from "./review-room";
+import { ProjectSchema as LegacyV17ProjectSchema } from "./legacy-v17";
+import { sculptIds, sculptById, type SculptId } from "./sculpt-catalog";
+import { ProjectSchema as LegacyV16ProjectSchema } from "./legacy-v16";
+import { ProjectSchema as LegacyV15ProjectSchema } from "./legacy-v15";
+import { ProjectSchema as LegacyV14ProjectSchema } from "./legacy-v14";
+import { ProjectSchema as LegacyV13ProjectSchema } from "./legacy-v13";
+import { TattooStudySchema } from "./tattoo-study";
+import { ProjectSchema as LegacyV12ProjectSchema } from "./legacy-v12";
 import { migrateVectorPack } from "./vector-pack";
 import { ProjectSchema as LegacyV11ProjectSchema } from "./legacy-v11";
 import { ProjectSchema as LegacyV10ProjectSchema } from "./legacy-v10";
@@ -135,11 +147,21 @@ const HumanBodySchema = z
     anatomy: z.boolean(),
     model: z
       .object({
+        sculptId: z.enum(sculptIds).optional(),
+        sculptAppearance: z.enum(["original", "skin"]).optional(),
+        sculptRotation: z
+          .object({ x: finite(0, 360), y: finite(0, 360), z: finite(0, 360) })
+          .strict()
+          .optional(),
         revision: z.union([
           z.literal(2),
           z.literal(3),
           z.literal(4),
           z.literal(5),
+          z.literal(6),
+          z.literal(7),
+          z.literal(8),
+          z.literal(9),
         ]),
         sex: z.enum(["male", "female"]),
         physique: z.enum(["fit", "average"]),
@@ -259,16 +281,26 @@ const AssetSchema = LegacyAssetSchema.extend({
   if ((a.mime === "image/heic") !== Boolean(a.preview && a.previewSha256))
     c.addIssue({ code: "custom", message: "HEIC preview required" });
 });
+/** Newest immutable body asset revision offered for new and re-selected bodies. */
+export const LATEST_BODY_REVISION = 9 as const;
 export const LayerSchema = LegacyLayerSchema.extend({
+  surfaceDrawing: z.string().max(512).optional(),
+  // Full surface drawing charts can span a torso or an entire body.
+  width: finite(5, 2400),
   groupId: z.string().uuid().optional(),
   surface: z
     .object({
       vertex: finite(0, 249999).int(),
+      sculptId: z.enum(sculptIds).optional(),
       revision: z.union([
         z.literal(2),
         z.literal(3),
         z.literal(4),
         z.literal(5),
+        z.literal(6),
+        z.literal(7),
+        z.literal(8),
+        z.literal(9),
       ]),
       sex: z.enum(["male", "female"]),
     })
@@ -330,7 +362,7 @@ export const PhotoSchema = z
 export const ProjectSchema = z
   .object({
     format: z.literal("form-studio"),
-    version: z.literal(12),
+    version: z.literal(19),
     units: z.literal("mm"),
     id: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -341,6 +373,8 @@ export const ProjectSchema = z
     photos: z.array(PhotoSchema).max(8),
     fashion: FashionSchema.optional(),
     bodyStudy: BodyStudySchema.optional(),
+    tattooStudy: TattooStudySchema.optional(),
+    review: reviewSchema.optional(),
     groups: z
       .array(
         z
@@ -369,6 +403,33 @@ export const ProjectSchema = z
           "Full body and neck require the continuous revision 4 or later surface",
       });
     const issue = (message: string) => c.addIssue({ code: "custom", message });
+    if (p.review?.revisions.some((r) => r.projectId !== p.id))
+      issue("Review revision belongs to a different project");
+    if (p.body.kind === "human-v1" && p.body.model?.sculptId) {
+      const body = p.body,
+        entry = sculptById(body.model!.sculptId)!;
+      if (
+        body.model!.revision !== 9 ||
+        body.section !== entry.section ||
+        body.side !== "left" ||
+        body.build !== 1 ||
+        body.muscularity !== 0 ||
+        body.flex !== 0 ||
+        body.armPose ||
+        body.fitting ||
+        body.anatomy ||
+        (body.musclePose && body.musclePose !== "relaxed")
+      )
+        issue("Imported sculpts use their authored shape and fixed pose");
+    }
+    for (const layer of p.layers)
+      if (
+        layer.surface?.sculptId &&
+        (p.body.kind !== "human-v1" ||
+          layer.surface.sculptId !== p.body.model?.sculptId)
+      )
+        issue("Sculpt placement belongs to a different model");
+
     if (
       p.photos.reduce(
         (n, ph) => n + ph.masks.reduce((n, s) => n + s.points.length, 0),
@@ -397,6 +458,33 @@ export const ProjectSchema = z
       issue("Duplicate layer group");
     if (p.layers.some((l) => l.groupId && !groupIds.has(l.groupId)))
       issue("Missing layer group");
+    if (
+      p.tattooStudy?.stencils.some(
+        (s) =>
+          !p.assets.some(
+            (a) =>
+              a.id === s.assetId && a.role !== "body" && a.role !== "garment",
+          ),
+      )
+    )
+      issue("Missing stencil artwork");
+    if (p.fashion?.patternSources) {
+      try {
+        validatePatternSourceAssets(p.fashion.patternSources, p.assets);
+      } catch (error) {
+        issue(
+          error instanceof Error ? error.message : "Invalid pattern references",
+        );
+      }
+      if (
+        p.fashion.patternSources.studies.some((s) =>
+          s.sourceAssetIds.some(
+            (id) => !p.assets.some((a) => a.id === id && a.role === "garment"),
+          ),
+        )
+      )
+        issue("Pattern references must use preserved garment source assets");
+    }
     const ids = new Set(p.assets.map((a) => a.id)),
       photoIds = new Set(p.photos.map((a) => a.id));
     if (
@@ -452,7 +540,7 @@ export type Asset = Project["assets"][number];
 export function blankProject(): Project {
   return {
     format: "form-studio",
-    version: 12,
+    version: 19,
     units: "mm",
     id: crypto.randomUUID(),
     name: "Untitled composition",
@@ -578,7 +666,7 @@ export async function parseProject(text: string): Promise<Project> {
   try {
     json = JSON.parse(text);
   } catch {
-    throw new Error("This file is not a valid Form Studio project.");
+    throw new Error("This file is not a valid Corpora Studio project.");
   }
   // Validate the old schema BEFORE migration: no new meanings are assigned to old fields.
   if ((json as { version?: number })?.version === 1) {
@@ -642,12 +730,80 @@ export async function parseProject(text: string): Promise<Project> {
             fashion: {
               ...old.data.fashion,
               ...(old.data.fashion.vectorPack
+                ? { vectorPack: { ...old.data.fashion.vectorPack, version: 2 } }
+                : {}),
+            },
+          }
+        : {}),
+    };
+  }
+  if ((json as { version?: number })?.version === 12) {
+    const old = LegacyV12ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Invalid version 12 project");
+    json = {
+      ...old.data,
+      version: 13,
+      ...(old.data.fashion
+        ? {
+            fashion: {
+              ...old.data.fashion,
+              ...(old.data.fashion.vectorPack
+                ? {
+                    vectorPack: {
+                      ...old.data.fashion.vectorPack,
+                      version: 3,
+                      groups: [],
+                      sources: [],
+                    },
+                  }
+                : {}),
+            },
+          }
+        : {}),
+    };
+  }
+  if ((json as { version?: number })?.version === 13) {
+    const old = LegacyV13ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Invalid version 13 project");
+    json = { ...old.data, version: 14 };
+  }
+  if ((json as { version?: number })?.version === 14) {
+    const old = LegacyV14ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Invalid version 14 project");
+    json = {
+      ...old.data,
+      version: 15,
+      ...(old.data.fashion
+        ? {
+            fashion: {
+              ...old.data.fashion,
+              ...(old.data.fashion.vectorPack
                 ? { vectorPack: migrateVectorPack(old.data.fashion.vectorPack) }
                 : {}),
             },
           }
         : {}),
     };
+  }
+  if ((json as { version?: number })?.version === 15) {
+    const old = LegacyV15ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Invalid version 15 project");
+    json = { ...old.data, version: 16 };
+  }
+  if ((json as { version?: number })?.version === 16) {
+    const old = LegacyV16ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Invalid version 16 project");
+    json = { ...old.data, version: 17 };
+  }
+  if ((json as { version?: number })?.version === 17) {
+    const old = LegacyV17ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Invalid version 17 project");
+    json = { ...old.data, version: 18 };
+  }
+  if ((json as { version?: number })?.version === 18) {
+    const old = LegacyV18ProjectSchema.safeParse(json);
+    if (!old.success) throw new Error("Invalid version 18 project");
+    json = { ...old.data, version: 19 };
   }
   const result = ProjectSchema.safeParse(json);
   if (!result.success)
@@ -665,6 +821,15 @@ export async function parseProject(text: string): Promise<Project> {
     if (asset.preview && (await sha256(asset.preview)) !== asset.previewSha256)
       throw new Error(`Photo preview integrity check failed: ${asset.name}`);
   }
+  for (const asset of result.data.assets) {
+    try {
+      await validateRasterPreview(asset.preview ?? asset.data, asset);
+    } catch (error) {
+      throw new Error(
+        `Invalid source image ${asset.name}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
   return result.data;
 }
 
@@ -677,6 +842,8 @@ export type History<T> = {
 export type HistoryAction<T> =
   | { type: "change"; value: T }
   | { type: "reset"; value: T }
+  /** Fill in a default the user did not author; keeps undo history intact. */
+  | { type: "seed"; value: T }
   | { type: "begin" | "commit" | "undo" | "redo" };
 export function historyReducer<T>(
   state: History<T>,
@@ -697,6 +864,8 @@ export function historyReducer<T>(
   switch (action.type) {
     case "reset":
       return { present: action.value, past: [], future: [] };
+    case "seed":
+      return { ...state, present: action.value };
     case "begin":
       return state.transaction === undefined
         ? { ...state, transaction: state.present }
@@ -735,6 +904,8 @@ export function historyReducer<T>(
 }
 
 export function bodyLabel(body: Body) {
+  if (body.kind === "human-v1" && body.model?.sculptId)
+    return sculptById(body.model.sculptId)!.name;
   if (body.kind === "human-v1")
     return body.section === "full-body"
       ? "Full body · neck to feet"
@@ -888,16 +1059,20 @@ export function humanBody(
               : 1000,
     build: 1,
     muscularity:
-      previous?.kind === "human-v1" && previous.model
+      previous?.kind === "human-v1" &&
+      previous.model &&
+      !previous.model.sculptId
         ? previous.muscularity
         : 1,
     model:
-      previous?.kind === "human-v1" && previous.model
+      previous?.kind === "human-v1" &&
+      previous.model &&
+      !previous.model.sculptId
         ? {
             ...previous.model,
             revision:
-              previous.model.revision === 5
-                ? 5
+              previous.model.revision >= 5
+                ? previous.model.revision
                 : section === "full-body" || section === "neck"
                   ? 4
                   : previous.model.revision === 4
@@ -905,7 +1080,7 @@ export function humanBody(
                     : previous.model.revision,
           }
         : {
-            revision: 5,
+            revision: LATEST_BODY_REVISION,
             sex: "male",
             physique: "fit",
             anatomyOpacity: 0.85,
@@ -914,8 +1089,39 @@ export function humanBody(
     anatomy: false,
   };
 }
+/** Imported sculpts have a fixed authored pose and uniformly adjustable size. */
+export function sculptBody(id: SculptId, previous?: Body): HumanBody {
+  const entry = sculptById(id)!;
+  return {
+    ...humanBody(entry.section),
+    side: "left",
+    skin: previous?.skin ?? "#d4d0cb",
+    length: entry.physicalHeightMm,
+    muscularity: 0,
+    armPose: undefined,
+    fitting: undefined,
+    musclePose: undefined,
+    muscleTension: undefined,
+    model: {
+      revision: 9,
+      sex: "male",
+      physique: "fit",
+      anatomyOpacity: 0,
+      sculptId: id,
+      ...(entry.skinEnvelope ? { sculptAppearance: "skin" as const } : {}),
+    },
+  };
+}
 export function bodyZones(body: Body): SurfaceZone[] {
   if (body.kind !== "human-v1") return [];
+  if (body.model?.sculptId)
+    return [
+      body.section === "neck"
+        ? "neck"
+        : ["upper-body", "full-body"].includes(body.section)
+          ? "trunk"
+          : (`${body.side}-${body.section === "full-arm" ? "arm" : "leg"}` as SurfaceZone),
+    ];
   if (body.section === "full-body") return [...surfaceZones];
   if (body.section === "neck") return ["neck"];
   if (body.section === "upper-body")
@@ -933,6 +1139,8 @@ export function layerZone(body: Body, layer: Layer): SurfaceZone {
     : (zones[0] ?? "trunk");
 }
 export function humanScale(body: HumanBody) {
+  const sculpt = sculptById(body.model?.sculptId);
+  if (sculpt) return body.length / sculpt.physicalHeightMm;
   return (
     body.length /
     (body.section === "full-body"
@@ -961,6 +1169,12 @@ export function humanScale(body: HumanBody) {
 // Nominal chart sizes scale with the template. They are not tape measurements.
 export function humanChartSize(body: HumanBody, zone = bodyZones(body)[0]) {
   const scale = humanScale(body);
+  const sculpt = sculptById(body.model?.sculptId);
+  if (sculpt)
+    return {
+      width: sculpt.chartWidthMm * scale,
+      height: sculpt.chartHeightMm * scale,
+    };
   return {
     width:
       (zone === "neck"
@@ -979,7 +1193,7 @@ export function humanChartSize(body: HumanBody, zone = bodyZones(body)[0]) {
           : 1.4
         : zone === "trunk"
           ? body.model
-            ? body.model.revision === 5
+            ? body.model.revision >= 5
               ? 6.4
               : body.model.revision >= 4
                 ? 5.4

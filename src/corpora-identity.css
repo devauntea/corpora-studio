@@ -1,0 +1,361 @@
+/* Corpora Studio — irregular contours, warm paper, plum ink.
+   Brand colors belong to the interface; artwork and skin retain document colors. */
+:root {
+  --fs-paper: #f5efed;
+  --fs-panel: #fcf8f5;
+  --fs-ink: #2e2332;
+  --fs-muted: #675969;
+  --fs-border: #d8cbd4;
+  --fs-soft: #ede2e8;
+  --fs-field: #fffaf8;
+  --fs-selected: #52364f;
+  --fs-on-selected: #fff8fb;
+  --fs-board: #e6dce0;
+  --fs-error: #a1264b;
+  --fs-warning: #785627;
+  --cs-accent: #a12f69;
+  --cs-blush: #eed5e2;
+  --cs-plum: #39263c;
+  --cs-on-plum: #f5eaf1;
+}
+:root[data-theme="dark"] {
+  --fs-paper: #1e1822;
+  --fs-panel: #2b2330;
+  --fs-ink: #f3eaf1;
+  --fs-muted: #c4b5c5;
+  --fs-border: #635269;
+  --fs-soft: #3b3041;
+  --fs-field: #211a27;
+  --fs-selected: #e9c8dc;
+  --fs-on-selected: #302036;
+  --fs-board: #1a151e;
+  --fs-error: #ffb1c0;
+  --fs-warning: #e6c994;
+  --cs-accent: #f1a9d0;
+  --cs-blush: #4a2d43;
+  --cs-plum: #241a2b;
+  --cs-on-plum: #f5eaf1;
+}
+::selection {
+  background: var(--cs-blush);
+  color: var(--fs-ink);
+}
+:root body {
+  background: var(--fs-paper);
+  color: var(--fs-ink);
+}
+:root :is(button, input, select, textarea, a, summary):focus-visible {
+  outline-color: var(--cs-accent);
+  outline-offset: 3px;
+}
+:root input:is([type="range"], [type="checkbox"]) {
+  accent-color: var(--cs-accent);
+}
+:root[data-theme="dark"] input::placeholder {
+  color: #b9aaba;
+}
+:root .topbar {
+  background: var(--cs-plum);
+  color: var(--cs-on-plum);
+  border-color: #634762;
+}
+:root .brand {
+  gap: 10px;
+  color: var(--cs-on-plum);
+  letter-spacing: 2.3px;
+}
+:root .brand-mark {
+  color: #e6adc9;
+}
+:root .brand-mark svg {
+  display: block;
+  flex: none;
+}
+:root .brand-slash {
+  color: #d69abd;
+  margin: 0 3px;
+}
+:root .topbar .studio-switch {
+  background: #241a2b;
+  border-color: #765f7b;
+}
+:root .studio-switch button.active {
+  background: #ead5e2;
+  color: #302036;
+}
+:root
+  .topbar-actions
+  :is(button, .appearance-control, .appearance-control select),
+:root .home-trigger {
+  background: transparent;
+  color: var(--cs-on-plum);
+  border-color: #7f6882;
+}
+:root .appearance-control select option {
+  background: #302237;
+  color: #fbf3f9;
+}
+:root .topbar button:not(:disabled):hover {
+  background: #52364f;
+  color: #fff8fb;
+}
+:root .studio-switch button.active:hover {
+  background: #f2deea;
+  color: #302036;
+}
+:root .projectbar {
+  border-bottom-color: var(--fs-border);
+}
+:root .breadcrumb {
+  letter-spacing: 1.8px;
+}
+:root .workspace-nav nav button.active {
+  background: var(--fs-soft);
+  color: var(--fs-ink);
+}
+:root .workspace-nav nav button.active::after {
+  background: var(--cs-accent);
+}
+:root .workspace-nav nav button:focus-visible {
+  outline-offset: -3px;
+}
+:root .project-name input {
+  color: var(--fs-ink);
+}
+:root button.primary {
+  background: var(--fs-selected);
+  color: var(--fs-on-selected);
+  border-color: var(--fs-selected);
+}
+:root button.primary:not(:disabled):hover {
+  background: var(--cs-accent);
+  color: var(--fs-panel);
+}
+:root[data-theme="dark"] button.primary:not(:disabled):hover {
+  color: var(--fs-on-selected);
+}
+:root[data-theme="dark"]
+  :is(button.active, button.selected, button[aria-pressed="true"]):not(
+    :disabled
+  ):hover {
+  background: var(--fs-selected);
+  color: var(--fs-on-selected);
+}
+:root .layer-row.selected {
+  border-color: var(--cs-accent);
+  box-shadow: inset 2px 0 var(--cs-accent);
+}
+:root .inspector-tabs button.active::after {
+  background: var(--cs-accent);
+}
+:root .statusbar {
+  background: var(--fs-paper);
+  color: var(--fs-muted);
+}
+:root .section-label {
+  color: var(--fs-muted);
+}
+:root :is(.body-preview-card.active, .pattern-preview-card.active) {
+  border-color: var(--cs-accent);
+  box-shadow: 0 0 0 1px var(--cs-accent);
+}
+:root .pattern-preview-card[aria-pressed="true"] {
+  background: var(--fs-soft);
+  color: var(--fs-ink);
+}
+:root
+  .pattern-preview-card[aria-pressed="true"]
+  :is(h3, p, span, strong, small) {
+  color: inherit;
+}
+:root .pattern-card-image .pattern-card-selected {
+  background: var(--fs-selected);
+  color: var(--fs-on-selected);
+}
+:root
+  .pattern-preview-card[aria-pressed="true"]
+  .pattern-card-image
+  .pattern-card-selected {
+  color: var(--fs-on-selected);
+}
+:root .vector-studio .vector-canvas-scroll {
+  background-color: var(--fs-board);
+  background-image: radial-gradient(#ad94a7 0.55px, transparent 0.55px);
+}
+:root[data-theme="dark"] .vector-studio .vector-canvas-scroll {
+  background-image: radial-gradient(#58415c 0.55px, transparent 0.55px);
+}
+:root[data-theme="dark"] .pattern-canvas #fashion-grid-small path {
+  stroke: #332839;
+}
+:root[data-theme="dark"] .pattern-canvas #fashion-grid > path {
+  stroke: #4b3a50;
+}
+:root[data-theme="dark"] .pattern-piece > text {
+  fill: #dfcede;
+}
+:root[data-theme="dark"] .pattern-piece.selected > .piece-bounds {
+  stroke: #e2adce;
+}
+:root .textile-garment-preview path[role="button"]:focus-visible {
+  stroke: var(--cs-accent);
+}
+:root .textile-preview-badge {
+  color: var(--cs-accent);
+  border-color: var(--fs-border);
+}
+:root .textile-controls {
+  scrollbar-color: var(--fs-border) var(--fs-panel);
+}
+:root .textile-pattern-card[aria-pressed="true"] {
+  outline-color: var(--cs-accent);
+}
+:root
+  :is(
+    .library,
+    .inspector-scroll,
+    .vector-sidebar,
+    .vector-inspector,
+    .garment-gallery,
+    .pattern-catalog-gallery
+  ) {
+  scrollbar-color: var(--fs-border) var(--fs-panel);
+}
+:root .studio-home.corpora-home {
+  color: var(--fs-ink);
+}
+:root .studio-home.corpora-home > header {
+  background: var(--cs-plum);
+  color: var(--cs-on-plum);
+}
+:root .corpora-home .home-wordmark :is(strong, small, span) {
+  color: inherit;
+}
+:root .corpora-home .home-wordmark svg {
+  color: #e6adc9;
+}
+:root .corpora-home > header button {
+  color: var(--cs-on-plum);
+  background: transparent;
+}
+:root .corpora-home .home-hero-copy .eyebrow {
+  color: var(--cs-accent);
+}
+@media (max-width: 1200px) {
+  :root .brand {
+    letter-spacing: 1.8px;
+    gap: 8px;
+    font-size: 11px;
+  }
+  :root .brand-mark svg {
+    width: 24px;
+    height: 24px;
+  }
+  :root .workspace-nav nav button {
+    padding-left: 11px;
+    padding-right: 11px;
+  }
+}
+:root[data-theme="dark"] .topbar {
+  background: var(--cs-plum);
+}
+:root .studio-home-trigger {
+  background: transparent;
+  color: var(--cs-on-plum);
+  border-color: #7f6882;
+}
+:root
+  :is(
+    .view-tools,
+    .camera-tabs,
+    .surface-filter,
+    .surface-brush,
+    .canvas-context
+  ),
+:root[data-theme="dark"]
+  :is(
+    .view-tools,
+    .camera-tabs,
+    .surface-filter,
+    .surface-brush,
+    .canvas-context
+  ) {
+  background: #2a2031f2;
+  border-color: #79667e;
+  color: #f3eaf1;
+}
+:root
+  :is(
+    .view-tools,
+    .camera-tabs,
+    .surface-filter,
+    .surface-brush,
+    .canvas-context
+  )
+  :is(button, label, small, strong),
+:root[data-theme="dark"]
+  :is(
+    .view-tools,
+    .camera-tabs,
+    .surface-filter,
+    .surface-brush,
+    .canvas-context
+  )
+  :is(button, label, small, strong) {
+  color: #eadbea;
+}
+:root
+  :is(.view-tools, .camera-tabs, .surface-filter)
+  :is(button.active, button.selected, button[aria-pressed="true"]),
+:root[data-theme="dark"]
+  :is(.view-tools, .camera-tabs, .surface-filter)
+  :is(button.active, button.selected, button[aria-pressed="true"]) {
+  background: #ead5e2;
+  color: #302036;
+}
+:root
+  :is(.view-tools, .camera-tabs, .surface-filter)
+  button:not(:disabled):hover {
+  background: #634661;
+  color: #fff8fb;
+}
+:root[data-theme="dark"] header.topbar {
+  background: var(--cs-plum);
+}
+/* Dialogs take focus when their empty space is clicked so Escape and Tab keep
+   working; the container itself needs no focus ring. */
+:root [role="dialog"][tabindex="-1"]:focus {
+  outline: none;
+}
+/* Tattoo step row: the current step reads like Fashion's — filled number,
+   accent rule — and the optional pose study sits apart from the steps. */
+:root .workspace-nav .task-path button[aria-current="step"] {
+  background: var(--fs-soft);
+  color: var(--fs-ink);
+  box-shadow: inset 0 -2px 0 var(--cs-accent);
+}
+:root .workspace-nav .task-path button[aria-current="step"] span {
+  background: var(--fs-selected);
+  color: var(--fs-on-selected);
+}
+:root .workspace-nav .task-extra {
+  position: relative;
+  margin-left: 10px;
+  padding: 0 12px 0 16px;
+  border: 0;
+  background: transparent;
+  color: var(--fs-muted);
+  font-size: 12px;
+}
+:root .workspace-nav .task-extra::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 25%;
+  bottom: 25%;
+  border-left: 1px solid var(--fs-border);
+}
+:root .workspace-nav .task-extra:hover,
+:root .workspace-nav .task-extra.active {
+  color: var(--fs-ink);
+}

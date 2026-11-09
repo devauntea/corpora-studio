@@ -145,7 +145,7 @@ export async function portfolioFiles(
     "window.FORM_STUDIO_PORTFOLIO=" + JSON.stringify(manifest) + ";\n",
   );
   files["README.txt"] = strToU8(
-    "Form Studio portfolio export\nOpen index.html locally, or host this folder as a static website.\nOnly selected flattened review images and display metadata are included. Source images, editable projects and measurement tables are not included as separate files. Review every exported image before sharing; image pixels may contain private details.\n\n" +
+    "Corpora Studio portfolio export\nOpen index.html locally, or host this folder as a static website.\nOnly selected flattened review images and display metadata are included. Source images, editable projects and measurement tables are not included as separate files. Review every exported image before sharing; image pixels may contain private details.\n\n" +
       manifest.credits.join("\n"),
   );
   return { files, manifest };

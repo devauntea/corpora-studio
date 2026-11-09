@@ -15,7 +15,8 @@ export function PortfolioStudio({
   useDialogReturnFocus();
   const [options, setOptions] = useState<PortfolioOptions>({
       title: project.name,
-      description: "Selected tattoo and fashion studies made in Form Studio.",
+      description:
+        "Selected tattoo and fashion studies made in Corpora Studio.",
       surface: true,
       pattern: !!project.fashion,
       photos: false,
@@ -28,7 +29,9 @@ export function PortfolioStudio({
     dialog = useRef<HTMLElement>(null),
     urls = useRef<string[]>([]);
   useEffect(() => {
-    dialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    dialog.current
+      ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+      ?.focus();
     return () => {
       controller.current?.abort();
       urls.current.forEach((u) => URL.revokeObjectURL(u));
@@ -80,6 +83,7 @@ export function PortfolioStudio({
         className="stencil-studio"
         ref={dialog}
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-label="Export portfolio"
         onKeyDown={(e) => {

@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod tripo;
 use base64::Engine;
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -10,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Mutex,
 };
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager, State};
 
 const MAX_PROJECT: u64 = 80_000_000;
@@ -42,7 +43,14 @@ fn validate_envelope(content: &str) -> Result<(), String> {
             && v["version"] != 9
             && v["version"] != 10
             && v["version"] != 11
-            && v["version"] != 12)
+            && v["version"] != 12
+            && v["version"] != 13
+            && v["version"] != 14
+            && v["version"] != 15
+            && v["version"] != 16
+            && v["version"] != 17
+            && v["version"] != 18
+            && v["version"] != 19)
     {
         return Err("Unsupported project format or version.".into());
     }
@@ -73,7 +81,7 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
 async fn open_project(app: tauri::AppHandle) -> Result<Option<Opened>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let Some(path) = rfd::FileDialog::new()
-            .add_filter("Form Studio project", &["formstudio"])
+            .add_filter("Corpora Studio project", &["formstudio"])
             .pick_file()
         else {
             return Ok(None);
@@ -125,7 +133,7 @@ async fn save_project(
                 .take(80)
                 .collect();
             let Some(p) = rfd::FileDialog::new()
-                .add_filter("Form Studio project", &["formstudio"])
+                .add_filter("Corpora Studio project", &["formstudio"])
                 .set_file_name(format!("{safe}.formstudio"))
                 .save_file()
             else {
@@ -226,6 +234,31 @@ async fn save_pattern(
     .map_err(|e| e.to_string())?
 }
 
+// SVG originals may omit the XML declaration or have leading comments/BOM.
+// This is a file-type envelope check, not a replacement for frontend SVG validation.
+fn svg_envelope(bytes: &[u8]) -> bool {
+    let Ok(raw) = std::str::from_utf8(bytes) else {
+        return false;
+    };
+    let mut text = raw.trim_start_matches('\u{feff}').trim_start();
+    if text.starts_with("<?xml") {
+        let Some(end) = text.find("?>") else {
+            return false;
+        };
+        text = text[end + 2..].trim_start();
+    }
+    while let Some(comment) = text.strip_prefix("<!--") {
+        let Some(end) = comment.find("-->") else {
+            return false;
+        };
+        text = comment[end + 3..].trim_start();
+    }
+    text.strip_prefix("<svg")
+        .and_then(|rest| rest.chars().next())
+        .map(|c| c.is_ascii_whitespace() || c == '>' || c == '/')
+        .unwrap_or(false)
+}
+
 fn vector_pack_bytes(data: &str, format: &str) -> Result<Vec<u8>, String> {
     if data.len() > 40_000_004 {
         return Err("Vector export exceeds 30 MB.".into());
@@ -239,9 +272,12 @@ fn vector_pack_bytes(data: &str, format: &str) -> Result<Vec<u8>, String> {
     let valid = match format {
         "zip" => bytes.starts_with(b"PK\x03\x04"),
         "pdf" => bytes.starts_with(b"%PDF-"),
-        "svg" => bytes.starts_with(b"<?xml") && std::str::from_utf8(&bytes).is_ok(),
+        "svg" => svg_envelope(&bytes),
         "json" => serde_json::from_slice::<serde_json::Value>(&bytes)
-            .map(|v| (v["version"] == 1 || v["version"] == 2) && v["layers"].is_array())
+            .map(|v| {
+                (v["version"] == 1 || v["version"] == 2 || v["version"] == 3 || v["version"] == 4)
+                    && v["layers"].is_array()
+            })
             .unwrap_or(false),
         _ => false,
     };
@@ -339,12 +375,43 @@ async fn save_portfolio(data: String, name: String) -> Result<Option<String>, St
 }
 
 #[tauri::command]
-async fn decode_heic(data: String) -> Result<String, String> {
-    tauri::async_runtime::spawn_blocking(move || decode_heic_local(&data))
+async fn save_review_bundle(data: String, name: String) -> Result<Option<String>, String> {
+    if data.len() > 67_000_000 {
+        return Err("Review package exceeds 50 MB.".into());
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|_| "Invalid archive bytes.")?;
+    if bytes.len() > 50_000_000 || !bytes.starts_with(b"PK\x03\x04") {
+        return Err("Expected a generated review ZIP.".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let safe: String = name
+            .chars()
+            .filter(|c| c.is_alphanumeric() || " -_".contains(*c))
+            .take(80)
+            .collect();
+        let Some(path) = rfd::FileDialog::new()
+            .add_filter("Review package ZIP", &["zip"])
+            .set_file_name(format!("{safe}-review.zip"))
+            .save_file()
+        else {
+            return Ok(None);
+        };
+        atomic_write(&path, &bytes)?;
+        Ok(Some(path.to_string_lossy().into_owned()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn decode_heic(data: String, max_pixels: Option<u64>) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || decode_heic_local(&data, max_pixels.unwrap_or(32_000_000).min(32_000_000)))
         .await
         .map_err(|e| e.to_string())?
 }
-fn decode_heic_local(data: &str) -> Result<String, String> {
+fn decode_heic_local(data: &str, max_pixels: u64) -> Result<String, String> {
     if !cfg!(target_os = "macos") {
         return Err(
             "HEIC import currently requires macOS. Export a PNG or JPEG for this platform.".into(),
@@ -380,6 +447,9 @@ fn decode_heic_local(data: &str) -> Result<String, String> {
     if w == 0 || h == 0 || w > 8192 || h > 8192 || w * h > 32_000_000 {
         return Err("HEIC exceeds 8192 pixels or 32 megapixels.".into());
     }
+    if w * h > max_pixels {
+        return Err("HEIC exceeds the remaining project image budget.".into());
+    }
     let result = std::process::Command::new("/usr/bin/sips")
         .args(["-s", "format", "png"])
         .arg(&input)
@@ -410,15 +480,21 @@ fn main() {
                 &[
                     &Submenu::with_items(
                         app,
-                        "Form Studio",
+                        "Corpora Studio",
                         true,
                         &[
-                            &PredefinedMenuItem::about(app, None, None)?,
+                            &PredefinedMenuItem::about(app, None, Some(AboutMetadata {
+                name: Some("Corpora Studio".into()),
+                version: Some(env!("CARGO_PKG_VERSION").into()),
+                authors: Some(vec!["Devauntae Norman".into()]),
+                credits: Some("Product owner: Devauntae Norman. Third-party licenses and credits are included in the application Help and bundled notices.".into()),
+                ..Default::default()
+            }))?,
                             &PredefinedMenuItem::separator(app)?,
                             &MenuItem::with_id(
                                 app,
                                 "request-quit",
-                                "Quit Form Studio",
+                                "Quit Corpora Studio",
                                 true,
                                 Some("CmdOrCtrl+Q"),
                             )?,
@@ -476,6 +552,7 @@ fn main() {
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![
+            tripo::tripo_account,
             open_project,
             save_project,
             save_review,
@@ -483,11 +560,12 @@ fn main() {
             save_vector_pack,
             save_text_file,
             save_portfolio,
+            save_review_bundle,
             close_app,
             decode_heic
         ])
         .build(tauri::generate_context!())
-        .expect("Form Studio could not start")
+        .expect("Corpora Studio could not start")
         .run(|app, event| {
             if let tauri::RunEvent::ExitRequested { api, .. } = event {
                 if !app.state::<ExitApproval>().0.load(Ordering::SeqCst) {
@@ -522,8 +600,8 @@ mod tests {
     }
     #[test]
     fn malformed_heic_is_rejected() {
-        assert!(decode_heic_local("garbage").is_err());
-        assert!(decode_heic_local("aGVsbG8=").is_err());
+        assert!(decode_heic_local("garbage", 32_000_000).is_err());
+        assert!(decode_heic_local("aGVsbG8=", 32_000_000).is_err());
     }
     #[test]
     #[ignore = "Local reference files are deliberately not bundled"]
@@ -534,7 +612,9 @@ mod tests {
             let path = std::path::Path::new(&directory).join(name);
             let original = fs::read(&path).unwrap();
             let encoded = base64::engine::general_purpose::STANDARD.encode(&original);
-            let decoded = decode_heic_local(&encoded).unwrap();
+            let over_budget = decode_heic_local(&encoded, 1_000_000).unwrap_err();
+            assert!(over_budget.contains("budget"));
+            let decoded = decode_heic_local(&encoded, 32_000_000).unwrap();
             let png = base64::engine::general_purpose::STANDARD
                 .decode(decoded.split(',').nth(1).unwrap())
                 .unwrap();
@@ -557,6 +637,8 @@ mod tests {
             ("svg", &b"<?xml version=\"1.0\"?><svg/>"[..]),
             ("json", &b"{\"version\":1,\"layers\":[]}"[..]),
             ("json", &b"{\"version\":2,\"layers\":[]}"[..]),
+            ("json", &b"{\"version\":3,\"layers\":[]}"[..]),
+            ("json", &b"{\"version\":4,\"layers\":[]}"[..]),
         ] {
             let data = base64::engine::general_purpose::STANDARD.encode(bytes);
             assert_eq!(vector_pack_bytes(&data, format).unwrap(), bytes);
@@ -578,6 +660,30 @@ mod tests {
         assert_eq!(pattern_bytes(&encoded, "svg").unwrap(), svg);
     }
     #[test]
+    fn original_svg_headers_preserve_bytes() {
+        for source in [
+            "<svg xmlns=\"http://www.w3.org/2000/svg\"/>",
+            "\u{feff}  <!-- source -->\n<svg></svg>",
+            "<?xml version=\"1.0\"?>\n<!-- source --><svg></svg>",
+        ] {
+            let encoded = base64::engine::general_purpose::STANDARD.encode(source.as_bytes());
+            assert_eq!(
+                vector_pack_bytes(&encoded, "svg").unwrap(),
+                source.as_bytes()
+            );
+        }
+        for source in [
+            "<html><svg></svg></html>",
+            "<svg-malformed/>",
+            "<?xml",
+            "<!-- unclosed <svg/>",
+        ] {
+            let encoded = base64::engine::general_purpose::STANDARD.encode(source.as_bytes());
+            assert!(vector_pack_bytes(&encoded, "svg").is_err());
+        }
+    }
+
+    #[test]
     fn invalid_projects_are_rejected() {
         assert!(validate_envelope("not json").is_err());
         assert!(validate_envelope(r#"{"format":"form-studio","version":99}"#).is_err());
@@ -593,5 +699,12 @@ mod tests {
         assert!(validate_envelope(r#"{"format":"form-studio","version":10}"#).is_ok());
         assert!(validate_envelope(r#"{"format":"form-studio","version":11}"#).is_ok());
         assert!(validate_envelope(r#"{"format":"form-studio","version":12}"#).is_ok());
+        assert!(validate_envelope(r#"{"format":"form-studio","version":13}"#).is_ok());
+        assert!(validate_envelope(r#"{"format":"form-studio","version":14}"#).is_ok());
+        assert!(validate_envelope(r#"{"format":"form-studio","version":15}"#).is_ok());
+        assert!(validate_envelope(r#"{"format":"form-studio","version":16}"#).is_ok());
+        assert!(validate_envelope(r#"{"format":"form-studio","version":17}"#).is_ok());
+        assert!(validate_envelope(r#"{"format":"form-studio","version":18}"#).is_ok());
+        assert!(validate_envelope(r#"{"format":"form-studio","version":19}"#).is_ok());
     }
 }

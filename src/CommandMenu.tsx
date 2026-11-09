@@ -51,6 +51,7 @@ export function CommandMenu({
         className="command-menu"
         ref={panel}
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby="command-title"
         onKeyDown={(e) => {

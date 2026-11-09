@@ -23,7 +23,7 @@ test("torso-only flex and full-body double biceps preserve tattoo anchors and sa
         ),
       )
       .toMatchObject(value);
-  await ready({ section: "upper-body", model: { revision: 5 } });
+  await ready({ section: "upper-body", model: { revision: 9 } });
   await expect(
     page.getByRole("spinbutton", { name: "Elbow flex", exact: true }),
   ).toHaveCount(0);

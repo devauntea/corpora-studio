@@ -68,7 +68,16 @@ export const BodyStudySchema = z
         shape: FitShapeSchema,
         length: finite(700, 2200),
         sex: z.enum(["male", "female"]),
-        modelRevision: z.union([z.literal(4), z.literal(5)]).optional(),
+        modelRevision: z
+          .union([
+            z.literal(4),
+            z.literal(5),
+            z.literal(6),
+            z.literal(7),
+            z.literal(8),
+            z.literal(9),
+          ])
+          .optional(),
         muscularity: finite(0, 1),
         residuals: z
           .array(
@@ -121,7 +130,7 @@ export function photoFitTargets(
   study: BodyStudy,
   assets: { id: string; width: number; height: number }[],
   sex: "male" | "female",
-  revision: 4 | 5 = 4,
+  revision: 4 | 5 | 6 | 7 | 8 | 9 = 4,
 ) {
   const front = study.views.find((v) => v.view === "front"),
     side = study.views.find((v) => v.view === "side");
@@ -177,8 +186,8 @@ export function photoFitTargets(
     );
   const extent =
       (sex === "male" ? 15.5738158226 : 15.5677456856) -
-      (revision === 5 ? 0.4 : 0),
-    bottom = (revision === 5 ? 7.0 : 7.4) - extent,
+      (revision >= 5 ? 0.4 : 0),
+    bottom = (revision >= 5 ? 7.0 : 7.4) - extent,
     scale = length / extent;
   const levels = ys.map(
     (v) => bottom + (v[0] + v[1]) / 2 / scale,

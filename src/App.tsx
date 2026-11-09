@@ -1,3 +1,24 @@
+import { CorporaMark } from "./CorporaMark";
+import { AppearanceControl } from "./appearance";
+import { applySurfaceDrawing, type DrawingTargets } from "./surface-drawing";
+import "./surface-drawing.css";
+import { TripoConnection } from "./TripoConnection";
+import { stepRotation } from "./rotation";
+import "./rotation.css";
+import { StudioHome, type StartTask } from "./StudioHome";
+import { BodyLibrary } from "./BodyLibrary";
+import { ReviewRoom } from "./ReviewRoom";
+import { rasterReviewPreview } from "./review-capture";
+import { SculptLibrary, SculptPosePicker } from "./SculptLibrary";
+import {
+  sculptById,
+  sculptIds,
+  sculptGroups,
+  sculptGroupFor,
+  type SculptId,
+} from "./sculpt-catalog";
+import { TattooPlanningStudio } from "./TattooPlanningStudio";
+import { emptyTransferPlan, emptyStudy } from "./tattoo-study";
 import { CommandMenu } from "./CommandMenu";
 import { skinTones } from "./skin-tones";
 import { musclePoseArms, type MusclePose } from "./muscle-pose";
@@ -13,19 +34,28 @@ import { lazy, Suspense } from "react";
 const FashionWorkspace = lazy(() =>
   import("./FashionWorkspace").then((m) => ({ default: m.FashionWorkspace })),
 );
+const PatternSourceStudio = lazy(() =>
+  import("./PatternSourceStudio").then((m) => ({
+    default: m.PatternSourceStudio,
+  })),
+);
 const initialFashion = newFashion();
-import { muscleGroups } from "./muscles";
+import { detailedMuscleGroups, muscleLegend } from "./muscles";
 import { ArtworkStudio } from "./ArtworkStudio";
 import { muscleGuide } from "./anatomy";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   ArrowDown,
+  Home,
+  MessageSquare,
+  ArrowRight,
   Search,
   PanelLeftClose,
   PanelLeftOpen,
   Scissors,
   PenTool,
+  Palette,
   LayoutGrid,
   ArrowLeft,
   ArrowUp,
@@ -41,7 +71,6 @@ import {
   HelpCircle,
   ImagePlus,
   Layers3,
-  Leaf,
   Maximize,
   Minus,
   MousePointer2,
@@ -67,6 +96,7 @@ import {
   regionBody,
   regions,
   humanBody,
+  sculptBody,
   armPose,
   type ArmPose,
   humanChartSize,
@@ -83,6 +113,7 @@ import {
   historyReducer,
   parseProject,
   wrap,
+  LATEST_BODY_REVISION,
   type Asset,
   type Body,
   type History,
@@ -91,13 +122,12 @@ import {
 } from "./domain";
 import {
   assetFromFile,
-  loadImage,
   native,
   openProject,
   saveProject,
   saveReview,
 } from "./io";
-import { StudioScene, type View } from "./scene";
+import { StudioScene, type View, type StudioMode } from "./scene";
 import { PhotoStage, exportPhoto } from "./photo";
 import { starterProject } from "./starter";
 
@@ -121,6 +151,7 @@ function IconButton({
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
+      aria-pressed={active}
     >
       {children}
     </button>
@@ -192,6 +223,123 @@ function NumberField({
     </label>
   );
 }
+function RotationField({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+  begin,
+  commit,
+  wrap = true,
+  hint,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+  begin: () => void;
+  commit: () => void;
+  wrap?: boolean;
+  hint?: string;
+}) {
+  const dragTo = (input: HTMLInputElement, clientX: number) => {
+    const bounds = input.getBoundingClientRect();
+    const fraction = Math.max(
+      0,
+      Math.min(
+        1,
+        (clientX - bounds.left - 10) / Math.max(1, bounds.width - 20),
+      ),
+    );
+    onChange(Math.round(min + fraction * (max - min)));
+  };
+  return (
+    <div
+      className="rotation-control"
+      role="group"
+      aria-label={`${label} controls`}
+    >
+      <NumberField
+        label={label}
+        value={value}
+        min={min}
+        max={max}
+        unit="°"
+        onChange={onChange}
+      />
+      {hint && <small>{hint}</small>}
+      <input
+        type="range"
+        aria-label={`${label} slider`}
+        aria-valuetext={`${Math.round(value)} degrees`}
+        min={min}
+        max={max}
+        step={1}
+        value={value}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.currentTarget.focus();
+          event.currentTarget.setPointerCapture(event.pointerId);
+          begin();
+          dragTo(event.currentTarget, event.clientX);
+        }}
+        onPointerMove={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.preventDefault();
+            dragTo(event.currentTarget, event.clientX);
+          }
+        }}
+        onPointerUp={(event) => {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+          commit();
+        }}
+        onPointerCancel={commit}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (
+            [
+              "ArrowLeft",
+              "ArrowRight",
+              "ArrowUp",
+              "ArrowDown",
+              "Home",
+              "End",
+              "PageUp",
+              "PageDown",
+            ].includes(event.key)
+          )
+            begin();
+        }}
+        onKeyUp={commit}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+      <div className="rotation-steps">
+        {[-90, -15, 0, 15, 90].map((delta) => (
+          <button
+            key={delta}
+            type="button"
+            aria-label={
+              delta === 0
+                ? `${label} reset`
+                : `${label} ${delta < 0 ? "decrease" : "increase"} ${Math.abs(delta)} degrees`
+            }
+            onClick={() =>
+              onChange(
+                delta === 0 ? 0 : stepRotation(value, delta, min, max, wrap),
+              )
+            }
+          >
+            {delta > 0 ? "+" : ""}
+            {delta}°
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Toggle({
   label,
   checked,
@@ -227,8 +375,12 @@ export function App() {
       ({ present: blankProject(), past: [], future: [] }) as History<Project>,
   );
   const project = history.present;
+  const sculpt =
+    project.body.kind === "human-v1"
+      ? sculptById(project.body.model?.sculptId)
+      : undefined;
   const [fashionMode, setFashionMode] = useState<
-    "patterns" | "vectors" | "assets"
+    "patterns" | "vectors" | "assets" | "textiles"
   >("patterns");
   const [studio, setStudio] = useState<"tattoo" | "fashion">("tattoo");
   const patternExporter = useRef<(() => Promise<void>) | null>(null);
@@ -238,7 +390,13 @@ export function App() {
   const [saved, setSaved] = useState<Project | null>(null);
   const [path, setPath] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
-  const [mode, setMode] = useState<"orbit" | "place">("orbit");
+  const [mode, setMode] = useState<StudioMode>("orbit");
+  const [brush, setBrush] = useState({
+    size: 3,
+    color: "#202020",
+    erase: false,
+  });
+  const drawingTargets = useRef<DrawingTargets>(new Map());
   const [inspector, setInspector] = useState<"artwork" | "model">("artwork");
   const [view, setView] = useState<View>("front");
   const [busy, setBusy] = useState(false);
@@ -247,7 +405,14 @@ export function App() {
     error?: boolean;
   } | null>(null);
   const [commandsOpen, setCommandsOpen] = useState(false);
+  const [homeOpen, setHomeOpen] = useState(false);
+  const [bodyLibraryOpen, setBodyLibraryOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [patternSourcesOpen, setPatternSourcesOpen] = useState(false);
+  const [layerSearch, setLayerSearch] = useState("");
+  const [stencilFirst, setStencilFirst] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const [planningOpen, setPlanningOpen] = useState(false);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -276,6 +441,7 @@ export function App() {
   const [dragover, setDragover] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
   const scene = useRef<StudioScene | null>(null);
+  const pendingCamera = useRef<View | null>(null);
   const imageInput = useRef<HTMLInputElement>(null);
   const photoInput = useRef<HTMLInputElement>(null);
   const projectInput = useRef<HTMLInputElement>(null);
@@ -299,7 +465,37 @@ export function App() {
     studio,
     photoId,
   };
+  const updateScene = useCallback(async (current: Project) => {
+    const renderer = scene.current;
+    if (!renderer || !(await renderer.update(current))) return false;
+    if (live.current.project !== current) return false;
+    if (pendingCamera.current) {
+      renderer.view(pendingCamera.current, current.body.length);
+      setView(pendingCamera.current);
+      pendingCamera.current = null;
+    }
+    return true;
+  }, []);
   const dirty = project !== saved;
+  // Which tattoo step the person is in: an open step dialog wins over the
+  // placement mode underneath it.
+  const tattooStep = bodyLibraryOpen
+    ? "body"
+    : editingAsset
+      ? stencilFirst
+        ? "stencil"
+        : "artwork"
+      : mode === "place"
+        ? "place"
+        : undefined;
+  // Opening Fashion supplies a default pattern draft. That default is not a
+  // user edit, so it must not add an undo step or mark a clean study unsaved.
+  const seedFashion = () => {
+    if (project.fashion) return;
+    const next = { ...project, fashion: newFashion() };
+    dispatch({ type: "seed", value: next });
+    if (project === saved) setSaved(next);
+  };
   useEffect(() => {
     void listWorkspace()
       .then((entries) => {
@@ -355,7 +551,7 @@ export function App() {
   useEffect(() => {
     if (scene.current) {
       scene.current.inspectionLayer = inspectSurface ? selected : undefined;
-      void scene.current.update(project);
+      void updateScene(project);
     }
   }, [inspectSurface, selected]);
   const layer = project.layers.find((l) => l.id === selected);
@@ -389,7 +585,13 @@ export function App() {
           ? {
               assets: [
                 ...p.assets.filter(
-                  (a) => a.id !== p.fashion?.photoStudy?.assetId,
+                  (a) =>
+                    a.id !== p.fashion?.photoStudy?.assetId ||
+                    Boolean(
+                      p.fashion?.patternSources?.studies.some((study) =>
+                        study.sourceAssetIds.includes(a.id),
+                      ),
+                    ),
                 ),
                 asset,
               ],
@@ -447,13 +649,14 @@ export function App() {
     [change],
   );
   const [hoveredMuscle, setHoveredMuscle] = useState<number | undefined>();
-  const editBody = (patch: Partial<Body>) => {
-    const body = { ...project.body, ...patch } as Body;
+  const editBody = (patch: Partial<Body>, replace = false) => {
+    const body = (replace ? patch : { ...project.body, ...patch }) as Body;
     const changedMesh =
       body.kind !== project.body.kind ||
       (body.kind === "human-v1" &&
         project.body.kind === "human-v1" &&
-        (body.model?.sex !== project.body.model?.sex ||
+        (body.model?.sculptId !== project.body.model?.sculptId ||
+          body.model?.sex !== project.body.model?.sex ||
           body.model?.revision !== project.body.model?.revision));
     if (
       body.kind === "human-v1" &&
@@ -503,6 +706,38 @@ export function App() {
     if (!stage.current) return;
     try {
       scene.current = new StudioScene(stage.current, {
+        draw: async (strokes) => {
+          const before = live.current.project;
+          try {
+            const result = await applySurfaceDrawing(
+              before,
+              strokes,
+              drawingTargets.current,
+            );
+            if (live.current.project !== before) {
+              alert("The project changed during the stroke. Draw it again.");
+              return;
+            }
+            if (result.project === before) return;
+            drawingTargets.current = result.targets;
+            change(result.project);
+            if (result.selected) {
+              setSelected(result.selected);
+              setInspector("artwork");
+            }
+            await new Promise<void>((resolve) =>
+              requestAnimationFrame(() => resolve()),
+            );
+            await updateScene(result.project);
+          } catch (error) {
+            alert(
+              error instanceof Error
+                ? error.message
+                : "The drawing could not be saved.",
+              true,
+            );
+          }
+        },
         begin: () => dispatch({ type: "begin" }),
         move: (u, v, zone, vertex) =>
           editLayer({
@@ -520,6 +755,9 @@ export function App() {
                     vertex,
                     revision: live.current.project.body.model.revision,
                     sex: live.current.project.body.model.sex,
+                    ...(live.current.project.body.model.sculptId
+                      ? { sculptId: live.current.project.body.model.sculptId }
+                      : {}),
                   },
                 }
               : {}),
@@ -540,19 +778,31 @@ export function App() {
         true,
       );
     }
-  }, [alert, editLayer]);
+  }, [alert, editLayer, change, updateScene]);
   useEffect(() => {
-    if (workspace === "surface" && studio === "tattoo")
-      void scene.current?.update(project);
-  }, [project, workspace, studio]);
+    if (workspace === "surface" && studio === "tattoo" && !planningOpen)
+      void updateScene(project);
+  }, [project, workspace, studio, planningOpen]);
+  useEffect(() => {
+    if (scene.current) scene.current.brush = brush;
+  }, [brush]);
   useEffect(() => {
     scene.current?.setMode(
       mode,
       groupLocked || layer?.photoId ? undefined : selected,
     );
     if (scene.current)
-      scene.current.active = workspace === "surface" && studio === "tattoo";
-  }, [mode, selected, groupLocked, layer?.photoId, workspace, studio]);
+      scene.current.active =
+        workspace === "surface" && studio === "tattoo" && !planningOpen;
+  }, [
+    mode,
+    selected,
+    groupLocked,
+    layer?.photoId,
+    workspace,
+    studio,
+    planningOpen,
+  ]);
   useEffect(() => {
     if (notice && !notice.error) {
       const t = setTimeout(() => setNotice(null), 5000);
@@ -612,10 +862,16 @@ export function App() {
           current.name,
         );
         if (!result) return false;
+        if (!native) {
+          alert(
+            "Download requested. Verify the file in your downloads; this browser cannot confirm it was saved. Original images are included.",
+          );
+          return false;
+        }
         setPath(result);
         setSaved(current);
         alert(
-          "Project saved. Pattern settings and original artwork are included.",
+          "Project saved with its original images. Use portfolio or review export to share finished views.",
         );
         return true;
       } catch (error) {
@@ -637,19 +893,12 @@ export function App() {
       setBusy(true);
       try {
         const p = await parseProject(text);
-        for (const a of p.assets) {
-          const img = await loadImage(imageSource(a));
-          if (
-            img.width !== a.width ||
-            img.height !== a.height ||
-            img.width * img.height > 32_000_000
-          )
-            throw new Error(`Invalid artwork dimensions: ${a.name}`);
-        }
+        // parseProject verifies each image's dimensions, budget and decode.
+        // Avoid decoding every retained original a second time here.
         dispatch({ type: "reset", value: p });
         setSaved(p);
         setStudio(p.fashion ? "fashion" : "tattoo");
-        setPath(JSON.parse(text).version < 12 ? null : filePath);
+        setPath(JSON.parse(text).version < 19 ? null : filePath);
         setPhotoId(p.photos[0]?.id);
         setWorkspace(p.photos.length ? "photo" : "surface");
         setSelected(
@@ -659,11 +908,11 @@ export function App() {
             )
             .at(-1)?.id,
         );
-        scene.current?.view("front", p.body.length);
+        pendingCamera.current = "front";
         setView("front");
         alert(
-          JSON.parse(text).version < 12
-            ? "Legacy project opened without changing placement. Save creates a new v12 copy."
+          JSON.parse(text).version < 19
+            ? "Legacy project opened without changing placement. Save creates a new v19 copy."
             : "Project opened. All original image integrity checks passed.",
         );
       } catch (error) {
@@ -704,8 +953,86 @@ export function App() {
       setPhotoId(undefined);
       setWorkspace("surface");
       setInspector("model");
-      scene.current?.view("front", p.body.length);
+      pendingCamera.current = "front";
+      setView("front");
     });
+  const startTask = (task: StartTask) => {
+    setHomeOpen(false);
+    guard(() => {
+      const next = blankProject();
+      next.body = humanBody("full-arm");
+      if (task !== "tattoo") {
+        next.fashion = newFashion();
+        next.name =
+          task === "vectors" ? "Untitled technical flat" : "Untitled garment";
+      }
+      dispatch({ type: "reset", value: next });
+      setSaved(next);
+      setPath(null);
+      setSelected(undefined);
+      setPhotoId(undefined);
+      setStudio(task === "tattoo" ? "tattoo" : "fashion");
+      setFashionMode(task === "vectors" ? "vectors" : "patterns");
+      setWorkspace("surface");
+      setInspector("model");
+      setFocusMode(false);
+      setLayerSearch("");
+      setView("front");
+      pendingCamera.current = "front";
+      if (task === "tattoo") setBodyLibraryOpen(true);
+    });
+  };
+  const prepareArtwork = (stencil = false) => {
+    const id = asset?.id ?? artworkAssets(project)[0]?.id;
+    if (!id) {
+      imageInput.current?.click();
+      return;
+    }
+    setStencilFirst(stencil);
+    setEditingAsset(id);
+  };
+  const captureReview = async () => {
+    if (studio === "tattoo") {
+      if (workspace === "photo") {
+        if (!photo)
+          throw new Error(
+            "Import a body photograph before capturing this view.",
+          );
+        return rasterReviewPreview(await exportPhoto(project, photo));
+      }
+      if (!(await updateScene(project)) || !scene.current)
+        throw new Error(
+          "Wait for the current view to finish loading, then capture again.",
+        );
+      return rasterReviewPreview(scene.current.exportReview(project));
+    }
+    if (fashionMode === "assets")
+      throw new Error(
+        "Open Patterns or Vector packs to capture a design view.",
+      );
+    if (fashionMode === "vectors" || fashionMode === "textiles") {
+      if (!project.fashion?.vectorPack)
+        throw new Error("Create a technical flat before capturing it.");
+      const { vectorSvg } = await import("./vector-export");
+      const source = URL.createObjectURL(
+        new Blob([vectorSvg(project.fashion.vectorPack)], {
+          type: "image/svg+xml",
+        }),
+      );
+      try {
+        return await rasterReviewPreview(source);
+      } finally {
+        URL.revokeObjectURL(source);
+      }
+    }
+    const { projectPreview } = await import("./project-preview");
+    const source = await projectPreview(project, "pattern");
+    try {
+      return await rasterReviewPreview(source);
+    } finally {
+      URL.revokeObjectURL(source);
+    }
+  };
   const importImage = async (files: FileList | File[]) => {
     if (busy || !files.length) return;
     if (workspace === "photo" && !photoId) {
@@ -780,7 +1107,7 @@ export function App() {
           alert("Photo review exported with its artistic-preview label.");
         return;
       }
-      if (!scene.current || !(await scene.current.update(current)))
+      if (!(await updateScene(current)) || !scene.current)
         throw new Error(
           "The current artwork is not ready to export. Try again after the preview finishes.",
         );
@@ -869,6 +1196,8 @@ export function App() {
           );
         }
         if (e.key === "v") setMode("orbit");
+        if (e.key === "b") setMode("draw");
+        if (e.key === "h") setMode("pan");
         if (e.key === "g") setMode("place");
         if (e.key === "Delete" || e.key === "Backspace") {
           e.preventDefault();
@@ -956,6 +1285,7 @@ export function App() {
     change({ ...project, layers: list });
   };
   const chooseView = (v: View) => {
+    if (pendingCamera.current) pendingCamera.current = v;
     scene.current?.view(v);
     setView(v);
   };
@@ -1076,13 +1406,24 @@ export function App() {
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark">
-            <Leaf size={23} strokeWidth={1.5} />
+            <CorporaMark size={26} />
           </span>
           <span>
-            FORM<span className="brand-slash"> / </span>STUDIO
+            CORPORA<span className="brand-slash"> / </span>STUDIO
           </span>
           <span className="build-badge">LOCAL WORKSPACE</span>
         </div>
+        <button
+          className="studio-home-trigger"
+          aria-label="Studio home"
+          onClick={(e) => {
+            e.currentTarget.focus();
+            setHomeOpen(true);
+          }}
+        >
+          <Home size={16} />
+          <span>Home</span>
+        </button>
         <nav className="studio-switch" aria-label="Studio section">
           <button
             className={studio === "tattoo" ? "active" : ""}
@@ -1097,14 +1438,14 @@ export function App() {
             disabled={!ready || busy}
             onClick={() => {
               setStudio("fashion");
-              if (!project.fashion)
-                change({ ...project, fashion: newFashion() });
+              seedFashion();
             }}
           >
             Fashion
           </button>
         </nav>
         <div className="topbar-actions">
+          <AppearanceControl />
           <button
             className="quick-actions-trigger"
             aria-label="Quick actions (⌘K)"
@@ -1144,9 +1485,11 @@ export function App() {
               {studio === "fashion"
                 ? fashionMode === "assets"
                   ? "ASSET LIBRARY"
-                  : fashionMode !== "patterns"
-                    ? "VECTOR PACKS"
-                    : "PATTERN DESIGN"
+                  : fashionMode === "textiles"
+                    ? "FABRIC & COLOR"
+                    : fashionMode !== "patterns"
+                      ? "VECTOR PACKS"
+                      : "PATTERN DESIGN"
                 : "COMPOSITION"}
             </div>
             <input
@@ -1168,6 +1511,16 @@ export function App() {
           </span>
         </div>
         <div className="project-actions">
+          <button
+            className="review-room-trigger"
+            disabled={busy || !ready}
+            onClick={(e) => {
+              e.currentTarget.focus();
+              setReviewOpen(true);
+            }}
+          >
+            <MessageSquare size={15} /> Review room
+          </button>
           <button
             onClick={(e) => {
               e.currentTarget.focus();
@@ -1212,7 +1565,10 @@ export function App() {
               <ChevronDown size={13} />
             </button>
           </div>
-          {!(studio === "fashion" && fashionMode === "vectors") && (
+          {!(
+            studio === "fashion" &&
+            (fashionMode === "vectors" || fashionMode === "textiles")
+          ) && (
             <button
               className="primary"
               onClick={() =>
@@ -1257,6 +1613,15 @@ export function App() {
               Vector packs
             </button>
             <button
+              aria-label="Open fabric and color workspace"
+              className={fashionMode === "textiles" ? "active" : ""}
+              aria-pressed={fashionMode === "textiles"}
+              onClick={() => setFashionMode("textiles")}
+            >
+              <Palette size={15} />
+              Fabric & color
+            </button>
+            <button
               aria-label="Browse garment library"
               className={fashionMode === "assets" ? "active" : ""}
               aria-pressed={fashionMode === "assets"}
@@ -1268,14 +1633,66 @@ export function App() {
               <LayoutGrid size={15} />
               Asset library<span>112</span>
             </button>
+            <button
+              onClick={() => setPatternSourcesOpen(true)}
+              aria-label="Open pattern image inventory"
+            >
+              <ImagePlus size={15} />
+              Image inventory
+            </button>
           </nav>
         ) : (
-          <span className="workspace-context">
-            {workspace === "surface"
-              ? "Compose on the body. Inspect from every angle."
-              : "Place artwork on your reference photographs."}
-          </span>
+          <nav className="task-path" aria-label="Tattoo workflow">
+            <button
+              className={tattooStep === "body" ? "active" : ""}
+              aria-current={tattooStep === "body" ? "step" : undefined}
+              onClick={(e) => {
+                e.currentTarget.focus();
+                setBodyLibraryOpen(true);
+              }}
+            >
+              <span>01</span> Choose body
+            </button>
+            <button
+              className={tattooStep === "artwork" ? "active" : ""}
+              aria-current={tattooStep === "artwork" ? "step" : undefined}
+              onClick={() => prepareArtwork()}
+              disabled={busy}
+            >
+              <span>02</span> Prepare artwork
+            </button>
+            <button
+              className={tattooStep === "place" ? "active" : ""}
+              aria-current={tattooStep === "place" ? "step" : undefined}
+              disabled={!layer}
+              onClick={() => {
+                setInspector("artwork");
+                setMode("place");
+              }}
+            >
+              <span>03</span> Place & adjust
+            </button>
+            <button
+              className={tattooStep === "stencil" ? "active" : ""}
+              aria-current={tattooStep === "stencil" ? "step" : undefined}
+              onClick={() => prepareArtwork(true)}
+              disabled={busy || !artworkAssets(project).length}
+            >
+              <span>04</span> Make stencil
+            </button>
+          </nav>
         )}
+        {studio === "tattoo" &&
+          workspace === "surface" &&
+          project.body.kind === "human-v1" &&
+          !sculpt && (
+            <button
+              className={`task-extra ${planningOpen ? "active" : ""}`}
+              onClick={() => setPlanningOpen(true)}
+            >
+              Pose & sleeve study
+            </button>
+          )}
         {!(studio === "fashion" && fashionMode === "assets") && (
           <button
             className="focus-toggle"
@@ -1374,12 +1791,20 @@ export function App() {
           )}
           <button
             className={`body-card ${inspector === "model" ? "chosen" : ""}`}
-            onClick={() => setInspector("model")}
+            onClick={(e) => {
+              e.currentTarget.focus();
+              setInspector("model");
+              setBodyLibraryOpen(true);
+            }}
           >
             <span className="body-glyph">◒</span>
             <span>
               <strong>{bodyLabel(project.body)}</strong>
-              <small>Adjustable · approximate</small>
+              <small>
+                {sculpt
+                  ? "Fixed pose · change model"
+                  : "Adjustable · change model"}
+              </small>
             </span>
             <Settings2 size={15} />
           </button>
@@ -1395,62 +1820,95 @@ export function App() {
               <Plus size={16} />
             </IconButton>
           </div>
+          <label className="layer-search">
+            <Search size={14} />
+            <input
+              aria-label="Find artwork layers"
+              placeholder="Find a layer…"
+              value={layerSearch}
+              onChange={(e) => setLayerSearch(e.target.value)}
+            />
+            {layerSearch && (
+              <button
+                aria-label="Clear layer search"
+                onClick={() => setLayerSearch("")}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </label>
           <LayerGroups project={project} change={change} selected={selected} />
           <div className="layer-list">
-            {[...visibleLayers].reverse().map((l, i) => (
-              <div
-                className={`layer-row ${l.id === selected && inspector === "artwork" ? "selected" : ""}`}
-                key={l.id}
-              >
-                <button
-                  className="layer-select"
-                  onClick={() => {
-                    setSelected(l.id);
-                    setInspector("artwork");
-                  }}
+            {[...visibleLayers]
+              .reverse()
+              .filter((l) =>
+                l.name.toLowerCase().includes(layerSearch.toLowerCase()),
+              )
+              .map((l, i) => (
+                <div
+                  className={`layer-row ${l.id === selected && inspector === "artwork" ? "selected" : ""}`}
+                  key={l.id}
                 >
-                  <div className="thumb">
-                    <img
-                      src={imageSource(
-                        project.assets.find((a) => a.id === l.assetId)!,
-                      )}
-                      alt=""
-                    />
-                  </div>
-                  <span>
-                    <strong>{l.name}</strong>
-                    <small>
-                      {l.groupId
-                        ? `${project.groups?.find((g) => g.id === l.groupId)?.name} · `
-                        : ""}
-                      {effectiveLayer(project, l).locked ? "Locked · " : ""}
-                      {l.photo
-                        ? `${Math.round(l.photo.width * 100)}% photo`
-                        : `${l.width.toFixed(0)} mm`}{" "}
-                      · {Math.round(l.opacity * 100)}% ink
-                    </small>
+                  <button
+                    className="layer-select"
+                    onClick={() => {
+                      setSelected(l.id);
+                      setInspector("artwork");
+                    }}
+                  >
+                    <div className="thumb">
+                      <img
+                        src={imageSource(
+                          project.assets.find((a) => a.id === l.assetId)!,
+                        )}
+                        alt=""
+                      />
+                    </div>
+                    <span>
+                      <strong>{l.name}</strong>
+                      <small>
+                        {l.groupId
+                          ? `${project.groups?.find((g) => g.id === l.groupId)?.name} · `
+                          : ""}
+                        {effectiveLayer(project, l).locked ? "Locked · " : ""}
+                        {l.photo
+                          ? `${Math.round(l.photo.width * 100)}% photo`
+                          : `${l.width.toFixed(0)} mm`}{" "}
+                        · {Math.round(l.opacity * 100)}% ink
+                      </small>
+                    </span>
+                  </button>
+                  <IconButton
+                    label={`${l.visible ? "Hide" : "Show"} ${l.name}`}
+                    onClick={() =>
+                      change({
+                        ...project,
+                        layers: project.layers.map((item) =>
+                          item.id === l.id
+                            ? { ...item, visible: !item.visible }
+                            : item,
+                        ),
+                      })
+                    }
+                  >
+                    {l.visible ? <Eye size={14} /> : <EyeOff size={14} />}
+                  </IconButton>
+                  <span className="layer-index">
+                    {(visibleLayers.length - i).toString().padStart(2, "0")}
                   </span>
-                </button>
-                <IconButton
-                  label={`${l.visible ? "Hide" : "Show"} ${l.name}`}
-                  onClick={() =>
-                    change({
-                      ...project,
-                      layers: project.layers.map((item) =>
-                        item.id === l.id
-                          ? { ...item, visible: !item.visible }
-                          : item,
-                      ),
-                    })
-                  }
-                >
-                  {l.visible ? <Eye size={14} /> : <EyeOff size={14} />}
-                </IconButton>
-                <span className="layer-index">
-                  {(visibleLayers.length - i).toString().padStart(2, "0")}
-                </span>
-              </div>
-            ))}
+                </div>
+              ))}
+            {visibleLayers.length > 0 &&
+              !visibleLayers.some((l) =>
+                l.name.toLowerCase().includes(layerSearch.toLowerCase()),
+              ) && (
+                <div className="empty-layers">
+                  <p>No matching artwork.</p>
+                  <button onClick={() => setLayerSearch("")}>
+                    Clear search
+                  </button>
+                </div>
+              )}
             {!visibleLayers.length && (
               <div className="empty-layers">
                 <Layers3 size={23} />
@@ -1588,26 +2046,29 @@ export function App() {
             project.body.model &&
             project.body.anatomy &&
             hoveredMuscle !== undefined &&
-            muscleGroups[hoveredMuscle] && (
+            detailedMuscleGroups[hoveredMuscle] && (
               <div className="anatomy-caption">
                 <span
                   className="muscle-dot"
                   style={{
                     background:
-                      hoveredMuscle !== undefined && muscleGroups[hoveredMuscle]
-                        ? muscleGroups[hoveredMuscle].color
+                      hoveredMuscle !== undefined &&
+                      detailedMuscleGroups[hoveredMuscle]
+                        ? detailedMuscleGroups[hoveredMuscle].color
                         : "#c4b7a4",
                   }}
                 />
                 <div>
                   <strong>
-                    {hoveredMuscle !== undefined && muscleGroups[hoveredMuscle]
-                      ? muscleGroups[hoveredMuscle].name
+                    {hoveredMuscle !== undefined &&
+                    detailedMuscleGroups[hoveredMuscle]
+                      ? detailedMuscleGroups[hoveredMuscle].name
                       : "Muscle anatomy"}
                   </strong>
                   <small>
-                    {hoveredMuscle !== undefined && muscleGroups[hoveredMuscle]
-                      ? muscleGroups[hoveredMuscle].flow
+                    {hoveredMuscle !== undefined &&
+                    detailedMuscleGroups[hoveredMuscle]
+                      ? detailedMuscleGroups[hoveredMuscle].flow
                       : "Point at a muscle to identify its group and flow."}
                   </small>
                 </div>
@@ -1615,16 +2076,37 @@ export function App() {
             )}
           <div className="viewport-heading">
             <div>
-              <span className="eyebrow">SURFACE STUDY / 001</span>
-              <h1>Made to follow form.</h1>
+              <span className="eyebrow">
+                {sculpt ? "SCULPT STUDY" : "BODY COMPOSITION"}
+              </span>
+              <h1>{bodyLabel(project.body)}</h1>
               <p>
-                {bodyLabel(project.body)} <span>·</span> {project.body.length}{" "}
-                mm
+                {project.body.length} mm <span>·</span>{" "}
+                {sculpt ? "Fixed sculpt pose" : "Editable surface"}
               </p>
             </div>
             <span className="approx-badge">
               <i /> Approximate model
             </span>
+          </div>
+          <div className="canvas-context" aria-label="Active canvas tool">
+            <span>
+              {mode === "place" ? <Move size={14} /> : <Rotate3D size={14} />}{" "}
+              {mode === "place"
+                ? "Place artwork"
+                : mode === "draw"
+                  ? "Draw on model"
+                  : mode === "pan"
+                    ? "Pan view"
+                    : "Orbit view"}
+            </span>
+            {layer && (
+              <>
+                <i />
+                <strong>{layer.name}</strong>
+                <small>{Math.round(layer.width)} mm</small>
+              </>
+            )}
           </div>
           <div className="view-tools">
             <IconButton
@@ -1633,6 +2115,20 @@ export function App() {
               onClick={() => setMode("orbit")}
             >
               <Rotate3D size={20} />
+            </IconButton>
+            <IconButton
+              label="Pan view (H)"
+              active={mode === "pan"}
+              onClick={() => setMode("pan")}
+            >
+              <Move size={20} />
+            </IconButton>
+            <IconButton
+              label="Draw on model (B)"
+              active={mode === "draw"}
+              onClick={() => setMode("draw")}
+            >
+              <PenTool size={20} />
             </IconButton>
             <IconButton
               label="Place artwork (G)"
@@ -1655,13 +2151,82 @@ export function App() {
             >
               <Minus size={19} />
             </IconButton>
+            <IconButton
+              label="Inspect tattoo fit"
+              active={inspectSurface}
+              disabled={
+                !layer ||
+                groupLocked ||
+                project.body.kind !== "human-v1" ||
+                !!layer.surfaceDrawing
+              }
+              onClick={() => {
+                if (!layer) return;
+                setInspector("artwork");
+                if (!layer.surface)
+                  editLayer({
+                    surface: scene.current?.human?.decals.nearestAnchor(layer),
+                  });
+                setInspectSurface((v) => !v);
+              }}
+            >
+              <Eye size={19} />
+            </IconButton>
             <IconButton label="Fit model" onClick={() => chooseView(view)}>
               <Maximize size={18} />
             </IconButton>
           </div>
+          {workspace === "surface" && mode === "draw" && (
+            <div
+              className="surface-brush"
+              role="group"
+              aria-label="Surface drawing tools"
+            >
+              <button
+                aria-pressed={!brush.erase}
+                onClick={() => setBrush({ ...brush, erase: false })}
+              >
+                Brush
+              </button>
+              <button
+                aria-pressed={brush.erase}
+                onClick={() => setBrush({ ...brush, erase: true })}
+              >
+                Eraser
+              </button>
+              <label>
+                Ink
+                <input
+                  type="color"
+                  aria-label="Drawing ink color"
+                  value={brush.color}
+                  onChange={(e) =>
+                    setBrush({ ...brush, color: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Size
+                <input
+                  type="range"
+                  aria-label="Drawing brush size"
+                  min="1"
+                  max="15"
+                  step=".5"
+                  value={brush.size}
+                  onChange={(e) =>
+                    setBrush({ ...brush, size: Number(e.target.value) })
+                  }
+                />
+                <output>{brush.size} mm</output>
+              </label>
+              <button onClick={() => setMode("orbit")}>Done</button>
+            </div>
+          )}
           {workspace === "surface" &&
             project.body.kind === "human-v1" &&
-            project.body.model && (
+            project.body.model &&
+            !sculpt && (
               <div
                 className="surface-filter segmented"
                 aria-label="Surface filter"
@@ -1689,7 +2254,9 @@ export function App() {
           </div>
           <div className="view-bottom">
             <div className="camera-tabs" aria-label="Camera views">
-              {(["front", "left", "back", "right"] as View[]).map((v) => (
+              {(
+                ["front", "left", "back", "right", "three-quarter"] as View[]
+              ).map((v) => (
                 <button
                   className={v === view ? "selected" : ""}
                   onClick={() => chooseView(v)}
@@ -1703,12 +2270,17 @@ export function App() {
               {mode === "orbit" ? (
                 <>
                   <MousePointer2 size={13} /> Drag to orbit <span>·</span>{" "}
-                  Scroll to zoom <span>·</span> Right-drag to pan
+                  Scroll to zoom <span>·</span> Right-drag to pan <span>·</span>{" "}
+                  Double-click to inspect
                 </>
               ) : (
                 <>
-                  <Move size={13} /> Click or drag on the surface to place
-                  artwork
+                  <Move size={13} />{" "}
+                  {mode === "draw"
+                    ? "Draw on skin · B brush · V orbit · Scroll zoom · Right-drag pan"
+                    : mode === "pan"
+                      ? "Drag to pan · Scroll zoom · Double-click to inspect"
+                      : "Drag to place · Scroll zoom · Right-drag pan"}
                 </>
               )}
             </div>
@@ -1808,9 +2380,11 @@ export function App() {
                         >
                           {bodyZones(project.body).map((z) => (
                             <option key={z} value={z}>
-                              {z === "trunk"
-                                ? "Chest / abdomen / back"
-                                : z.replace("-", " ")}
+                              {sculpt
+                                ? sculpt.name
+                                : z === "trunk"
+                                  ? "Chest / abdomen / back"
+                                  : z.replace("-", " ")}
                             </option>
                           ))}
                         </select>
@@ -1820,18 +2394,26 @@ export function App() {
                       project.body.kind === "human-v1" &&
                       project.body.model && (
                         <>
-                          <Toggle
-                            label="Connected surface placement"
-                            checked={!!layer.surface}
-                            onChange={() => {
-                              const surface = layer.surface
-                                ? undefined
-                                : scene.current?.human?.decals.nearestAnchor(
-                                    layer,
-                                  );
-                              editLayer({ surface });
-                            }}
-                          />
+                          {layer.surfaceDrawing && (
+                            <p className="field-note">
+                              Drawn directly on this surface. Use Brush or
+                              Eraser to continue; marks follow the model pose.
+                            </p>
+                          )}
+                          {!layer.surfaceDrawing && (
+                            <Toggle
+                              label="Connected surface placement"
+                              checked={!!layer.surface}
+                              onChange={() => {
+                                const surface = layer.surface
+                                  ? undefined
+                                  : scene.current?.human?.decals.nearestAnchor(
+                                      layer,
+                                    );
+                                editLayer({ surface });
+                              }}
+                            />
+                          )}
                           {layer.surface && (
                             <>
                               <Toggle
@@ -1844,6 +2426,33 @@ export function App() {
                                 Drag on the body to position. Width is in local
                                 surface millimeters.
                               </p>
+                              {inspectSurface &&
+                                inspection &&
+                                (inspection.p95Error > 0.25 ||
+                                  inspection.folded > 0) && (
+                                  <div className="fit-attention">
+                                    <strong>
+                                      This placement needs adjustment
+                                    </strong>
+                                    <p>
+                                      The mapping stretches or folds here. Try a
+                                      smaller design or move it away from the
+                                      joint or sharp curvature.
+                                    </p>
+                                    <button
+                                      onClick={() =>
+                                        editLayer({
+                                          width: Math.max(5, layer.width * 0.8),
+                                        })
+                                      }
+                                    >
+                                      Reduce size 20%
+                                    </button>
+                                    <button onClick={() => setMode("place")}>
+                                      Move on skin
+                                    </button>
+                                  </div>
+                                )}
                               {inspectSurface && inspection && (
                                 <p className="field-note" role="status">
                                   {inspection.triangles.toLocaleString()} mapped
@@ -1949,17 +2558,19 @@ export function App() {
                             label="Width"
                             value={layer.width}
                             min={5}
-                            max={400}
+                            max={2400}
                             onChange={(v) => editLayer({ width: v })}
                           />
                         </>
                       )}
-                      <NumberField
+                      <RotationField
+                        begin={beginFashion}
+                        commit={commitFashion}
+                        hint="Drag to turn the tattoo. Use ±15° for small adjustments."
                         label="Rotation"
                         value={layer.rotation}
                         min={-180}
                         max={180}
-                        unit="°"
                         onChange={(v) => editLayer({ rotation: v })}
                       />
                     </div>
@@ -2092,6 +2703,31 @@ export function App() {
                         />
                       </label>
                     )}
+                    {layer.ink === "custom" && (
+                      <div
+                        className="ink-palette"
+                        role="group"
+                        aria-label="Ink palette"
+                      >
+                        {[
+                          ["Carbon", "#202020"],
+                          ["Indigo", "#27324c"],
+                          ["Oxide", "#733a32"],
+                          ["Forest", "#344b3f"],
+                          ["Sepia", "#705541"],
+                          ["Violet", "#57415d"],
+                        ].map(([name, color]) => (
+                          <button
+                            key={name}
+                            aria-label={`${name} ink`}
+                            aria-pressed={layer.inkColor === color}
+                            title={name}
+                            style={{ background: color }}
+                            onClick={() => editLayer({ inkColor: color })}
+                          />
+                        ))}
+                      </div>
+                    )}
                     <div className="field-grid">
                       <NumberField
                         label="Contrast"
@@ -2202,8 +2838,18 @@ export function App() {
               <>
                 <div className="inspector-heading">
                   <span className="eyebrow">ADJUSTABLE FORM</span>
-                  <h2>Your starting surface.</h2>
-                  <p>Choose a complete section, then refine its proportions.</p>
+                  <h2>{bodyLabel(project.body)}</h2>
+                  <p>Shape, movement and surface settings.</p>
+                  <button
+                    className="browse-models-button"
+                    onClick={(e) => {
+                      e.currentTarget.focus();
+                      setBodyLibraryOpen(true);
+                    }}
+                  >
+                    <LayoutGrid size={15} /> Browse model library{" "}
+                    <ArrowRight size={15} />
+                  </button>
                 </div>
                 <div className="model-explainer">
                   {project.body.kind === "human-v1" ? (
@@ -2230,7 +2876,9 @@ export function App() {
                     {project.body.kind === "forearm-v1"
                       ? "FOREARM / V1"
                       : project.body.kind === "human-v1"
-                        ? "ANATOMICAL SURFACE"
+                        ? sculpt
+                          ? "SCULPTED SURFACE"
+                          : "ANATOMICAL SURFACE"
                         : "LEGACY REGION / V1"}
                   </span>
                 </div>
@@ -2238,15 +2886,34 @@ export function App() {
                   <div className="section-label">
                     <span>BODY REGION</span>
                   </div>
-                  <button
-                    className="wide-button"
-                    onClick={(e) => {
-                      e.currentTarget.focus();
-                      setBodyFitOpen(true);
+                  {!sculpt && (
+                    <button
+                      className="wide-button"
+                      onClick={(e) => {
+                        e.currentTarget.focus();
+                        setBodyFitOpen(true);
+                      }}
+                    >
+                      Personal body fitting
+                    </button>
+                  )}
+                  <SculptLibrary
+                    selected={sculpt?.id}
+                    choose={(id) => {
+                      pendingCamera.current = "front";
+                      editBody(sculptBody(id, project.body), true);
+                      setView("front");
                     }}
-                  >
-                    Personal body fitting
-                  </button>
+                  />
+                  <TripoConnection />
+                  <SculptPosePicker
+                    selected={sculpt?.id}
+                    choose={(id) => {
+                      pendingCamera.current = "front";
+                      editBody(sculptBody(id, project.body), true);
+                      setView("front");
+                    }}
+                  />
                   <label className="select-field">
                     Template
                     <select
@@ -2255,33 +2922,43 @@ export function App() {
                         project.body.kind === "forearm-v1"
                           ? "forearm"
                           : project.body.kind === "human-v1"
-                            ? project.body.section
+                            ? (sculptGroupFor(project.body.model?.sculptId)
+                                ?.id ?? project.body.section)
                             : project.body.region
                       }
                       onChange={(e) => {
-                        const body = humanSections.includes(
-                          e.target.value as (typeof humanSections)[number],
+                        const body = sculptIds.includes(
+                          e.target.value as SculptId,
                         )
-                          ? humanBody(
-                              e.target.value as (typeof humanSections)[number],
-                              project.body,
-                            )
-                          : e.target.value === "forearm"
-                            ? {
-                                ...blankProject().body,
-                                side: project.body.side,
-                                skin: project.body.skin,
-                              }
-                            : regionBody(
-                                e.target.value as (typeof regions)[number],
+                          ? sculptBody(e.target.value as SculptId, project.body)
+                          : humanSections.includes(
+                                e.target
+                                  .value as (typeof humanSections)[number],
+                              )
+                            ? humanBody(
+                                e.target
+                                  .value as (typeof humanSections)[number],
                                 project.body,
-                              );
+                              )
+                            : e.target.value === "forearm"
+                              ? {
+                                  ...blankProject().body,
+                                  side: project.body.side,
+                                  skin: project.body.skin,
+                                }
+                              : regionBody(
+                                  e.target.value as (typeof regions)[number],
+                                  project.body,
+                                );
                         if (
                           body.kind === "human-v1" &&
                           body.model &&
                           e.target.value === "upper-body"
                         )
-                          body.model.revision = 5;
+                          body.model.revision = Math.max(
+                            5,
+                            body.model.revision,
+                          ) as 5 | 6;
                         change({
                           ...project,
                           body,
@@ -2290,10 +2967,8 @@ export function App() {
                             surface: undefined,
                           })),
                         });
-                        scene.current?.view(
-                          e.target.value === "torso" ? "back" : "front",
-                          body.length,
-                        );
+                        pendingCamera.current =
+                          e.target.value === "torso" ? "back" : "front";
                         setView(e.target.value === "torso" ? "back" : "front");
                       }}
                     >
@@ -2316,6 +2991,13 @@ export function App() {
                           Full leg · thigh to toes
                         </option>
                       </optgroup>
+                      <optgroup label="Imported sculpts · fixed pose">
+                        {sculptGroups.map((group) => (
+                          <option key={group.id} value={group.id}>
+                            {group.name}
+                          </option>
+                        ))}
+                      </optgroup>
                       <optgroup label="Legacy surfaces · existing studies">
                         <option value="forearm">Forearm · original</option>
                         {regions.map((r) => (
@@ -2328,30 +3010,33 @@ export function App() {
                       </optgroup>
                     </select>
                   </label>
-                  {!(
-                    (project.body.kind === "region-v1" &&
-                      project.body.region === "torso") ||
-                    (project.body.kind === "human-v1" &&
-                      ["upper-body", "full-body", "neck"].includes(
-                        project.body.section,
-                      ))
-                  ) && (
-                    <div className="segmented" aria-label="Body side">
-                      {(["left", "right"] as const).map((side) => (
-                        <button
-                          className={project.body.side === side ? "active" : ""}
-                          key={side}
-                          onClick={() => editBody({ side })}
-                        >
-                          {project.body.kind === "forearm-v1"
-                            ? side === "left"
-                              ? "Left forearm"
-                              : "Right forearm"
-                            : side}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  {!sculpt &&
+                    !(
+                      (project.body.kind === "region-v1" &&
+                        project.body.region === "torso") ||
+                      (project.body.kind === "human-v1" &&
+                        ["upper-body", "full-body", "neck"].includes(
+                          project.body.section,
+                        ))
+                    ) && (
+                      <div className="segmented" aria-label="Body side">
+                        {(["left", "right"] as const).map((side) => (
+                          <button
+                            className={
+                              project.body.side === side ? "active" : ""
+                            }
+                            key={side}
+                            onClick={() => editBody({ side })}
+                          >
+                            {project.body.kind === "forearm-v1"
+                              ? side === "left"
+                                ? "Left forearm"
+                                : "Right forearm"
+                              : side}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   <div
                     className="body-fields"
                     key={
@@ -2364,15 +3049,17 @@ export function App() {
                         project.body.kind === "forearm-v1"
                           ? "Forearm length"
                           : project.body.kind === "human-v1"
-                            ? project.body.section === "upper-body"
-                              ? "Neck to waist length"
-                              : "Section length"
+                            ? sculpt
+                              ? "Model height"
+                              : project.body.section === "upper-body"
+                                ? "Neck to waist length"
+                                : "Section length"
                             : "Region length"
                       }
                       value={project.body.length}
                       min={
                         project.body.kind === "human-v1"
-                          ? project.body.section === "neck"
+                          ? sculpt || project.body.section === "neck"
                             ? 80
                             : 350
                           : 160
@@ -2388,7 +3075,220 @@ export function App() {
                       }
                       onChange={(length) => editBody({ length })}
                     />
-                    {project.body.kind === "human-v1" ? (
+                    {sculpt ? (
+                      <>
+                        {project.body.kind === "human-v1" && (
+                          <>
+                            {sculpt.skinEnvelope ? (
+                              <>
+                                <Toggle
+                                  label="Muscle display"
+                                  checked={
+                                    project.body.model?.sculptAppearance !==
+                                    "skin"
+                                  }
+                                  onChange={() => {
+                                    if (project.body.kind === "human-v1")
+                                      editBody({
+                                        model: {
+                                          ...project.body.model!,
+                                          sculptAppearance:
+                                            project.body.model
+                                              ?.sculptAppearance === "skin"
+                                              ? "original"
+                                              : "skin",
+                                        },
+                                      });
+                                  }}
+                                />
+                                <p className="field-note">
+                                  Switch between muscle anatomy and the preview
+                                  skin envelope. Artwork stays attached. Fixed
+                                  pose.
+                                </p>
+                              </>
+                            ) : (
+                              <label className="select-field">
+                                {sculpt.skinEnvelope
+                                  ? "Surface view"
+                                  : "Surface colors"}
+                                <select
+                                  aria-label="Imported surface colors"
+                                  value={
+                                    project.body.model?.sculptAppearance ??
+                                    "original"
+                                  }
+                                  onChange={(e) => {
+                                    if (project.body.kind === "human-v1")
+                                      editBody({
+                                        model: {
+                                          ...project.body.model!,
+                                          sculptAppearance: e.target.value as
+                                            | "original"
+                                            | "skin",
+                                        },
+                                      });
+                                  }}
+                                >
+                                  <option value="original">
+                                    {sculpt.skinEnvelope
+                                      ? "Muscle anatomy"
+                                      : "Original colors"}
+                                  </option>
+                                  <option value="skin">
+                                    {sculpt.skinEnvelope
+                                      ? "Skin envelope"
+                                      : "Skin tone"}
+                                  </option>
+                                </select>
+                              </label>
+                            )}
+                            <div className="section-label">
+                              <span>MODEL ROTATION · 360°</span>
+                            </div>
+                            {(["x", "y", "z"] as const).map((axis) => (
+                              <RotationField
+                                begin={beginFashion}
+                                commit={commitFashion}
+                                hint={
+                                  axis === "x"
+                                    ? "Tilt forward / back"
+                                    : axis === "y"
+                                      ? "Turn left / right"
+                                      : "Roll sideways"
+                                }
+                                key={axis}
+                                label={`Rotate ${axis.toUpperCase()}`}
+                                min={0}
+                                max={360}
+                                value={
+                                  project.body.kind === "human-v1"
+                                    ? (project.body.model?.sculptRotation?.[
+                                        axis
+                                      ] ?? 0)
+                                    : 0
+                                }
+                                onChange={(value) => {
+                                  if (project.body.kind === "human-v1")
+                                    editBody({
+                                      model: {
+                                        ...project.body.model!,
+                                        sculptRotation: {
+                                          x: 0,
+                                          y: 0,
+                                          z: 0,
+                                          ...project.body.model?.sculptRotation,
+                                          [axis]: value,
+                                        },
+                                      },
+                                    });
+                                }}
+                              />
+                            ))}
+                            <button
+                              className="wide-button"
+                              onClick={() => {
+                                pendingCamera.current = view;
+                                if (project.body.kind === "human-v1")
+                                  editBody({
+                                    model: {
+                                      ...project.body.model!,
+                                      sculptRotation: { x: 0, y: 0, z: 0 },
+                                    },
+                                  });
+                              }}
+                            >
+                              Reset model rotation
+                            </button>
+                            <button
+                              className="wide-button"
+                              onClick={() => {
+                                pendingCamera.current = view;
+                                if (project.body.kind === "human-v1")
+                                  editBody({
+                                    model: {
+                                      ...project.body.model!,
+                                      sculptRotation: { x: 0, y: 0, z: 90 },
+                                    },
+                                  });
+                              }}
+                            >
+                              Lay model horizontal
+                            </button>
+                            <p className="field-note">
+                              Rotate the model and artwork together. Drag in
+                              Orbit mode to look around it; use Fit model after
+                              turning a long part sideways.
+                            </p>
+                          </>
+                        )}
+                        <img
+                          className="sculpt-selection"
+                          src={sculpt.thumbnail}
+                          alt={sculpt.name}
+                        />
+                        <p className="field-note">
+                          <strong>{sculpt.name}</strong>
+                          <br />
+                          {sculpt.description}
+                        </p>
+                        <p className="field-note">
+                          Fixed sculpt pose. Rotate the view, adjust size and
+                          place artwork directly on the surface. Use a body from
+                          the anatomical library for posing and muscle filters.
+                        </p>
+                        <p className="field-note">
+                          Size is an approximate starting scale; confirm
+                          dimensions on the actual body.
+                        </p>
+                        <label className="select-field">
+                          Artwork detail
+                          <select
+                            aria-label="Body artwork detail"
+                            value={
+                              project.tattooStudy?.detailZone ?? "standard"
+                            }
+                            onChange={(e) =>
+                              change({
+                                ...project,
+                                tattooStudy: {
+                                  ...(project.tattooStudy ?? emptyStudy()),
+                                  detailZone: e.target.value as ReturnType<
+                                    typeof emptyStudy
+                                  >["detailZone"],
+                                },
+                              })
+                            }
+                          >
+                            <option value="standard">
+                              Standard · 2K chart
+                            </option>
+                            {bodyZones(project.body).map((zone) => (
+                              <option key={zone} value={zone}>
+                                4K · sculpture surface
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <p className="field-note sculpt-credit">
+                          {sculpt.source ? (
+                            <>
+                              <a
+                                href={sculpt.source}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {sculpt.name}
+                              </a>{" "}
+                              by {sculpt.author}. {sculpt.license}.
+                            </>
+                          ) : (
+                            <>Created by {sculpt.author} using Tripo.</>
+                          )}{" "}
+                          Oriented and prepared for Corpora Studio.
+                        </p>
+                      </>
+                    ) : project.body.kind === "human-v1" ? (
                       <>
                         <div className="section-label">
                           <span>BODY LIBRARY</span>
@@ -2413,7 +3313,7 @@ export function App() {
                                 if (project.body.kind !== "human-v1") return;
                                 editBody({
                                   model: {
-                                    revision: 5,
+                                    revision: LATEST_BODY_REVISION,
                                     sex,
                                     physique:
                                       project.body.model?.physique ?? "fit",
@@ -2447,7 +3347,7 @@ export function App() {
                                   muscularity: physique === "fit" ? 1 : 0,
                                   build: 1,
                                   model: {
-                                    revision: 5,
+                                    revision: LATEST_BODY_REVISION,
                                     sex: project.body.model?.sex ?? "male",
                                     physique,
                                     anatomyOpacity:
@@ -2461,6 +3361,83 @@ export function App() {
                             </button>
                           ))}
                         </div>
+                        {project.body.model &&
+                          project.body.model.revision >= 5 &&
+                          project.body.model.revision <
+                            LATEST_BODY_REVISION && (
+                            <button
+                              className="wide-button"
+                              onClick={() => {
+                                if (
+                                  project.body.kind !== "human-v1" ||
+                                  !project.body.model
+                                )
+                                  return;
+                                const sex = project.body.model.sex,
+                                  from = project.body.model.revision;
+                                change({
+                                  ...project,
+                                  body: {
+                                    ...project.body,
+                                    model: {
+                                      ...project.body.model,
+                                      revision: LATEST_BODY_REVISION,
+                                    },
+                                  },
+                                  layers: project.layers.map((l) =>
+                                    l.surface?.revision === from &&
+                                    l.surface.sex === sex
+                                      ? {
+                                          ...l,
+                                          surface: {
+                                            ...l.surface,
+                                            revision: LATEST_BODY_REVISION,
+                                          },
+                                        }
+                                      : l,
+                                  ),
+                                });
+                                alert(
+                                  `Body updated. Compatible tattoo anchors retained; undo restores revision ${from}.`,
+                                );
+                              }}
+                            >
+                              Use refined body · retain placements
+                            </button>
+                          )}
+                        <label className="select-field">
+                          Artwork detail
+                          <select
+                            aria-label="Body artwork detail"
+                            value={
+                              project.tattooStudy?.detailZone ?? "standard"
+                            }
+                            onChange={(e) =>
+                              change({
+                                ...project,
+                                tattooStudy: {
+                                  ...(project.tattooStudy ?? emptyStudy()),
+                                  detailZone: e.target.value as ReturnType<
+                                    typeof emptyStudy
+                                  >["detailZone"],
+                                },
+                              })
+                            }
+                          >
+                            <option value="standard">
+                              Standard · 2K charts
+                            </option>
+                            {bodyZones(project.body).map((zone) => (
+                              <option key={zone} value={zone}>
+                                4K · {zone}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <p className="field-note">
+                          4K detail focuses one region. Pose studies use lighter
+                          previews; original artwork stays intact.
+                        </p>
                         <NumberField
                           label="Build"
                           value={project.body.build * 100}
@@ -2486,7 +3463,7 @@ export function App() {
                                 ? "Includes shoulder cap, upper arm, elbow, forearm and hand."
                                 : project.body.section === "full-leg"
                                   ? "Includes thigh, knee, calf, ankle and foot."
-                                  : project.body.model?.revision === 5
+                                  : (project.body.model?.revision ?? 0) >= 5
                                     ? "Torso only: neck, shoulders, chest, abdomen and back. Full arms are a separate template."
                                     : "Connected chest, abdomen, back and both complete arms."}{" "}
                           Scale is approximate; local chart distortion varies.
@@ -2494,7 +3471,7 @@ export function App() {
                         <div className="section-label">
                           <span>ANATOMY & MOVEMENT</span>
                         </div>
-                        {project.body.model?.revision === 5 &&
+                        {(project.body.model?.revision ?? 0) >= 5 &&
                           ["upper-body", "full-body"].includes(
                             project.body.section,
                           ) && (
@@ -2587,7 +3564,7 @@ export function App() {
                         {project.body.section !== "neck" &&
                           !(
                             project.body.section === "upper-body" &&
-                            project.body.model?.revision === 5
+                            (project.body.model?.revision ?? 0) >= 5
                           ) && (
                             <>
                               {["upper-body", "full-body"].includes(
@@ -2640,12 +3617,14 @@ export function App() {
                                     unit="°"
                                     onChange={(raise) => editPose({ raise })}
                                   />
-                                  <NumberField
+                                  <RotationField
+                                    begin={beginFashion}
+                                    commit={commitFashion}
+                                    wrap={false}
                                     label="Forearm rotation"
                                     value={armPose(project.body).twist}
                                     min={-90}
                                     max={90}
-                                    unit="°"
                                     onChange={(twist) => editPose({ twist })}
                                   />
                                 </>
@@ -2667,19 +3646,20 @@ export function App() {
                         {project.body.anatomy && (
                           <div className="muscle-legend">
                             {project.body.model
-                              ? muscleGroups
+                              ? muscleLegend(project.body.model.revision)
                                   .filter(
-                                    (_, i) =>
+                                    (g) =>
                                       project.body.kind === "human-v1" &&
                                       (project.body.section === "full-arm"
-                                        ? i >= 8 && i <= 21
+                                        ? g.parent >= 8 && g.parent <= 21
                                         : project.body.section === "full-leg"
-                                          ? i >= 22 && i <= 33
+                                          ? g.parent >= 22 && g.parent <= 33
                                           : project.body.section ===
                                                 "upper-body" &&
-                                              project.body.model?.revision === 5
-                                            ? i <= 8 || i >= 34
-                                            : i <= 21 || i >= 34),
+                                              (project.body.model?.revision ??
+                                                0) >= 5
+                                            ? g.parent <= 8 || g.parent >= 34
+                                            : g.parent <= 21 || g.parent >= 34),
                                   )
                                   .map((g) => (
                                     <div key={g.name}>
@@ -2705,10 +3685,10 @@ export function App() {
                         )}
                         <p className="field-note">
                           {project.body.section === "upper-body" &&
-                            project.body.model?.revision !== 5 &&
+                            (project.body.model?.revision ?? 0) < 5 &&
                             "Pose each arm independently. Use Fit model to frame a raised pose. "}
                           {project.body.section === "upper-body" &&
-                            project.body.model?.revision === 5 &&
+                            (project.body.model?.revision ?? 0) >= 5 &&
                             "Torso only, with closed shoulder ends. Choose Full arm to design a sleeve. "}
                           {project.body.model
                             ? "Registered superficial muscle map. Colors identify muscle groups; point at the model for names and flow. "
@@ -2792,10 +3772,23 @@ export function App() {
                     {skinTones.map((skin) => (
                       <button
                         aria-label={`Skin tone ${skin}`}
+                        aria-pressed={project.body.skin === skin}
                         style={{ background: skin }}
                         className={project.body.skin === skin ? "active" : ""}
                         key={skin}
-                        onClick={() => editBody({ skin })}
+                        onClick={() =>
+                          editBody({
+                            skin,
+                            ...(sculpt && project.body.kind === "human-v1"
+                              ? {
+                                  model: {
+                                    ...project.body.model!,
+                                    sculptAppearance: "skin" as const,
+                                  },
+                                }
+                              : {}),
+                          })
+                        }
                       >
                         {project.body.skin === skin && <Check size={16} />}
                       </button>
@@ -2860,7 +3853,7 @@ export function App() {
                 ? `Orbit p95 ${stats.p95.toFixed(1)} ms · ${stats.frames} frames · ${stats.triangles.toLocaleString()} triangles`
                 : "WebGL 2 · Surface mapping"}
           </button>
-          <span className="status-separator">/</span>FORM STUDIO 0.12
+          <span className="status-separator">/</span>CORPORA STUDIO 0.23
         </span>
       </footer>
       {notice && (
@@ -2877,6 +3870,104 @@ export function App() {
             <X size={15} />
           </button>
         </div>
+      )}
+      {homeOpen && (
+        <StudioHome
+          name={project.name}
+          resume={() => setHomeOpen(false)}
+          start={startTask}
+          openFile={() => {
+            setHomeOpen(false);
+            open();
+          }}
+          openLocal={(content) => {
+            setHomeOpen(false);
+            guard(() => {
+              void load(content, null);
+            });
+          }}
+          library={() => {
+            setHomeOpen(false);
+            setLibrary(true);
+          }}
+        />
+      )}
+      {bodyLibraryOpen && (
+        <BodyLibrary
+          current={project.body}
+          choose={(body) => {
+            pendingCamera.current = "front";
+            editBody(body, true);
+            setView("front");
+            setInspector("model");
+            setBodyLibraryOpen(false);
+          }}
+          close={() => setBodyLibraryOpen(false)}
+        />
+      )}
+      {patternSourcesOpen && (
+        <Suspense
+          fallback={
+            <div className="modal-backdrop">
+              <p role="status">Opening pattern inventory…</p>
+            </div>
+          }
+        >
+          <PatternSourceStudio
+            value={project.fashion?.patternSources}
+            assets={project.assets}
+            onChange={(data, addedAssets = []) => {
+              const p = live.current.project;
+              const next = {
+                ...p,
+                assets: [...p.assets, ...addedAssets],
+                fashion: {
+                  ...(p.fashion ?? newFashion()),
+                  patternSources: data,
+                },
+              };
+              const result = ProjectSchema.safeParse(next);
+              if (!result.success)
+                throw new Error(
+                  result.error.issues.map((i) => i.message).join("; "),
+                );
+              change(result.data);
+            }}
+            onUsePieces={(pieces) => {
+              const p = live.current.project;
+              const f = p.fashion ?? newFashion();
+              const next = {
+                ...p,
+                fashion: {
+                  ...f,
+                  construction: { ...f.construction, ...pieces },
+                  customDraftIds: Object.keys(pieces),
+                },
+              };
+              const result = ProjectSchema.safeParse(next);
+              if (!result.success)
+                throw new Error(
+                  result.error.issues.map((i) => i.message).join("; "),
+                );
+              change(result.data);
+              setFashionMode("patterns");
+              setPatternSourcesOpen(false);
+              alert(
+                "Custom pieces opened. Review scale, joining seams and fit before cutting.",
+              );
+            }}
+            close={() => setPatternSourcesOpen(false)}
+          />
+        </Suspense>
+      )}
+      {reviewOpen && (
+        <ReviewRoom
+          project={project}
+          studio={studio}
+          onChange={(review) => change({ ...project, review })}
+          capture={captureReview}
+          close={() => setReviewOpen(false)}
+        />
       )}
       {portfolioOpen && (
         <PortfolioStudio
@@ -2924,10 +4015,27 @@ export function App() {
           }}
         />
       )}
+      {planningOpen && (
+        <TattooPlanningStudio
+          project={project}
+          change={change}
+          close={() => setPlanningOpen(false)}
+          undo={undoFashion}
+          redo={redoFashion}
+          canUndo={history.past.length > 0}
+          canRedo={history.future.length > 0}
+        />
+      )}
       {editingAsset && project.assets.find((a) => a.id === editingAsset) && (
         <ArtworkStudio
           key={editingAsset}
+          initialStencil={stencilFirst}
           asset={project.assets.find((a) => a.id === editingAsset)!}
+          transferPlan={
+            project.tattooStudy?.stencils.find(
+              (s) => s.assetId === editingAsset,
+            )?.plan ?? emptyTransferPlan(project.tattooStudy?.transferPose)
+          }
           pointBudget={
             80000 -
             project.assets
@@ -2942,10 +4050,26 @@ export function App() {
                 0,
               )
           }
-          close={() => setEditingAsset(undefined)}
-          apply={(edits) => {
+          close={() => {
+            setEditingAsset(undefined);
+            setStencilFirst(false);
+          }}
+          apply={(edits, plan) => {
             change({
               ...project,
+              ...(plan
+                ? {
+                    tattooStudy: {
+                      ...(project.tattooStudy ?? emptyStudy()),
+                      stencils: [
+                        ...(project.tattooStudy?.stencils.filter(
+                          (s) => s.assetId !== editingAsset,
+                        ) ?? []),
+                        { assetId: editingAsset, plan },
+                      ],
+                    },
+                  }
+                : {}),
               assets: project.assets.map((a) =>
                 a.id === editingAsset ? { ...a, edits } : a,
               ),
@@ -2959,6 +4083,7 @@ export function App() {
                     ),
             });
             setEditingAsset(undefined);
+            setStencilFirst(false);
             alert(
               "Source edits applied to every instance. Original artwork preserved.",
             );
@@ -2983,34 +4108,62 @@ export function App() {
           close={() => setCommandsOpen(false)}
           commands={[
             {
+              id: "home",
+              label: "Studio home",
+              description: "Start a tattoo, garment or technical flat",
+              run: () => setHomeOpen(true),
+            },
+            {
+              id: "models",
+              label: "Browse body models",
+              description: "Compare anatomical bodies and imported sculpts",
+              run: () => {
+                setStudio("tattoo");
+                setBodyLibraryOpen(true);
+              },
+            },
+            {
+              id: "review-room",
+              label: "Review room",
+              description:
+                "Freeze a revision, collect notes and export a review package",
+              run: () => setReviewOpen(true),
+              disabled: busy || !ready,
+            },
+            {
               id: "tattoo",
               label: "Tattoo studio",
               description: "Body placement, anatomy and artwork",
               run: () => setStudio("tattoo"),
             },
-            ...(["patterns", "vectors", "assets"] as const).map((mode) => ({
-              id: mode,
-              label:
-                mode === "patterns"
-                  ? "Sewing patterns"
-                  : mode === "vectors"
-                    ? "Vector packs"
-                    : "Garment asset library",
-              description:
-                mode === "patterns"
-                  ? "65 measurement-driven sewing designs"
-                  : mode === "vectors"
-                    ? "Editable garment flats and manufacturer handoff"
-                    : "112 imported sheets · search, preview and place",
-              disabled: busy || !ready,
-              run: () => {
-                setStudio("fashion");
-                setFashionMode(mode);
-                setFocusMode(false);
-                if (!project.fashion)
-                  change({ ...project, fashion: newFashion() });
-              },
-            })),
+            ...(["patterns", "vectors", "assets", "textiles"] as const).map(
+              (mode) => ({
+                id: mode,
+                label:
+                  mode === "patterns"
+                    ? "Sewing patterns"
+                    : mode === "vectors"
+                      ? "Vector packs"
+                      : mode === "textiles"
+                        ? "Fabric & color"
+                        : "Garment asset library",
+                description:
+                  mode === "patterns"
+                    ? "65 measurement-driven sewing designs"
+                    : mode === "vectors"
+                      ? "Editable garment flats and manufacturer handoff"
+                      : mode === "textiles"
+                        ? "Prints, palettes and garment color studies"
+                        : "112 imported sheets · search, preview and place",
+                disabled: busy || !ready,
+                run: () => {
+                  setStudio("fashion");
+                  setFashionMode(mode);
+                  setFocusMode(false);
+                  seedFashion();
+                },
+              }),
+            ),
             {
               id: "library",
               label: "Project library",
@@ -3068,6 +4221,7 @@ export function App() {
           <section
             className="modal"
             role="dialog"
+            tabIndex={-1}
             aria-modal="true"
             aria-labelledby="help-title"
             onClick={(e) => e.stopPropagation()}
@@ -3079,6 +4233,9 @@ export function App() {
               </IconButton>
             </div>
             <h2 id="help-title">Your studio, in two workspaces.</h2>
+            <p className="product-owner">
+              Corpora Studio 0.23 · Product owner: Devauntae Norman
+            </p>
             <p>
               Import artwork, choose a complete body section, then compose from
               every angle. In Fashion, enter measurements, adjust the pattern
@@ -3103,8 +4260,11 @@ export function App() {
               ))}
             </div>
             <p className="field-note">
-              Use Ctrl in place of ⌘ on Windows. Numeric fields commit on Enter
-              or when you leave the field. Scroll to zoom; right-drag to pan.
+              Project files include original images and may retain embedded
+              photo metadata. Share selected finished views with Portfolio or
+              Review room when originals should stay private. Use Ctrl in place
+              of ⌘ on Windows. Numeric fields commit on Enter or when you leave
+              the field. Scroll to zoom; right-drag to pan.
             </p>
             <div className="accuracy-note">
               <span>
@@ -3114,10 +4274,11 @@ export function App() {
                 Full body and neck views, colored muscle guidance, connected
                 tattoo placement, personal fitting with residuals, pressure
                 drawing and calibrated stencil output are available. Fashion
-                includes five garment designs, measurement profiles, size
-                comparisons, photo measurements, formula construction and a
-                visual drape preview. Named checkpoints and portfolio export
-                cover both workspaces.
+                includes 65 garment patterns, six chart-based starter sizes,
+                size comparisons, photo measurements, formula construction and a
+                visual drape preview. Image inventory supports calibrated
+                pattern tracing and approximate measured garment drafts. Named
+                checkpoints and portfolio export cover both workspaces.
               </p>
               <p>
                 The companion website will showcase finished work exported from
@@ -3156,14 +4317,16 @@ export function App() {
           <section
             className="modal small"
             role="dialog"
+            tabIndex={-1}
             aria-modal="true"
             aria-labelledby="unsaved-title"
           >
             <span className="eyebrow">UNSAVED COMPOSITION</span>
             <h2 id="unsaved-title">Keep your latest changes?</h2>
             <p>
-              Save this study before leaving. Your original saved file stays
-              intact if you discard these edits.
+              {native
+                ? "Save this study before leaving. Your original saved file stays intact if you discard these edits."
+                : "Download a copy and verify that it arrived before choosing Discard to continue. This browser cannot confirm a completed download."}
             </p>
             <div className="confirm-actions">
               <button autoFocus onClick={() => setPending(null)}>
@@ -3189,7 +4352,7 @@ export function App() {
                   }
                 }}
               >
-                Save & continue
+                {native ? "Save & continue" : "Download a copy"}
               </button>
             </div>
           </section>

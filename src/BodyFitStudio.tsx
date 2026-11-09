@@ -59,7 +59,9 @@ export function BodyFitStudio({
   const body = humanBody("full-body", project.body),
     sex = body.model!.sex;
   useEffect(() => {
-    dialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    dialog.current
+      ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+      ?.focus();
     return () => controller.current?.abort();
   }, []);
   const update = (patch: Partial<BodyStudy>) => {
@@ -85,7 +87,9 @@ export function BodyFitStudio({
           study,
           project.assets,
           sex,
-          body.model!.revision === 5 ? 5 : 4,
+          body.model!.revision >= 5
+            ? (body.model!.revision as 5 | 6 | 7 | 8 | 9)
+            : 4,
         ),
         data = await loadHuman(body);
       if (c.signal.aborted) return;
@@ -115,7 +119,10 @@ export function BodyFitStudio({
           length: target.length,
           sex,
           muscularity: body.muscularity,
-          modelRevision: body.model!.revision === 5 ? 5 : 4,
+          modelRevision:
+            body.model!.revision >= 5
+              ? (body.model!.revision as 5 | 6 | 7 | 8 | 9)
+              : 4,
         },
       });
       setMessage("Fit computed. Review the residuals before applying.");
@@ -133,6 +140,7 @@ export function BodyFitStudio({
         ref={dialog}
         className="stencil-studio body-fit"
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-label="Personal body fitting"
         onKeyDown={(e) => {

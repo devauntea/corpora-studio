@@ -18,7 +18,7 @@ export function flexTorso(
 ): number[] {
   const pose = body.musclePose;
   if (
-    body.model?.revision !== 5 ||
+    (body.model?.revision ?? 0) < 5 ||
     !pose ||
     pose === "relaxed" ||
     !["upper-body", "full-body"].includes(body.section)
@@ -35,7 +35,7 @@ export function flexTorso(
   const amount =
     (body.muscleTension ?? 0.8) *
     (0.32 + 0.68 * body.muscularity) *
-    (body.model.sex === "female" ? 0.66 : 1) *
+    (body.model!.sex === "female" ? 0.66 : 1) *
     trunk;
   if (!amount) return point;
   const front = smooth(0.25, 0.85, z),

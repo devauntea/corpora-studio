@@ -84,9 +84,12 @@ test("complete limbs retain their hands, feet, atlas and independent poses", asy
         .screenshot({
           path: info.outputPath(`${sex}-${section}-bent-anatomy.png`),
         });
-      await expect(page.locator(".muscle-legend")).toContainText(
-        section === "full-leg" ? "Gastrocnemius" : "Brachioradialis",
-      );
+      // Revision 8+ exposes the calf heads individually in the registered atlas.
+      const expectedMuscles = section === "full-leg"
+        ? ["Calf · medial head", "Calf · lateral head"]
+        : ["Brachioradialis"];
+      for (const name of expectedMuscles)
+        await expect(page.locator(".muscle-legend")).toContainText(name);
     }
   }
   expect(errors).toEqual([]);

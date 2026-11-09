@@ -13,10 +13,11 @@ import {
   type History,
 } from "../src/domain";
 import { forearmGeometry } from "../src/scene";
+import { rasterPng } from "./raster-fixtures";
 
 async function fixture() {
   const p = blankProject();
-  const data = "data:image/png;base64,aW1hZ2UtZml4dHVyZQ==";
+  const data = rasterPng(100, 200);
   const a: Asset = {
     id: crypto.randomUUID(),
     name: "Fixture.png",
@@ -140,6 +141,15 @@ describe("command history", () => {
       state = historyReducer(state, { type: "redo" });
     expect(state.present).toBe(final);
   });
+  test("seeding a default replaces the present without adding an undo step", () => {
+    let s: History<number> = { present: 0, past: [], future: [] };
+    s = historyReducer(s, { type: "change", value: 1 });
+    s = historyReducer(s, { type: "undo" });
+    s = historyReducer(s, { type: "seed", value: 5 });
+    expect(s.present).toBe(5);
+    expect(s.past).toEqual([]);
+    expect(s.future).toEqual([1]);
+  });
   test("drag is one undo step and a fresh edit invalidates redo", () => {
     let s: History<number> = { present: 0, past: [], future: [] };
     s = historyReducer(s, { type: "begin" });
@@ -164,7 +174,7 @@ describe("expanded project compatibility", () => {
       ),
     );
     const p = await parseProject(JSON.stringify(old));
-    expect(p.version).toBe(12);
+    expect(p.version).toBe(19);
     expect(p.photos).toEqual([]);
     expect(p.assets).toEqual(old.assets);
     expect(p.body).toEqual(old.body);
@@ -275,7 +285,7 @@ describe("anatomical sections and image recipes", () => {
     const p = await fixture();
     const old = { ...p, version: 2 };
     const next = await parseProject(JSON.stringify(old));
-    expect(next).toEqual({ ...old, version: 12 });
+    expect(next).toEqual({ ...old, version: 19 });
     await expect(
       parseProject(
         JSON.stringify({ ...old, body: { ...old.body, kind: "human-v1" } }),
@@ -390,7 +400,7 @@ describe("pose and crop compatibility", () => {
     p.assets[0].edits = cleanArtwork();
     const old = { ...p, version: 3 };
     const next = await parseProject(JSON.stringify(old));
-    expect(next).toEqual({ ...old, version: 12 });
+    expect(next).toEqual({ ...old, version: 19 });
     if (next.body.kind !== "human-v1")
       throw new Error("Expected human surface");
     expect(armPose(next.body, "left")).toEqual({
@@ -507,21 +517,21 @@ test("Fit model contains every posed bound in all preset views and narrow viewpo
 });
 
 describe("detailed anatomy assets", () => {
-  test("v5 studies retain their exact model revision; new sculpts require v6", async () => {
+  test("v5 studies retain their exact model revision; new sculpts use the latest revision", async () => {
     const { humanBody } = await import("../src/domain");
     const p = await fixture();
     p.body = humanBody("upper-body");
     p.body.model!.revision = 2;
     const old = { ...p, version: 5 };
     const loaded = await parseProject(JSON.stringify(old));
-    expect(loaded).toEqual({ ...old, version: 12 });
+    expect(loaded).toEqual({ ...old, version: 19 });
     expect(await parseProject(JSON.stringify(loaded))).toEqual(loaded);
     const forged = {
       ...old,
       body: { ...old.body, model: { ...p.body.model, revision: 3 } },
     };
     await expect(parseProject(JSON.stringify(forged))).rejects.toThrow("v5");
-    expect(humanBody("upper-body").model!.revision).toBe(5);
+    expect(humanBody("upper-body").model!.revision).toBe(9);
   });
   test("v4 migration keeps the original body and never opts into new geometry", async () => {
     const { humanBody } = await import("../src/domain");
@@ -532,7 +542,7 @@ describe("detailed anatomy assets", () => {
     const old = { ...p, version: 4 };
     const migrated = await parseProject(JSON.stringify(old));
     expect(migrated.body).toEqual(old.body);
-    expect(migrated.version).toBe(12);
+    expect(migrated.version).toBe(19);
     const invalidOld = {
       ...old,
       body: {

@@ -1,3 +1,5 @@
+import type { SurfaceStroke } from "./surface-drawing";
+import { sculptById } from "./sculpt-catalog";
 import { compositeProject } from "./layer-groups";
 import { HumanSurface, loadHuman, muscleAtHit } from "./anatomy";
 import * as THREE from "three";
@@ -5,6 +7,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import {
   circumference,
+  layerZone,
   artworkRatio,
   bodyLabel,
   surfacePoint,
@@ -14,9 +17,12 @@ import {
   type Project,
 } from "./domain";
 import { InkCache } from "./ink";
+import { PlanningGuides } from "./planning-guides";
 
-export type View = "front" | "back" | "left" | "right";
+export type StudioMode = "orbit" | "pan" | "place" | "draw";
+export type View = "front" | "back" | "left" | "right" | "three-quarter";
 export type SceneEvents = {
+  draw?: (strokes: SurfaceStroke[]) => Promise<void>;
   begin: () => void;
   move: (u: number, v: number, zone?: SurfaceZone, vertex?: number) => void;
   end: () => void;
@@ -28,8 +34,19 @@ export type SceneEvents = {
 function geometryKey(body: Body) {
   if (body.kind !== "human-v1" || !body.model) return JSON.stringify(body);
   const { skin: _skin, anatomy: _anatomy, model, ...shape } = body;
-  const { anatomyOpacity: _opacity, ...modelShape } = model;
-  return JSON.stringify({ ...shape, model: modelShape });
+  const {
+    anatomyOpacity: _opacity,
+    sculptAppearance: _appearance,
+    sculptRotation: _rotation,
+    ...modelShape
+  } = model;
+  return JSON.stringify({
+    ...shape,
+    model: modelShape,
+    envelope: sculptById(model.sculptId)?.skinEnvelope
+      ? _appearance
+      : undefined,
+  });
 }
 export function forearmGeometry(body: Body) {
   const positions: number[] = [],
@@ -91,9 +108,21 @@ export function frameBounds(
       1.32 +
     (side ? size.x : size.z) / 2;
   const direction = new THREE.Vector3(
-    view === "left" ? -1 : view === "right" ? 1 : 0,
+    view === "left"
+      ? -1
+      : view === "right"
+        ? 1
+        : view === "three-quarter"
+          ? 0.707
+          : 0,
     0,
-    view === "back" ? -1 : view === "front" ? 1 : 0,
+    view === "back"
+      ? -1
+      : view === "front"
+        ? 1
+        : view === "three-quarter"
+          ? 0.707
+          : 0,
   );
   return {
     target,
@@ -111,15 +140,27 @@ export class StudioScene {
   surface: THREE.Mesh;
   human?: HumanSurface;
   caps = new THREE.Group();
+  planningGuides = new PlanningGuides();
   canvas = document.createElement("canvas");
   texture: THREE.CanvasTexture;
   material: THREE.MeshStandardMaterial;
   resize: ResizeObserver;
+  resizeFrame = 0;
+  viewWidth = 0;
+  viewHeight = 0;
   frame = 0;
   frameTimes: number[] = [];
   lastFrame = 0;
   lastStats = 0;
-  mode: "orbit" | "place" = "orbit";
+  mode: StudioMode = "orbit";
+  brush = { size: 3, color: "#202020", erase: false };
+  strokes: SurfaceStroke[] = [];
+  strokeActive = false;
+  drawingBusy = false;
+  strokeBreak = true;
+  lastDrawPoint?: THREE.Vector3;
+  drawingPreview = new THREE.Group();
+  drawingLine?: THREE.Line;
   dragging = false;
   project?: Project;
   selected?: string;
@@ -137,7 +178,11 @@ export class StudioScene {
   studioEnvironment: THREE.WebGLRenderTarget;
   cleanups: (() => void)[] = [];
 
-  constructor(host: HTMLElement, events: SceneEvents) {
+  constructor(
+    host: HTMLElement,
+    events: SceneEvents,
+    public options: { previewSize?: number; planningGuides?: boolean } = {},
+  ) {
     this.host = host;
     this.events = events;
     this.renderer = new THREE.WebGLRenderer({
@@ -162,15 +207,22 @@ export class StudioScene {
       "Interactive 3D body surface. Use the Place tool to position artwork, or Orbit to rotate the view.",
     );
     this.renderer.domElement.tabIndex = 0;
+    this.renderer.domElement.style.width = "100%";
+    this.renderer.domElement.style.height = "100%";
     host.appendChild(this.renderer.domElement);
     this.camera.position.set(0, 25, 580);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.1;
-    this.controls.minDistance = 180;
+    this.controls.dampingFactor = 0.085;
+    this.controls.rotateSpeed = 0.65;
+    this.controls.zoomSpeed = 0.7;
+    this.controls.panSpeed = 0.8;
+    this.controls.zoomToCursor = true;
+    this.controls.screenSpacePanning = true;
+    this.controls.minDistance = 12;
     this.controls.maxDistance = 12000;
-    this.controls.maxPolarAngle = Math.PI * 0.88;
-    this.controls.minPolarAngle = Math.PI * 0.12;
+    this.controls.maxPolarAngle = Math.PI;
+    this.controls.minPolarAngle = 0;
     this.controls.target.set(0, 0, 0);
     this.controls.update();
     const hemisphere = new THREE.HemisphereLight("#ffffff", "#777777", 1.15);
@@ -208,6 +260,7 @@ export class StudioScene {
     this.surface.castShadow = true;
     this.surface.receiveShadow = true;
     this.scene.add(this.surface, this.caps);
+    this.scene.add(this.planningGuides.group);
     this.floor = new THREE.Mesh(
       new THREE.PlaneGeometry(2000, 2000),
       new THREE.ShadowMaterial({ opacity: 0.13 }),
@@ -219,11 +272,37 @@ export class StudioScene {
     (this.grid.material as THREE.Material).transparent = true;
     (this.grid.material as THREE.Material).opacity = 0.35;
     this.scene.add(this.grid);
-    this.resize = new ResizeObserver(() => this.resizeView());
+    this.resize = new ResizeObserver(() => {
+      // Buffer writes must happen outside the observer's layout delivery.
+      // The retained canvas also receives notifications while Fashion hides it.
+      if (this.resizeFrame || this.disposed) return;
+      this.resizeFrame = requestAnimationFrame(() => {
+        this.resizeFrame = 0;
+        if (!this.disposed) this.resizeView();
+      });
+    });
     this.resize.observe(host);
     this.resizeView();
+    this.scene.add(this.drawingPreview);
     const el = this.renderer.domElement;
     const down = (e: PointerEvent) => {
+      if (!e.isPrimary) {
+        if (this.strokeActive) {
+          this.strokeActive = false;
+          this.strokes = [];
+          this.clearDrawingPreview();
+        }
+        return;
+      }
+      if (this.mode === "draw" && e.button === 0 && !this.drawingBusy) {
+        if (!this.hit(e)) return;
+        this.strokeActive = true;
+        this.strokes = [];
+        this.strokeBreak = true;
+        el.setPointerCapture(e.pointerId);
+        this.sampleDrawing(e);
+        return;
+      }
       if (this.mode !== "place" || !this.selected || e.button !== 0) return;
       const hit = this.hit(e);
       if (!hit) return;
@@ -235,6 +314,13 @@ export class StudioScene {
     let lastHover = 0;
     const leave = () => this.events.hoverMuscle?.(undefined);
     const move = (e: PointerEvent) => {
+      if (this.strokeActive) {
+        for (const sample of e.getCoalescedEvents?.().length
+          ? e.getCoalescedEvents()
+          : [e])
+          this.sampleDrawing(sample);
+        return;
+      }
       if (
         this.project?.body.kind === "human-v1" &&
         this.project.body.model &&
@@ -249,7 +335,26 @@ export class StudioScene {
         if (h) this.events.move(h.x, h.y, h.zone, h.vertex);
       }
     };
-    const up = () => {
+    const up = (e: PointerEvent) => {
+      if (!e.isPrimary) return;
+      if (el.hasPointerCapture(e.pointerId))
+        el.releasePointerCapture(e.pointerId);
+      if (this.strokeActive) {
+        this.strokeActive = false;
+        const strokes = this.strokes;
+        this.strokes = [];
+        this.drawingBusy = true;
+        const commit =
+          e.type !== "pointercancel" && strokes.length
+            ? this.events.draw?.(strokes)
+            : undefined;
+        void Promise.resolve(commit)
+          .catch((error) => this.events.error(String(error)))
+          .finally(() => {
+            this.clearDrawingPreview();
+            this.drawingBusy = false;
+          });
+      }
       if (this.dragging) {
         this.dragging = false;
         this.events.end();
@@ -261,6 +366,10 @@ export class StudioScene {
         "The graphics context was lost. Save your project and reopen the app.",
       );
     };
+    const focus = (e: MouseEvent) => {
+      if (this.mode === "orbit" || this.mode === "pan") this.focusAt(e);
+    };
+    el.addEventListener("dblclick", focus);
     el.addEventListener("pointerdown", down);
     el.addEventListener("pointermove", move);
     el.addEventListener("pointerup", up);
@@ -268,6 +377,7 @@ export class StudioScene {
     el.addEventListener("pointerleave", leave);
     el.addEventListener("webglcontextlost", lost);
     this.cleanups.push(() => {
+      el.removeEventListener("dblclick", focus);
       el.removeEventListener("pointerdown", down);
       el.removeEventListener("pointermove", move);
       el.removeEventListener("pointerup", up);
@@ -280,7 +390,12 @@ export class StudioScene {
   resizeView() {
     const { width, height } = this.host.getBoundingClientRect();
     if (!width || !height) return;
-    this.renderer.setSize(width, height);
+    if (width === this.viewWidth && height === this.viewHeight) return;
+    this.viewWidth = width;
+    this.viewHeight = height;
+    // CSS owns the canvas layout; update only its drawing buffer so a resize
+    // cannot feed new inline dimensions back into the observed host's layout.
+    this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.needsRender = true;
@@ -293,6 +408,10 @@ export class StudioScene {
       return;
     }
     const cameraChanged = this.controls.update();
+    this.host.dataset.camera = JSON.stringify({
+      position: this.camera.position.toArray(),
+      target: this.controls.target.toArray(),
+    });
     if (cameraChanged || this.needsRender) {
       if (cameraChanged && this.lastFrame) {
         this.frameTimes.push(time - this.lastFrame);
@@ -313,7 +432,7 @@ export class StudioScene {
     }
     this.frame = requestAnimationFrame(this.animate);
   };
-  hit(e: PointerEvent) {
+  hit(e: { clientX: number; clientY: number }) {
     const b = this.renderer.domElement.getBoundingClientRect();
     this.ray.setFromCamera(
       new THREE.Vector2(
@@ -322,12 +441,21 @@ export class StudioScene {
       ),
       this.camera,
     );
-    const hit = this.ray.intersectObject(
-      this.human?.group ?? this.surface,
-      true,
+    // Only tattoo-bearing surfaces are pickable; section caps and overlays are not skin.
+    const hit = this.ray.intersectObjects(
+      this.human
+        ? [...this.human.charts.values()].map((c) => c.mesh)
+        : [this.surface],
+      false,
     )[0];
     return hit?.uv
       ? {
+          point: hit.point.clone(),
+          normal:
+            hit.face?.normal
+              .clone()
+              .transformDirection(hit.object.matrixWorld) ??
+            new THREE.Vector3(0, 0, 1),
           vertex: hit.face
             ? (hit.object as THREE.Mesh).geometry
                 .getAttribute("sourceIndex")
@@ -340,12 +468,102 @@ export class StudioScene {
         }
       : undefined;
   }
-  setMode(mode: "orbit" | "place", selected?: string) {
+  clearDrawingPreview() {
+    for (const child of [...this.drawingPreview.children]) {
+      const line = child as THREE.Line;
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+      this.drawingPreview.remove(child);
+    }
+    this.drawingLine = undefined;
+    this.needsRender = true;
+  }
+  sampleDrawing(e: PointerEvent) {
+    const hit = this.hit(e);
+    if (!hit) {
+      this.strokeBreak = true;
+      this.lastDrawPoint = undefined;
+      return;
+    }
+    const zone = hit.zone ?? "left-arm";
+    const pressure = e.pointerType === "pen" ? Math.max(0.15, e.pressure) : 1;
+    const p = hit.point.clone().addScaledVector(hit.normal, 0.15);
+    const jump =
+      this.lastDrawPoint &&
+      this.lastDrawPoint.distanceTo(p) >
+        Math.max(20, (this.project?.body.length ?? 300) * 0.1);
+    let stroke = this.strokes.at(-1);
+    if (this.strokeBreak || jump || !stroke || stroke.zone !== zone) {
+      stroke = { zone, points: [], ...this.brush };
+      this.strokes.push(stroke);
+      this.strokeBreak = false;
+      this.lastDrawPoint = undefined;
+      this.drawingLine = undefined;
+    }
+    if (stroke.points.length >= 4000) return;
+    stroke.points.push([hit.x, hit.y, pressure]);
+    if (!this.drawingLine) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new THREE.BufferAttribute(new Float32Array(4000 * 3), 3),
+      );
+      this.drawingLine = new THREE.Line(
+        geometry,
+        new THREE.LineBasicMaterial({
+          color: this.brush.erase ? "#bdbdbd" : this.brush.color,
+          depthTest: true,
+        }),
+      );
+      this.drawingLine.frustumCulled = false;
+      this.drawingLine.raycast = () => {};
+      this.drawingPreview.add(this.drawingLine);
+    }
+    const attribute = this.drawingLine.geometry.getAttribute("position");
+    attribute.setXYZ(stroke.points.length - 1, p.x, p.y, p.z);
+    attribute.needsUpdate = true;
+    this.drawingLine.geometry.setDrawRange(0, stroke.points.length);
+    this.lastDrawPoint = p;
+    this.needsRender = true;
+  }
+  focusAt(e: { clientX: number; clientY: number }) {
+    const hit = this.hit(e);
+    if (!hit) return;
+    const direction = this.camera.position
+      .clone()
+      .sub(this.controls.target)
+      .normalize();
+    const distance = Math.max(
+      60,
+      Math.min(
+        this.camera.position.distanceTo(hit.point) * 0.55,
+        (this.project?.body.length ?? 300) * 0.7,
+      ),
+    );
+    this.controls.target.copy(hit.point);
+    this.camera.position.copy(hit.point).addScaledVector(direction, distance);
+    this.controls.update();
+    this.needsRender = true;
+  }
+  setMode(mode: StudioMode, selected?: string) {
     this.mode = mode;
     this.selected = selected;
-    this.controls.enabled = mode === "orbit";
+    this.controls.enabled = true;
+    this.controls.mouseButtons.LEFT =
+      mode === "orbit"
+        ? THREE.MOUSE.ROTATE
+        : mode === "pan"
+          ? THREE.MOUSE.PAN
+          : (null as unknown as THREE.MOUSE);
+    this.controls.touches.ONE =
+      mode === "orbit"
+        ? THREE.TOUCH.ROTATE
+        : mode === "pan"
+          ? THREE.TOUCH.PAN
+          : (null as unknown as THREE.TOUCH);
+    this.controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
     this.renderer.domElement.style.cursor =
-      mode === "place" ? "crosshair" : "grab";
+      mode === "place" || mode === "draw" ? "crosshair" : "grab";
   }
   view(view: View, length = this.project?.body.length ?? 270) {
     if (this.human) {
@@ -364,6 +582,7 @@ export class StudioScene {
     }
     const d = length * 2.6;
     const positions: Record<View, [number, number, number]> = {
+      "three-quarter": [d * 0.707, 25, d * 0.707],
       front: [0, 25, d],
       back: [0, 25, -d],
       left: [-d, 25, 0],
@@ -380,6 +599,9 @@ export class StudioScene {
     d.clampLength(this.controls.minDistance, this.controls.maxDistance);
     this.camera.position.copy(this.controls.target).add(d);
     this.controls.update();
+    // update() consumes OrbitControls' change flag before the animation loop.
+    // Explicit button zoom therefore needs to invalidate the next frame.
+    this.needsRender = true;
   }
   async update(project: Project) {
     project = compositeProject(project);
@@ -420,7 +642,10 @@ export class StudioScene {
         this.project.body.kind !== project.body.kind ||
         ("section" in this.project.body &&
           "section" in project.body &&
-          this.project.body.section !== project.body.section);
+          this.project.body.section !== project.body.section) ||
+        (this.project.body.kind === "human-v1" &&
+          project.body.kind === "human-v1" &&
+          this.project.body.model?.sculptId !== project.body.model?.sculptId);
       this.surface.geometry.dispose();
       this.human?.dispose();
       if (this.human) this.scene.remove(this.human.group);
@@ -475,14 +700,37 @@ export class StudioScene {
     }
     if (project.body.kind === "human-v1" && project.body.model)
       this.human?.appearance(project.body);
+    if (this.human && project.body.kind === "human-v1") {
+      this.planningGuides.group.rotation.copy(this.human.group.rotation);
+      this.planningGuides.group.updateMatrixWorld(true);
+      this.floor.position.y =
+        new THREE.Box3().setFromObject(this.human.group).min.y - 12;
+      this.grid.position.y = this.floor.position.y - 0.1;
+      this.host.dataset.modelRotation = JSON.stringify(
+        this.human.group.rotation.toArray().slice(0, 3),
+      );
+    }
     this.project = project;
     try {
       const items: { layer: Layer; image: HTMLCanvasElement; ratio: number }[] =
         [];
+      let detailPixels = 0;
       for (const layer of project.layers) {
         if (!layer.visible || layer.photoId) continue;
         const asset = project.assets.find((a) => a.id === layer.assetId)!;
-        const processed = await this.ink.get(asset, layer);
+        const detail = project.tattooStudy?.detailZone;
+        const wantsDetail =
+          detail &&
+          detail !== "standard" &&
+          layerZone(project.body, layer) === detail;
+        // At most two 4K square source variants; source pixels are never upscaled.
+        const edge =
+          this.options.previewSize ??
+          (wantsDetail && detailPixels + 4096 * 4096 <= 33_554_432
+            ? 4096
+            : 2048);
+        const processed = await this.ink.get(asset, layer, edge);
+        if (edge > 2048) detailPixels += processed.width * processed.height;
         if (this.disposed || version !== this.paintVersion) return false;
         items.push({
           layer,
@@ -492,11 +740,36 @@ export class StudioScene {
       }
       if (this.disposed || version !== this.paintVersion) return false;
       if (project.body.kind === "human-v1" && this.human) {
-        await this.human.paint(project.body, items, this.inspectionLayer);
+        const detail =
+          this.renderer.capabilities.maxTextureSize >= 4096
+            ? project.tattooStudy?.detailZone
+            : "standard";
+        await this.human.paint(
+          project.body,
+          items,
+          this.inspectionLayer,
+          detail,
+          this.options.previewSize,
+        );
         if (this.disposed || version !== this.paintVersion) return false;
+        if (this.options.planningGuides)
+          this.planningGuides.update(
+            this.human,
+            project.body,
+            project.tattooStudy?.guides ?? [],
+          );
         this.events.inspection?.(this.human.decals.inspection);
         this.renderer.render(this.scene, this.camera);
         this.host.dataset.renderedBody = JSON.stringify(project.body);
+        this.host.dataset.rigBones = String(this.human.rigBones);
+        this.host.dataset.surfaceInspection = JSON.stringify(
+          this.human.decals.inspection,
+        );
+        this.host.dataset.chartSizes = JSON.stringify(
+          Object.fromEntries(
+            [...this.human.charts].map(([z, c]) => [z, c.canvas.width]),
+          ),
+        );
         this.host.dataset.connectedTriangles = String(
           this.human.decals.group.children.reduce(
             (sum, m) =>
@@ -573,7 +846,7 @@ export class StudioScene {
     );
     x.fillStyle = "#242424";
     x.font = "32px sans-serif";
-    x.fillText("FORM / STUDIO", 80, 78);
+    x.fillText("CORPORA STUDIO", 80, 78);
     x.font = "20px sans-serif";
     x.fillText(project.name.slice(0, 70), 80, 120);
     x.strokeStyle = "#bfbfbf";
@@ -614,13 +887,16 @@ export class StudioScene {
     return c.toDataURL("image/png");
   }
   dispose() {
+    this.planningGuides.clear();
     this.disposed = true;
     this.paintVersion++;
     this.human?.dispose();
     if (this.human) this.scene.remove(this.human.group);
     cancelAnimationFrame(this.frame);
+    cancelAnimationFrame(this.resizeFrame);
     this.resize.disconnect();
     this.cleanups.forEach((fn) => fn());
+    this.clearDrawingPreview();
     this.controls.dispose();
     this.scene.traverse((object) => {
       if (

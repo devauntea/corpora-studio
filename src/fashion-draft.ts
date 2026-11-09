@@ -1,4 +1,5 @@
 import { resolveConstruction } from "./pattern-formulas";
+import { engineEdgeIds } from "./pattern-edges";
 import { draftDesign, fabricWarnings } from "./design-adapters";
 import { constructPiece } from "./pattern-geometry";
 import { Teagan } from "@freesewing/teagan";
@@ -65,6 +66,19 @@ function curveLength(from: Point2, op: Extract<PatternOp, { type: "curve" }>) {
 }
 export function draftFashion(input: Fashion): PatternDraft {
   const f = FashionSchema.parse(input);
+  if (f.customDraftIds?.length)
+    return {
+      pieces: f.customDraftIds.map((id) =>
+        constructPiece(
+          id,
+          resolveConstruction(f.construction![id], f.measurements),
+        ),
+      ),
+      neckLength: 0,
+      warnings: [
+        "Custom pattern study: confirm scale, grain, joining seams, notches and fit before cutting final fabric.",
+      ],
+    };
   const result = draftBase({ ...f, construction: undefined });
   if (f.construction) {
     result.pieces = result.pieces.map((p) =>
@@ -180,6 +194,7 @@ function draftBase(input: Fashion): PatternDraft {
         width,
         height,
         seam: normalize(seam.ops, origin),
+        edgeIds: engineEdgeIds(seam.ops, part.points),
         cutline: normalize(cut.ops, origin),
         guides,
         notches: Object.values(part.snippets)

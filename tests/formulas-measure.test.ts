@@ -16,7 +16,10 @@ test("formula parser respects precedence, references, cycles and rejects executa
         throw new Error("Unknown");
       }),
     ).toThrow();
-  const f = newFashion(),
+  const f = {
+      ...newFashion(),
+      measurements: { ...newFashion().measurements, waist: 850 },
+    },
     c = detachPiece(draftFashion(f).pieces[0], 10);
   c.formulas = [
     { edge: 0, point: "to", axis: "x", expression: "p1.x + 10" },

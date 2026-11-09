@@ -1,5 +1,6 @@
-import {useDialogReturnFocus} from "./dialog-focus";
+import { useDialogReturnFocus } from "./dialog-focus";
 import { StencilStudio } from "./StencilStudio";
+import { emptyTransferPlan, type TransferPlan } from "./tattoo-study";
 import { defaultProcessing, type Processing } from "./image-processing";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -32,15 +33,20 @@ export function ArtworkStudio({
   apply,
   close,
   pointBudget,
+  transferPlan,
+  initialStencil = false,
 }: {
   asset: Asset;
-  apply: (edits: ArtworkEdits) => void;
+  apply: (edits: ArtworkEdits, plan?: TransferPlan) => void;
   close: () => void;
   pointBudget: number;
+  transferPlan?: TransferPlan;
+  initialStencil?: boolean;
 }) {
   useDialogReturnFocus();
   const [brushColor, setBrushColor] = useState("#111111");
-  const [stencil, setStencil] = useState(false);
+  const [stencil, setStencil] = useState(initialStencil);
+  const [plan, setPlan] = useState<TransferPlan | undefined>(transferPlan);
   const [edits, setEdits] = useState<ArtworkEdits>(
     asset.edits ?? cleanArtwork(),
   );
@@ -55,6 +61,7 @@ export function ArtworkStudio({
     [error, setError] = useState(""),
     [exporting, setExporting] = useState(false);
   const canvas = useRef<HTMLCanvasElement>(null),
+    dialog = useRef<HTMLElement>(null),
     image = useRef<HTMLImageElement | null>(null),
     gesture = useRef<ArtworkEdits | null>(null);
   const adjustment = useRef<ArtworkEdits | null>(null);
@@ -80,10 +87,18 @@ export function ArtworkStudio({
     return () => observer.disconnect();
   }, []);
   const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    if (!initialStencil)
+      dialog.current
+        ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+        ?.focus();
+  }, [initialStencil]);
   const [cursor, setCursor] = useState<{ x: number; y: number; r: number }>();
   useEffect(() => {
     const handler = () =>
-      setError("Apply or cancel your image edits before closing Form Studio.");
+      setError(
+        "Apply or cancel your image edits before closing Corpora Studio.",
+      );
     window.addEventListener("artwork-close-request", handler);
     return () => window.removeEventListener("artwork-close-request", handler);
   }, []);
@@ -322,15 +337,44 @@ export function ArtworkStudio({
         <StencilStudio
           asset={asset}
           edits={edits}
-          close={() => setStencil(false)}
+          transferPlan={plan ?? emptyTransferPlan()}
+          onPlanChange={setPlan}
+          close={() => {
+            setStencil(false);
+            // The image studio is inert while the stencil is open; once it is
+            // interactive again, return keyboard focus to it so Escape and Tab work.
+            requestAnimationFrame(() =>
+              dialog.current
+                ?.querySelector<HTMLButtonElement>(".art-stencil-entry")
+                ?.focus(),
+            );
+          }}
         />
       )}
       <section
+        ref={dialog}
         className="artwork-studio"
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
+        aria-hidden={stencil || undefined}
+        inert={stencil}
         aria-label="Tattoo image studio"
         onKeyDown={(e) => {
+          if (e.key === "Tab") {
+            const nodes = [
+              ...e.currentTarget.querySelectorAll<HTMLElement>(
+                'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex="0"]',
+              ),
+            ].filter((node) => node.getClientRects().length > 0);
+            if (e.shiftKey && document.activeElement === nodes[0]) {
+              e.preventDefault();
+              nodes.at(-1)?.focus();
+            } else if (!e.shiftKey && document.activeElement === nodes.at(-1)) {
+              e.preventDefault();
+              nodes[0]?.focus();
+            }
+          }
           if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
             e.preventDefault();
             e.stopPropagation();
@@ -345,7 +389,7 @@ export function ArtworkStudio({
         <header className="art-studio-header">
           <div>
             <span className="eyebrow">TATTOO IMAGE STUDIO</span>
-            <h2>{asset.name}</h2>
+            <h2 title={asset.name}>{asset.name}</h2>
           </div>
           <div className="art-actions">
             <button
@@ -362,7 +406,12 @@ export function ArtworkStudio({
             >
               <Redo2 size={17} />
             </button>
-            <button onClick={() => setStencil(true)}>Stencil output</button>
+            <button
+              className="art-stencil-entry"
+              onClick={() => setStencil(true)}
+            >
+              Stencil output
+            </button>
             <button onClick={close} aria-label="Close image studio">
               <X size={20} />
             </button>
@@ -948,7 +997,7 @@ export function ArtworkStudio({
             <button
               className="primary"
               disabled={!loaded}
-              onClick={() => apply(edits)}
+              onClick={() => apply(edits, plan)}
             >
               <Check size={15} />
               Apply to artwork

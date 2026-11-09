@@ -54,6 +54,7 @@ export class SurfaceDecals {
       vertex,
       revision: this.body.model.revision,
       sex: this.body.model.sex,
+      ...(this.body.model.sculptId ? { sculptId: this.body.model.sculptId } : {}),
     };
   }
   clear() {
@@ -87,7 +88,8 @@ export class SurfaceDecals {
         const a = l.surface;
         if (
           a.sex !== this.body.model?.sex ||
-          a.revision !== this.body.model?.revision
+          a.revision !== this.body.model?.revision ||
+          a.sculptId !== this.body.model?.sculptId
         )
           throw new Error(
             "Connected placement belongs to a different body mesh. Turn connected placement off, then on to re-anchor it.",
@@ -103,7 +105,7 @@ export class SurfaceDecals {
             positions = new Float32Array(this.data.vertices.length * 3);
           for (let i = 0; i < this.data.vertices.length; i++) {
             const v = this.data.vertices[i],
-              p = deformBodyPoint(
+              p = this.data.sculpt ? v.slice(0, 3) : deformBodyPoint(
                 v
                   .slice(0, 3)
                   .map((x, k) => x + v[k + 3] * this.body.muscularity),
@@ -112,7 +114,7 @@ export class SurfaceDecals {
               );
             for (let k = 0; k < 3; k++)
               positions[i * 3 + k] =
-                p[k] * scale * (k === 1 ? 1 : this.body.build);
+                p[k] * scale * (this.data.sculpt || k === 1 ? 1 : this.body.build);
           }
           map = await mapSurfaceInWorker(
             {
@@ -138,12 +140,14 @@ export class SurfaceDecals {
             this.cache.delete(this.cache.keys().next().value!);
         }
         const pos: number[] = [],
+          chartUv: number[] = [],
+          chartZones: number[] = [],
           uv: number[] = [],
           colors: number[] = [],
           angle = (l.rotation * Math.PI) / 180,
           co = Math.cos(angle),
           si = Math.sin(angle);
-        for (const { mesh } of this.charts.values()) {
+        for (const [zone, { mesh }] of this.charts) {
           const p = mesh.geometry.getAttribute("position"),
             n = mesh.geometry.getAttribute("normal"),
             ids = mesh.geometry.getAttribute("sourceIndex");
@@ -196,6 +200,9 @@ export class SurfaceDecals {
                 ...xyz[k].map((v, c) => v + n.getComponent(i + k, c) * 0.08),
               );
               uv.push(...tex[k]);
+              const chart = mesh.geometry.getAttribute("uv");
+              chartUv.push(chart.getX(i+k),chart.getY(i+k));
+              chartZones.push(["trunk","left-arm","right-arm","left-leg","right-leg","neck"].indexOf(zone));
               colors.push(heat.r, heat.g, heat.b);
             }
           }
@@ -206,6 +213,8 @@ export class SurfaceDecals {
           new THREE.Float32BufferAttribute(pos, 3),
         );
         geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+        geometry.setAttribute("chartUv",new THREE.Float32BufferAttribute(chartUv,2));
+        geometry.setAttribute("chartZone",new THREE.Float32BufferAttribute(chartZones,1));
         geometry.setAttribute(
           "color",
           new THREE.Float32BufferAttribute(colors, 3),

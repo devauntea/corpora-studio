@@ -1,13 +1,10 @@
+// Keep the established physical fixture independent of the new starter-size defaults.
+import { newFashion } from "../src/legacy-fashion-v18";
 import { inflateSync } from "node:zlib";
 import { describe, expect, test } from "vitest";
 import { createRequire } from "node:module";
 import { draftFashion } from "../src/fashion-draft";
-import {
-  FashionSchema,
-  newFashion,
-  pathString,
-  tilePlan,
-} from "../src/fashion-model";
+import { FashionSchema, pathString, tilePlan } from "../src/fashion-model";
 import { patternSvg, patternPdf } from "../src/fashion-export";
 import { blankProject, parseProject } from "../src/domain";
 

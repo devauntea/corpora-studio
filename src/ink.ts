@@ -23,11 +23,11 @@ export class InkCache {
       this.images.set(a.sha256, loadImage(imageSource(a)));
     return this.images.get(a.sha256)!;
   }
-  async get(a: Asset, l: Layer) {
-    const key = inkKey(a, l);
+  async get(a: Asset, l: Layer, maxEdge = 2048) {
+    const key = inkKey(a, l) + ":" + maxEdge;
     if (this.variants.has(key)) return this.variants.get(key)!;
     const img = await this.image(a),
-      c = await renderArtworkAsync(img, a.edits);
+      c = await renderArtworkAsync(img, a.edits, maxEdge);
     const ctx = c.getContext("2d", { willReadFrequently: true })!;
     const pixels = ctx.getImageData(0, 0, c.width, c.height),
       p = pixels.data,
@@ -71,6 +71,8 @@ export class InkCache {
       [p[i], p[i + 1], p[i + 2]] = rgb;
     }
     ctx.putImageData(pixels, 0, 0);
+    for (const k of this.variants.keys())
+      if (k.startsWith(inkKey(a, l) + ":") && k !== key) this.variants.delete(k);
     this.variants.set(key, c);
     return c;
   }
@@ -82,7 +84,7 @@ export class InkCache {
       }),
     );
     for (const k of this.variants.keys())
-      if (!keys.has(k)) this.variants.delete(k);
+      if (!keys.has(k.slice(0, k.lastIndexOf(":")))) this.variants.delete(k);
     const ids = new Set(assets.map((a) => a.sha256));
     for (const k of this.images.keys()) if (!ids.has(k)) this.images.delete(k);
   }

@@ -44,7 +44,11 @@ describe("garment catalog and profiles", () => {
       expect(new TextDecoder().decode(pdf.slice(0, 5))).toBe("%PDF-");
     });
   test("required measurements and options are checked before the engine", () => {
-    expect(() => draftFashion({ ...newFashion(), design: "titan" })).toThrow(
+    const incomplete = {
+      ...newFashion(),
+      measurements: { ...newFashion().measurements, waistToFloor: undefined },
+    };
+    expect(() => draftFashion({ ...incomplete, design: "titan" })).toThrow(
       /required measurements/,
     );
     expect(() =>

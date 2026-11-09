@@ -3,6 +3,10 @@ import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import "./style.css";
 import "./workspace-ux.css";
+import "./studio-polish.css";
+import "./studio-identity.css";
+import "./studio-theme.css";
+import "./corpora-identity.css";
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -16,7 +20,7 @@ class ErrorBoundary extends React.Component<
     return this.state.error ? (
       <div className="fatal">
         <h1>The workspace could not start.</h1>
-        <p>Reopen Form Studio. Your saved project files are unchanged.</p>
+        <p>Reopen Corpora Studio. Your saved project files are unchanged.</p>
       </div>
     ) : (
       this.props.children

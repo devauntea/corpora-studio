@@ -83,6 +83,7 @@ export function ProjectLibrary({
       <section
         className="project-library"
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-label="Project library"
         onKeyDown={(e) => {

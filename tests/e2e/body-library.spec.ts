@@ -16,6 +16,23 @@ test("detailed body library, registered muscle filter and saved choices", async 
   ).toBeVisible();
   await page.getByRole("button", { name: "Body model", exact: true }).click();
   await page.getByLabel("Body region").selectOption("upper-body");
+  await expect
+    .poll(async () =>
+      JSON.parse(
+        (await page
+          .locator(".canvas-host")
+          .getAttribute("data-rendered-body")) || "{}",
+      ),
+    )
+    .toMatchObject({ section: "upper-body" });
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  const canvas = page.locator(".canvas-host canvas").first();
+  const beforeZoom = await canvas.screenshot();
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await expect
+    .poll(async () => beforeZoom.equals(await canvas.screenshot()))
+    .toBe(false);
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page
     .getByRole("button", { name: "Skin tone #e0bfa5", exact: true })
     .click();
@@ -100,9 +117,9 @@ test("detailed body library, registered muscle filter and saved choices", async 
   const file = info.outputPath("detailed.formstudio");
   await (await downloading).saveAs(file);
   const saved = JSON.parse(await fs.readFile(file, "utf8"));
-  expect(saved.version).toBe(12);
+  expect(saved.version).toBe(19);
   expect(saved.body.model).toEqual({
-    revision: 5,
+    revision: 9,
     sex: "male",
     physique: "fit",
     anatomyOpacity: 1,

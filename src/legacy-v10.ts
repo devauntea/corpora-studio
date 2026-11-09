@@ -1,5 +1,5 @@
 // Frozen 0.10 project schema.
-import { BodyStudySchema, FitShapeSchema } from "./body-fitting";
+import { BodyStudySchema, FitShapeSchema } from "./legacy-body-fitting-v13";
 import { LatticeSchema } from "./lattice-warp";
 import { QuadSchema } from "./photo-warp";
 import { ProcessingSchema } from "./image-processing";

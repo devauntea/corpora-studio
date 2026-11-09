@@ -1,3 +1,4 @@
+import tauriConfig from "./src-tauri/tauri.conf.json" with { type: "json" };
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 export default defineConfig({
@@ -16,6 +17,9 @@ export default defineConfig({
     },
   },
   clearScreen: false,
+  preview: {
+    headers: { "Content-Security-Policy": tauriConfig.app.security.csp },
+  },
   build: {
     target: "es2022",
     rollupOptions: {

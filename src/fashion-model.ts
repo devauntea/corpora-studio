@@ -1,4 +1,7 @@
+import { PatternSourcesSchema } from "./pattern-source";
+import { starterProfile } from "./starter-sizing";
 import { VectorPackSchema } from "./vector-pack";
+import { SeamPlanSchema } from "./seam-model";
 import { designIds } from "./pattern-catalog";
 import { ClothSchema } from "./cloth-model";
 import { GarmentStudySchema } from "./garment-measure";
@@ -468,9 +471,25 @@ export const FashionSchema = z
     notes: z.string().max(3000),
     paper: z.enum(["a4", "letter"]),
     construction: ConstructionSetSchema.optional(),
+    seamPlan: SeamPlanSchema.optional(),
+    patternSources: PatternSourcesSchema.optional(),
+    customDraftIds: z
+      .array(z.string().regex(/^[a-zA-Z][a-zA-Z0-9.-]{0,59}$/))
+      .min(1)
+      .max(40)
+      .optional(),
   })
   .strict()
   .superRefine((f, c) => {
+    if (
+      f.customDraftIds &&
+      (new Set(f.customDraftIds).size !== f.customDraftIds.length ||
+        f.customDraftIds.some((id) => !f.construction?.[id]))
+    )
+      c.addIssue({
+        code: "custom",
+        message: "Custom drafts need unique, existing construction pieces",
+      });
     const profiles = new Set(f.profiles?.map((p) => p.id));
     if (
       new Set(f.gradeIds).size !== (f.gradeIds?.length ?? 0) ||
@@ -491,22 +510,8 @@ export const defaultLayout = () => ({
 export function newFashion(): Fashion {
   return {
     engine: "teagan-4.10.2-form-1",
-    profile: "Sample measurements",
-    measurements: {
-      chest: 980,
-      waist: 850,
-      hips: 1000,
-      biceps: 320,
-      neck: 380,
-      shoulderToShoulder: 440,
-      hpsToBust: 270,
-      hpsToWaistBack: 460,
-      waistToArmpit: 200,
-      waistToHips: 200,
-      shoulderToWrist: 610,
-      wrist: 170,
-      shoulderSlope: 13,
-    },
+    profile: starterProfile("male-m").name,
+    measurements: { ...starterProfile("male-m").measurements },
     options: {
       chestEase: 12,
       hipsEase: 18,
@@ -543,6 +548,7 @@ export type PatternPiece = {
   width: number;
   height: number;
   seam: PatternOp[];
+  edgeIds?: string[];
   cutline: PatternOp[];
   guides: PatternOp[][];
   notches: { point: Point2; double: boolean }[];

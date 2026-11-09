@@ -10,3 +10,18 @@ playwright-report/
 qa/
 releases/
 .tools/
+
+# Local configuration, credentials and private working material
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.mobileprovision
+.council.local.yaml
+coverage/
+*.log
+__pycache__/
+*.pyc

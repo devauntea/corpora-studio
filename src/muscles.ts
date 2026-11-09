@@ -1,3 +1,4 @@
+import heads from "./muscle-heads.json";
 // Color identities match the versioned anatomical field.
 export const muscleGroups = [
   {
@@ -181,3 +182,24 @@ export const muscleGroups = [
     flow: "Long columns beside the spine.",
   },
 ] as const;
+
+export const detailedMuscleGroups = [
+  ...muscleGroups.map((g, parent) => ({ ...g, parent })),
+  {
+    name: "Connective tissue",
+    color: "#dfd4b5",
+    flow: "Tendons and connective regions.",
+    parent: 36,
+  },
+  ...heads,
+];
+export const muscleParent = (id: number) =>
+  detailedMuscleGroups[id]?.parent ?? 36;
+export const muscleCatalog = (revision = 0) =>
+  revision >= 8 ? detailedMuscleGroups : muscleGroups;
+export function muscleLegend(revision = 0) {
+  const replaced = new Set(heads.map((h) => h.parent));
+  return detailedMuscleGroups.filter((g, i) =>
+    revision >= 8 ? i !== 36 && (i >= 37 || !replaced.has(g.parent)) : i < 36,
+  );
+}

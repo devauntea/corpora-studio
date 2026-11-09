@@ -1,3 +1,4 @@
+import { newFashion as legacyFashion } from "../src/legacy-fashion-v18";
 import { expect, test } from "vitest";
 import { unzipSync, strFromU8 } from "fflate";
 import { flatTemplates, templatePack } from "../src/vector-templates";
@@ -47,7 +48,7 @@ test("manufacturer ZIP preserves editable shapes, specifications and plain-text 
     },
   ];
   const files = unzipSync(vectorArchive(p));
-  expect(Object.keys(files)).toHaveLength(9);
+  expect(Object.keys(files)).toHaveLength(14);
   expect(strFromU8(files["front.svg"])).toContain("&lt;script&gt;");
   expect(strFromU8(files["front.svg"])).not.toContain("<script>");
   expect(strFromU8(files["back.svg"])).not.toContain("Twin needle");
@@ -96,8 +97,8 @@ test("pack and project round-trip reject damaged geometry, duplicate IDs, and in
   const f = { ...newFashion(), vectorPack: templatePack("Jacket") },
     p = { ...blankProject(), fashion: f };
   expect(await parseProject(JSON.stringify(p))).toEqual(p);
-  const old = { ...blankProject(), version: 10, fashion: newFashion() };
-  expect((await parseProject(JSON.stringify(old))).version).toBe(12);
+  const old = { ...blankProject(), version: 10, fashion: legacyFashion() };
+  expect((await parseProject(JSON.stringify(old))).version).toBe(19);
   await expect(
     parseProject(JSON.stringify({ ...old, fashion: f })),
   ).rejects.toThrow("version 10");

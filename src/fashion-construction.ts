@@ -26,6 +26,7 @@ const path = z
   );
 export const ConstructionSchema = z
   .object({
+    edgeIds: z.array(z.string().min(1).max(240)).min(3).max(256).optional(),
     formulas: z
       .array(
         z
@@ -67,6 +68,8 @@ export const ConstructionSchema = z
   })
   .strict()
   .superRefine((v, ctx) => {
+    if (v.edgeIds && (v.edgeIds.length !== v.seam.length || new Set(v.edgeIds).size !== v.edgeIds.length))
+      ctx.addIssue({ code: "custom", message: "Boundary identities must be unique and match every segment" });
     if (v.allowances.length !== v.seam.length)
       ctx.addIssue({
         code: "custom",

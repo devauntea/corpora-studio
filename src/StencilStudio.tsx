@@ -1,4 +1,8 @@
-import {useDialogReturnFocus} from "./dialog-focus";
+import { stencilPreflight } from "./production-preflight";
+import { emptyTransferPlan, type TransferPlan } from "./tattoo-study";
+import { TransferPlanEditor } from "./TransferPlanEditor";
+import { registeredStencilPdf } from "./transfer-sections";
+import { useDialogReturnFocus } from "./dialog-focus";
 import "./stencil.css";
 import { useEffect, useRef, useState } from "react";
 import { renderArtworkAsync } from "./artwork";
@@ -8,6 +12,7 @@ import { loadImage, savePattern, saveReview } from "./io";
 import {
   calibrationPdf,
   PrinterSchema,
+  printerProfileKey,
   stencilDimensions,
   stencilPdf,
   stencilPng,
@@ -20,10 +25,14 @@ export function StencilStudio({
   asset,
   edits,
   close,
+  transferPlan = emptyTransferPlan(),
+  onPlanChange,
 }: {
   asset: Asset;
   edits: ArtworkEdits;
   close: () => void;
+  transferPlan?: TransferPlan;
+  onPlanChange?: (plan: TransferPlan) => void;
 }) {
   useDialogReturnFocus();
   const [lines, setLines] = useState<Contour[]>([]),
@@ -35,18 +44,26 @@ export function StencilStudio({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [printers, setPrinters] = useState<PrinterCalibration[]>([]);
-  const [settings, setSettings] = useState<StencilSettings>({
-    width: 100,
-    lineWeight: 0.3,
-    dpi: 300,
-    mirror: false,
-    paper: "a4",
-    printer: { name: "Uncalibrated printer", measuredX: 50, measuredY: 50 },
-  });
+  const [settings, setSettings] = useState<StencilSettings>(
+    transferPlan.output ?? {
+      width: 100,
+      lineWeight: 0.3,
+      dpi: 300,
+      mirror: false,
+      paper: "a4",
+      printer: { name: "Uncalibrated printer", measuredX: 50, measuredY: 50 },
+    },
+  );
+  const updateSettings = (next: StencilSettings) => {
+    setSettings(next);
+    onPlanChange?.({ ...transferPlan, output: next });
+  };
   const job = useRef<AbortController | null>(null),
     dialog = useRef<HTMLElement>(null);
   useEffect(() => {
-    dialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    dialog.current
+      ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+      ?.focus();
     try {
       setPrinters(
         PrinterSchema.array()
@@ -56,6 +73,9 @@ export function StencilStudio({
     } catch {
       setError("Stored printer calibration could not be read.");
     }
+    // Open on a traced stencil rather than an empty preview; the user can
+    // still adjust the threshold and trace again.
+    void trace();
     return () => job.current?.abort();
   }, []);
   const trace = async () => {
@@ -111,7 +131,15 @@ export function StencilStudio({
         );
       else
         await savePattern(
-          await stencilPdf(selected, size.width, size.height, settings),
+          transferPlan.sections.length || transferPlan.marks.length
+            ? await registeredStencilPdf(
+                selected,
+                size.width,
+                size.height,
+                settings,
+                transferPlan,
+              )
+            : await stencilPdf(selected, size.width, size.height, settings),
           asset.name + "-stencil",
           "pdf",
         );
@@ -149,8 +177,9 @@ export function StencilStudio({
     <div className="modal-backdrop stencil-backdrop">
       <section
         ref={dialog}
-        className="stencil-studio"
+        className="stencil-studio tattoo-stencil"
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-label="Calibrated stencil studio"
         onKeyDown={(e) => {
@@ -240,14 +269,14 @@ export function StencilStudio({
             </label>
             <h3>2 / Physical output</h3>
             {field("Stencil width (mm)", settings.width, 10, 600, (v) =>
-              setSettings({ ...settings, width: v }),
+              updateSettings({ ...settings, width: v }),
             )}
             {field(
               "Line weight (mm)",
               settings.lineWeight,
               0.05,
               2,
-              (v) => setSettings({ ...settings, lineWeight: v }),
+              (v) => updateSettings({ ...settings, lineWeight: v }),
               0.05,
             )}
             <label>
@@ -256,7 +285,7 @@ export function StencilStudio({
                 aria-label="Stencil DPI"
                 value={settings.dpi}
                 onChange={(e) =>
-                  setSettings({
+                  updateSettings({
                     ...settings,
                     dpi: Number(e.target.value) as StencilSettings["dpi"],
                   })
@@ -273,7 +302,7 @@ export function StencilStudio({
                 aria-label="Stencil paper"
                 value={settings.paper}
                 onChange={(e) =>
-                  setSettings({
+                  updateSettings({
                     ...settings,
                     paper: e.target.value as "a4" | "letter",
                   })
@@ -288,7 +317,7 @@ export function StencilStudio({
                 type="checkbox"
                 checked={settings.mirror}
                 onChange={(e) =>
-                  setSettings({ ...settings, mirror: e.target.checked })
+                  updateSettings({ ...settings, mirror: e.target.checked })
                 }
               />
               Mirror for transfer
@@ -320,13 +349,22 @@ export function StencilStudio({
                   aria-label="Saved printer"
                   value=""
                   onChange={(e) => {
-                    const p = printers.find((p) => p.name === e.target.value);
-                    if (p) setSettings({ ...settings, printer: p });
+                    const p = printers.find(
+                      (p) => printerProfileKey(p) === e.target.value,
+                    );
+                    if (p) updateSettings({ ...settings, printer: p });
                   }}
                 >
                   <option value="">Choose…</option>
                   {printers.map((p) => (
-                    <option key={p.name}>{p.name}</option>
+                    <option
+                      key={printerProfileKey(p)}
+                      value={printerProfileKey(p)}
+                    >
+                      {[p.name, p.paper, p.settings]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -339,7 +377,7 @@ export function StencilStudio({
                 value={settings.printer.name}
                 onChange={(e) =>
                   e.target.value &&
-                  setSettings({
+                  updateSettings({
                     ...settings,
                     printer: { ...settings.printer, name: e.target.value },
                   })
@@ -352,7 +390,7 @@ export function StencilStudio({
               40,
               60,
               (v) =>
-                setSettings({
+                updateSettings({
                   ...settings,
                   printer: { ...settings.printer, measuredX: v },
                 }),
@@ -363,7 +401,7 @@ export function StencilStudio({
               40,
               60,
               (v) =>
-                setSettings({
+                updateSettings({
                   ...settings,
                   printer: { ...settings.printer, measuredY: v },
                 }),
@@ -372,7 +410,11 @@ export function StencilStudio({
               onClick={() => {
                 try {
                   const next = [
-                    ...printers.filter((p) => p.name !== settings.printer.name),
+                    ...printers.filter(
+                      (p) =>
+                        printerProfileKey(p) !==
+                        printerProfileKey(settings.printer),
+                    ),
                     PrinterSchema.parse(settings.printer),
                   ];
                   if (next.length > 30)
@@ -386,6 +428,65 @@ export function StencilStudio({
             >
               Save printer calibration
             </button>
+            <label>
+              Paper / transfer stock
+              <input
+                aria-label="Printer paper stock"
+                value={settings.printer.paper ?? ""}
+                maxLength={100}
+                onChange={(e) =>
+                  updateSettings({
+                    ...settings,
+                    printer: { ...settings.printer, paper: e.target.value },
+                  })
+                }
+              />
+            </label>
+            <label>
+              Driver / print settings
+              <input
+                aria-label="Printer driver settings"
+                value={settings.printer.settings ?? ""}
+                maxLength={180}
+                onChange={(e) =>
+                  updateSettings({
+                    ...settings,
+                    printer: { ...settings.printer, settings: e.target.value },
+                  })
+                }
+              />
+            </label>
+            {onPlanChange && (
+              <TransferPlanEditor
+                value={transferPlan}
+                change={(p) => onPlanChange({ ...p, output: settings })}
+              />
+            )}
+            {onPlanChange && (
+              <p>
+                Use Apply to artwork in the image studio to keep this transfer
+                plan with the project.
+              </p>
+            )}
+            <details className="stencil-preflight">
+              <summary>
+                Stencil export checks (
+                {stencilPreflight(settings, selected.length).length})
+              </summary>
+              <p>
+                Transfer stencil · {settings.width} mm wide · {settings.dpi} DPI
+                · {settings.paper.toUpperCase()} ·{" "}
+                {settings.mirror ? "mirrored" : "not mirrored"}.
+              </p>
+              {stencilPreflight(settings, selected.length).map((issue) => (
+                <p key={issue}>{issue}</p>
+              ))}
+              <p>
+                PDF: print at actual size. PNG: preserve the stated millimeter
+                width in the receiving application. Physical transfer accuracy
+                is not verified by the app.
+              </p>
+            </details>
           </aside>
           <div className="stencil-preview">
             <div className="stencil-status">
@@ -436,9 +537,51 @@ export function StencilStudio({
                     </path>
                   </g>
                 ))}
+              <g pointerEvents="none">
+                {transferPlan.sections.map((s) => (
+                  <g key={s.id}>
+                    <rect
+                      x={s.x * size.width}
+                      y={s.y * size.height}
+                      width={s.width * size.width}
+                      height={s.height * size.height}
+                      fill="none"
+                      stroke="#76530b"
+                      strokeWidth={1.5}
+                    />
+                    <text
+                      x={s.x * size.width + 5}
+                      y={s.y * size.height + 16}
+                      fill="#76530b"
+                      fontSize="14"
+                    >
+                      {s.name}
+                    </text>
+                  </g>
+                ))}
+                {transferPlan.marks.map((m) => (
+                  <g
+                    key={m.id}
+                    transform={`translate(${m.x * size.width},${m.y * size.height})`}
+                  >
+                    <path
+                      d="M-6 0H6M0-6V6"
+                      stroke="#76530b"
+                      strokeWidth="1.5"
+                    />
+                    <text x="8" y="-5" fill="#76530b" fontSize="12">
+                      {m.name}
+                    </text>
+                  </g>
+                ))}
+              </g>
             </svg>
-            {!lines.length && (
-              <p>Trace artwork to choose your stencil contours.</p>
+            {!lines.length && !error && (
+              <p>
+                {busy
+                  ? `Tracing artwork… ${Math.round(progress * 100)}%`
+                  : "Trace artwork to choose your stencil contours."}
+              </p>
             )}
             {error && <p role="alert">{error}</p>}
           </div>
@@ -450,7 +593,14 @@ export function StencilStudio({
             ×{" "}
             {stencilDimensions(size.width, size.height, settings).sy.toFixed(4)}
             . Verify a test print with a ruler before use.
+            {!busy && !selected.length && (
+              <>
+                {" "}
+                <strong>Select at least one line to export.</strong>
+              </>
+            )}
           </p>
+
           <button
             disabled={busy || !selected.length}
             onClick={() => void exportFile("png")}

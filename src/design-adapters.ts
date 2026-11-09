@@ -1,4 +1,5 @@
 import { constructors } from "./pattern-engines";
+import { engineEdgeIds } from "./pattern-edges";
 import { constructPiece } from "./pattern-geometry";
 import {
   designNames,
@@ -293,6 +294,7 @@ export function draftDesign(f: Fashion): PatternDraft {
       height,
       origin,
       seam: boundary,
+      edgeIds: engineEdgeIds(seam.ops, part.points),
       cutline: translated(
         cuts.flatMap((p) => p.ops),
         origin,

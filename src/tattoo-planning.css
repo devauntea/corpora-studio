@@ -1,0 +1,245 @@
+.planning-backdrop {
+  z-index: 120;
+  padding: 24px;
+}
+.tattoo-planning {
+  width: min(1700px, 100%);
+  height: calc(100vh - 48px);
+  background: #f6f6f4;
+  color: #222;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #aaa;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 24px 90px #0005;
+}
+.tattoo-planning header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #d5d5d2;
+}
+.tattoo-planning header > div {
+  flex: 1;
+}
+.tattoo-planning .eyebrow {
+  color: #62625e;
+}
+.tattoo-planning h2 {
+  font-size: 25px;
+  margin: 6px 0 0;
+}
+.planning-layout {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+}
+.planning-main {
+  min-width: 0;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+}
+.planning-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.tattoo-planning label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+.tattoo-planning label:has(input[type="checkbox"]) {
+  flex-direction: row;
+  align-items: center;
+}
+.tattoo-planning select,
+.tattoo-planning input:not([type="checkbox"]) {
+  background: white;
+  border: 1px solid #c4c4c0;
+  border-radius: 6px;
+  padding: 8px;
+  min-width: 0;
+  max-width: 100%;
+  color: #222;
+}
+.tattoo-planning button {
+  border: 1px solid #bcbcb8;
+  border-radius: 6px;
+  background: white;
+  padding: 8px 11px;
+  color: #222;
+}
+.tattoo-planning button:disabled {
+  opacity: 0.5;
+}
+.pose-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  flex: 1;
+  min-height: 300px;
+}
+.pose-pair figure {
+  margin: 0;
+  position: relative;
+  min-width: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #29292c;
+}
+.pose-pair figcaption {
+  position: absolute;
+  z-index: 2;
+  left: 14px;
+  top: 14px;
+  color: #eee;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  pointer-events: none;
+}
+.pose-canvas {
+  position: absolute;
+  inset: 0;
+}
+.pose-canvas canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.planning-inspector {
+  overflow: auto;
+  padding: 18px;
+  border-left: 1px solid #d5d5d2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.planning-inspector h3 {
+  font-size: 13px;
+  border-top: 1px solid #ddd;
+  padding-top: 18px;
+  margin: 8px 0 0;
+}
+.planning-inspector h3:first-child {
+  border: 0;
+  padding: 0;
+}
+.planning-status {
+  font-size: 12px;
+  min-height: 16px;
+  margin-bottom: 0;
+}
+.chart-overview {
+  position: relative;
+  aspect-ratio: 3/4;
+  background: white;
+  border: 1px solid #ccc;
+  flex-shrink: 0;
+}
+.chart-overview img,
+.chart-overview svg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  inset: 0;
+}
+.planning-guide-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.planning-guide-actions button {
+  font-size: 11px;
+}
+.tattoo-planning .field-note {
+  color: #5d5d58;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 6px 0;
+}
+.tattoo-planning [role="alert"] {
+  color: #9b2828;
+  font-size: 13px;
+}
+@media (max-width: 1050px) {
+  .planning-backdrop {
+    padding: 8px;
+  }
+  .tattoo-planning {
+    height: calc(100vh - 16px);
+  }
+  .planning-layout {
+    grid-template-columns: minmax(0, 1fr) 240px;
+  }
+  .planning-main {
+    padding: 10px;
+  }
+  .tattoo-planning header {
+    padding: 12px;
+  }
+  .tattoo-planning .eyebrow {
+    color: #62625e;
+  }
+  .tattoo-planning h2 {
+    font-size: 20px;
+  }
+}
+@media (max-width: 760px) {
+  .planning-layout {
+    display: block;
+    overflow: auto;
+  }
+  .pose-pair {
+    height: 400px;
+  }
+  .planning-inspector {
+    border: 0;
+  }
+  .chart-overview {
+    max-width: 240px;
+  }
+  .tattoo-planning header {
+    flex-wrap: wrap;
+  }
+}
+
+.planning-main {
+  min-height: 0;
+}
+.planning-inspector {
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+.tattoo-planning header {
+  flex: none;
+}
+.tattoo-planning header > div {
+  min-width: 0;
+}
+.tattoo-planning header > button {
+  flex: none;
+  white-space: nowrap;
+  min-height: 36px;
+}
+.planning-toolbar select {
+  min-width: 120px;
+}
+@media (max-height: 800px) and (min-width: 761px) {
+  .tattoo-planning header {
+    padding: 15px 22px;
+  }
+  .pose-pair {
+    min-height: 200px;
+  }
+  .planning-main {
+    overflow: auto;
+  }
+}

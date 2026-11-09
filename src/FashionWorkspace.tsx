@@ -1,5 +1,17 @@
+import { patternPreflight } from "./production-preflight";
+import { SeamStudio } from "./SeamStudio";
+import { withSeamNotches } from "./seam-checks";
 import { VectorPackStudio } from "./VectorPackStudio";
 import { patternCatalog } from "./pattern-catalog";
+import { PatternCatalogBrowser } from "./PatternCatalogBrowser";
+import {
+  applyStarterProfile,
+  starterProfile,
+  type StarterId,
+  type StarterBody,
+  type StarterSize,
+} from "./starter-sizing";
+import { patternPreview } from "./pattern-preview";
 import { ClothStudio } from "./ClothStudio";
 import { GarmentPhotoStudio } from "./GarmentPhotoStudio";
 import type { Asset, Body } from "./domain";
@@ -50,6 +62,7 @@ import { draftFashion } from "./fashion-draft";
 import { patternPdf, patternSvg, pieceMarkup } from "./fashion-export";
 import { savePattern } from "./io";
 import "./fashion.css";
+import "./fashion-workflow.css";
 
 function Field({
   label,
@@ -137,8 +150,8 @@ export function FashionWorkspace({
   exporter,
 }: {
   value: Fashion;
-  onModeChange: (mode: "patterns" | "vectors" | "assets") => void;
-  mode: "patterns" | "vectors" | "assets";
+  onModeChange: (mode: "patterns" | "vectors" | "assets" | "textiles") => void;
+  mode: "patterns" | "vectors" | "assets" | "textiles";
   assets: Asset[];
   body: Body;
   onChange: (f: Fashion, asset?: Asset) => void;
@@ -158,12 +171,33 @@ export function FashionWorkspace({
   const setVectorOpen = (open: boolean) =>
     onModeChange(open ? "vectors" : "patterns");
   const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogOpen, setCatalogOpen] = useState(true);
+  const [workflow, setWorkflow] = useState<
+    "pattern" | "fit" | "pieces" | "output"
+  >("pattern");
+  const catalogRef = useRef<HTMLDetailsElement>(null);
   const [catalogCategory, setCatalogCategory] = useState("All");
+  const [catalogBrowser, setCatalogBrowser] = useState(false);
+  const [starterId, setStarterId] = useState<StarterId>("male-m");
   const [clothOpen, setClothOpen] = useState(false);
+  const [seamsOpen, setSeamsOpen] = useState(false);
   const [photoStudy, setPhotoStudy] = useState(false);
   const [grades, setGrades] = useState(false);
   const design = value.design ?? "teagan";
+  const starter = starterProfile(starterId);
+  const catalogThumbnail = useMemo(
+    () => patternPreview(design, starterId),
+    [design, starterId],
+  );
   const required = requiredMeasures(design);
+  const matchingDesigns = designIds.filter(
+    (id) =>
+      (catalogCategory === "All" ||
+        patternCatalog[id].category === catalogCategory) &&
+      (designNames[id] + " " + patternCatalog[id].description)
+        .toLowerCase()
+        .includes(catalogSearch.toLowerCase()),
+  );
   const [left, setLeft] = useState<"measurements" | "pieces">("measurements");
   const [right, setRight] = useState<"design" | "export">("design");
   const [selected, setSelected] = useState<PieceId>("front");
@@ -200,13 +234,42 @@ export function FashionWorkspace({
     value.designOptions,
     value.fabric,
   ]);
-  const draft = outcome.draft;
+  const draft = useMemo(
+    () => (outcome.draft ? withSeamNotches(outcome.draft, value) : null),
+    [outcome.draft, value.seamPlan, value.design],
+  );
   const bounds = draft
     ? layoutBounds(draft, value)
     : { x: 0, y: 0, width: 1200, height: 800 };
   const box = view ?? bounds;
   const pieces = draft ? layoutPieces(draft, value) : [];
   const chosen = draft?.pieces.find((p) => p.id === selected);
+  useEffect(() => {
+    if (draft?.pieces.length && !draft.pieces.some((p) => p.id === selected))
+      setSelected(draft.pieces[0].id);
+  }, [draft, selected]);
+  const showWorkflow = (step: typeof workflow) => {
+    setWorkflow(step);
+    setGrades(false);
+    setCatalogOpen(step === "pattern");
+    if (step === "fit") {
+      setLeft("measurements");
+      setRight("design");
+    }
+    if (step === "pieces") {
+      setLeft("pieces");
+      setRight("design");
+      setTool("move");
+    }
+    if (step === "output") setRight("export");
+    requestAnimationFrame(() => {
+      const library =
+        catalogRef.current?.closest<HTMLElement>(".fashion-library");
+      if (library) library.scrollTop = 0;
+      if (step === "pattern")
+        catalogRef.current?.querySelector<HTMLInputElement>("input")?.focus();
+    });
+  };
   const pages = draft
     ? 1 +
       draft.pieces.reduce((n, p) => {
@@ -216,6 +279,30 @@ export function FashionWorkspace({
     : 0;
   const changeMeasure = (key: MeasurementKey, n: number) =>
     onChange({ ...value, measurements: { ...value.measurements, [key]: n } });
+  const useCatalogPattern = (next: DesignId, size: StarterId | null) => {
+    try {
+      const sized = size ? applyStarterProfile(value, size) : value;
+      onChange({
+        ...sized,
+        design: next,
+        designOptions: next === design ? value.designOptions : {},
+        customDraftIds: undefined,
+      });
+      if (size) setStarterId(size);
+      setSelected(next === "teagan" ? "front" : next + ".front");
+      setView(null);
+      setGeometry(null);
+      setCatalogBrowser(false);
+      showWorkflow("fit");
+      notify(
+        size
+          ? "Starter measurements applied. Your previous profile and custom pieces are kept; undo is available."
+          : "Pattern selected. Your measurements and custom pieces are kept.",
+      );
+    } catch (error) {
+      notify(String(error), true);
+    }
+  };
   const changeOption = (key: OptionKey, n: number) =>
     onChange({ ...value, options: { ...value.options, [key]: n } });
   const doExport = async () => {
@@ -349,6 +436,8 @@ export function FashionWorkspace({
     return (
       <VectorPackStudio
         openLibrary={mode === "assets"}
+        openTextiles={mode === "textiles"}
+        onTextilesChange={(open) => onModeChange(open ? "textiles" : "vectors")}
         onLibraryChange={(open) => onModeChange(open ? "assets" : "vectors")}
         value={value}
         onChange={onChange}
@@ -366,7 +455,62 @@ export function FashionWorkspace({
       />
     );
   return (
-    <main className="fashion-workspace" aria-label="Fashion pattern studio">
+    <main
+      className="fashion-workspace"
+      data-workflow={workflow}
+      aria-label="Fashion pattern studio"
+    >
+      <nav className="fashion-workflow" aria-label="Pattern workflow">
+        {(
+          [
+            [
+              "pattern",
+              "Choose pattern",
+              `${designIds.length} starting designs`,
+            ],
+            ["fit", "Measurements & fit", "Size and silhouette"],
+            ["pieces", "Edit & construct", "Pieces, curves and seams"],
+            ["output", "Review output", "Print or edit at full size"],
+          ] as const
+        ).map(([step, label, hint], i) => (
+          <button
+            key={step}
+            aria-current={workflow === step ? "step" : undefined}
+            onClick={() => showWorkflow(step)}
+          >
+            <span className="fashion-step-number">{i + 1}</span>
+            <span>
+              <b>{label}</b>
+              <small>{hint}</small>
+            </span>
+          </button>
+        ))}
+        <span className="fashion-workflow-status">
+          {draft ? `${draft.pieces.length} pieces · mm` : "Review measurements"}
+        </span>
+      </nav>
+      {catalogBrowser && (
+        <PatternCatalogBrowser
+          value={value}
+          initialSize={starterId}
+          onApply={useCatalogPattern}
+          close={() => setCatalogBrowser(false)}
+        />
+      )}
+      {seamsOpen && outcome.draft && (
+        <SeamStudio
+          value={value}
+          draft={outcome.draft}
+          change={onChange}
+          close={() => setSeamsOpen(false)}
+          undo={undo}
+          redo={redo}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          name={name}
+          notify={notify}
+        />
+      )}
       {clothOpen && draft && (
         <ClothStudio
           value={value}
@@ -407,108 +551,160 @@ export function FashionWorkspace({
         <div className="fashion-heading">
           <span className="eyebrow">GARMENT LIBRARY</span>
           <Shirt size={20} />
-          <h2>{designNames[design].split(" · ")[0]}</h2>
+          <h2>
+            {value.customDraftIds?.length
+              ? "Custom pattern study"
+              : designNames[design].split(" · ")[0]}
+          </h2>
           <p>
-            {designNames[design].split(" · ")[1]}
+            {value.customDraftIds?.length
+              ? `${value.customDraftIds.length} editable source pieces`
+              : designNames[design].split(" · ")[1]}
             <br />
-            Drafted from your measurements.
+            {value.customDraftIds?.length
+              ? "Source geometry · verify dimensions."
+              : "Drafted from your measurements."}
           </p>
         </div>
+        {value.customDraftIds?.length ? (
+          <button
+            className="wide-button"
+            onClick={() => {
+              onChange({ ...value, customDraftIds: undefined });
+              setView(null);
+            }}
+          >
+            Show template pieces
+          </button>
+        ) : null}
         <button
           className="wide-button vector-entry"
           onClick={() => setVectorOpen(true)}
         >
           Vector packs <span>Garment flats & manufacturer handoff →</span>
         </button>
-        <div className="catalog-filter">
-          <label>
-            Search {designIds.length} patterns
-            <input
-              aria-label="Search patterns"
-              placeholder="Hoodie, dress, trousers…"
-              value={catalogSearch}
-              onChange={(e) => setCatalogSearch(e.target.value)}
-            />
-          </label>
-          <label>
-            Category
+        <details
+          className="fashion-catalog"
+          ref={catalogRef}
+          open={catalogOpen}
+          onToggle={(e) => setCatalogOpen(e.currentTarget.open)}
+        >
+          <summary>
+            Pattern library <span>{designNames[design].split(" · ")[0]}</span>
+          </summary>
+          <button
+            className="pattern-browser-entry"
+            onClick={() => setCatalogBrowser(true)}
+          >
+            <img src={catalogThumbnail.url} alt="" />
+            <span>
+              <b>Browse {designIds.length} drafted patterns</b>
+              <small>Explore the collection →</small>
+            </span>
+            <span aria-hidden="true">→</span>
+          </button>
+          <div className="catalog-filter">
+            <label>
+              Search {designIds.length} patterns
+              <input
+                aria-label="Search patterns"
+                placeholder="Hoodie, dress, trousers…"
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+              />
+            </label>
+            <label>
+              Category
+              <select
+                aria-label="Pattern category"
+                value={catalogCategory}
+                onChange={(e) => setCatalogCategory(e.target.value)}
+              >
+                <option>All</option>
+                {[
+                  ...new Set(
+                    Object.values(patternCatalog).map((p) => p.category),
+                  ),
+                ].map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+            <small aria-live="polite">
+              {matchingDesigns.length} matching patterns · FreeSewing / MIT
+            </small>
+            {matchingDesigns.length === 0 && (
+              <div className="fashion-empty-filter" role="status">
+                <b>No patterns match these filters.</b>
+                <p>Your current draft is still open.</p>
+                <button
+                  onClick={() => {
+                    setCatalogSearch("");
+                    setCatalogCategory("All");
+                  }}
+                >
+                  Clear pattern filters
+                </button>
+              </div>
+            )}
+          </div>
+          <label className="fashion-text-field garment-selector">
+            Garment design
             <select
-              aria-label="Pattern category"
-              value={catalogCategory}
-              onChange={(e) => setCatalogCategory(e.target.value)}
+              aria-label="Garment design"
+              value={design}
+              disabled={busy}
+              onChange={(e) => {
+                const next = e.target.value as DesignId;
+                onChange({
+                  ...value,
+                  design: next,
+                  designOptions: {},
+                  customDraftIds: undefined,
+                });
+                setSelected(next === "teagan" ? "front" : next + ".front");
+                setView(null);
+                setGeometry(null);
+              }}
             >
-              <option>All</option>
-              {[
-                ...new Set(
-                  Object.values(patternCatalog).map((p) => p.category),
-                ),
-              ].map((c) => (
-                <option key={c}>{c}</option>
-              ))}
+              {designIds
+                .filter(
+                  (id) =>
+                    id === design ||
+                    ((catalogCategory === "All" ||
+                      patternCatalog[id].category === catalogCategory) &&
+                      (designNames[id] + " " + patternCatalog[id].description)
+                        .toLowerCase()
+                        .includes(catalogSearch.toLowerCase())),
+                )
+                .map((id) => (
+                  <option value={id} key={id}>
+                    {designNames[id]}
+                  </option>
+                ))}
             </select>
           </label>
-          <small>
-            {
-              designIds.filter(
-                (id) =>
-                  (catalogCategory === "All" ||
-                    patternCatalog[id].category === catalogCategory) &&
-                  (designNames[id] + " " + patternCatalog[id].description)
-                    .toLowerCase()
-                    .includes(catalogSearch.toLowerCase()),
-              ).length
-            }{" "}
-            matching patterns · FreeSewing / MIT
-          </small>
-        </div>
-        <label className="fashion-text-field garment-selector">
-          Garment design
-          <select
-            aria-label="Garment design"
-            value={design}
-            disabled={busy}
-            onChange={(e) => {
-              const next = e.target.value as DesignId;
-              onChange({
-                ...value,
-                design: next,
-                designOptions: {},
-                construction: undefined,
-                layout: defaultLayout(),
-              });
-              setSelected(next === "teagan" ? "front" : next + ".front");
-              setView(null);
-              setGeometry(null);
-            }}
-          >
-            {designIds
-              .filter(
-                (id) =>
-                  id === design ||
-                  ((catalogCategory === "All" ||
-                    patternCatalog[id].category === catalogCategory) &&
-                    (designNames[id] + " " + patternCatalog[id].description)
-                      .toLowerCase()
-                      .includes(catalogSearch.toLowerCase())),
-              )
-              .map((id) => (
-                <option value={id} key={id}>
-                  {designNames[id]}
-                </option>
-              ))}
-          </select>
-        </label>
+        </details>
+        <button
+          className="wide-button fashion-seams-entry"
+          disabled={!draft}
+          onClick={() => setSeamsOpen(true)}
+        >
+          Seams & construction →
+        </button>
         <div className="fashion-tabs">
           <button
             className={left === "measurements" ? "active" : ""}
-            onClick={() => setLeft("measurements")}
+            aria-pressed={left === "measurements"}
+            onClick={() => showWorkflow("fit")}
           >
             <Ruler size={14} />
             Measurements
           </button>
           <button
             className={left === "pieces" ? "active" : ""}
-            onClick={() => setLeft("pieces")}
+            aria-pressed={left === "pieces"}
+            onClick={() => showWorkflow("pieces")}
           >
             <Scissors size={14} />
             Pieces
@@ -517,6 +713,63 @@ export function FashionWorkspace({
         <fieldset disabled={busy} className="fashion-scroll">
           {left === "measurements" ? (
             <>
+              <section
+                className="starter-sizing"
+                aria-label="Starter measurements"
+              >
+                <div>
+                  <b>Start with a size</b>
+                  <small>Preview before applying</small>
+                </div>
+                <div className="starter-picker">
+                  <label>
+                    Body profile
+                    <select
+                      aria-label="Starter body profile"
+                      value={starter.body}
+                      onChange={(e) =>
+                        setStarterId(
+                          `${e.target.value as StarterBody}-${starter.size.toLowerCase()}` as StarterId,
+                        )
+                      }
+                    >
+                      <option value="male">Male starter</option>
+                      <option value="female">Female starter</option>
+                    </select>
+                  </label>
+                  <div role="group" aria-label="Starter size">
+                    {(["S", "M", "L"] as StarterSize[]).map((s) => (
+                      <button
+                        key={s}
+                        aria-pressed={starter.size === s}
+                        onClick={() =>
+                          setStarterId(
+                            `${starter.body}-${s.toLowerCase()}` as StarterId,
+                          )
+                        }
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p>
+                  {starter.measurements.chest / 10} /{" "}
+                  {starter.measurements.waist / 10} /{" "}
+                  {starter.measurements.seat / 10} cm{" "}
+                  <span>chest · waist · seat</span>
+                </p>
+                <button
+                  className="wide-button"
+                  onClick={() => setCatalogBrowser(true)}
+                >
+                  Preview & apply starter size
+                </button>
+                <small>
+                  Chart anchors + derived estimates. Your current draft stays
+                  unchanged until Apply.
+                </small>
+              </section>
               <label className="fashion-text-field">
                 PROFILE NAME
                 <input
@@ -530,8 +783,8 @@ export function FashionWorkspace({
                 />
               </label>
               <p className="fashion-caption">
-                Sample values are a starting point. Enter your own measurements
-                in millimeters.
+                Enter your own measurements in millimeters. Starter sizes are
+                preview estimates; confirm fit with a toile.
               </p>
               <button
                 className="wide-button"
@@ -646,6 +899,9 @@ export function FashionWorkspace({
                   onChange({
                     ...value,
                     construction: { ...value.construction, [id]: c },
+                    customDraftIds: value.customDraftIds?.length
+                      ? [...value.customDraftIds, id]
+                      : undefined,
                   });
                   setSelected(id);
                   setView(null);
@@ -657,6 +913,7 @@ export function FashionWorkspace({
                 <button
                   className={`fashion-piece-row ${selected === p.id ? "selected" : ""}`}
                   key={p.id}
+                  aria-pressed={selected === p.id}
                   onClick={() => setSelected(p.id)}
                 >
                   <span className="piece-index">0{i + 1}</span>
@@ -737,16 +994,18 @@ export function FashionWorkspace({
                         Manual piece · only formula-linked coordinates follow
                         measurements.
                       </p>
-                      <button
-                        className="fashion-secondary"
-                        onClick={() => {
-                          const construction = { ...value.construction };
-                          delete construction[selected];
-                          onChange({ ...value, construction });
-                        }}
-                      >
-                        Restore measurement draft
-                      </button>
+                      {!value.customDraftIds?.includes(selected) && (
+                        <button
+                          className="fashion-secondary"
+                          onClick={() => {
+                            const construction = { ...value.construction };
+                            delete construction[selected];
+                            onChange({ ...value, construction });
+                          }}
+                        >
+                          Restore measurement draft
+                        </button>
+                      )}
                     </>
                   )}
                 </>
@@ -767,7 +1026,9 @@ export function FashionWorkspace({
           )}
         </fieldset>
         <div className="fashion-credit">
-          Drafting · FreeSewing {designNames[design].split(" · ")[0]}
+          {value.customDraftIds?.length
+            ? "Custom construction · verify source dimensions"
+            : `Drafting · FreeSewing ${designNames[design].split(" · ")[0]}`}
           <br />
           <span>All measurements stay on this device.</span>
         </div>
@@ -777,9 +1038,24 @@ export function FashionWorkspace({
           <div>
             <span className="eyebrow">PATTERN BOARD</span>
             <h3>{chosen?.name ?? "Your first fitting draft"}</h3>
+            {chosen && (
+              <p className="pattern-selection-info">
+                {chosen.cut} · {chosen.width.toFixed(1)} ×{" "}
+                {chosen.height.toFixed(1)} mm
+              </p>
+            )}
           </div>
           <span>
-            <button aria-pressed={grades} onClick={() => setGrades(!grades)}>
+            <button
+              disabled={!!value.customDraftIds?.length}
+              title={
+                value.customDraftIds?.length
+                  ? "Size comparison requires a measurement-driven template."
+                  : undefined
+              }
+              aria-pressed={grades}
+              onClick={() => setGrades(!grades)}
+            >
               {grades ? "Pattern board" : "Compare sizes"}
             </button>{" "}
             {draft?.pieces.length ?? 0} PIECES <i /> MM
@@ -788,13 +1064,18 @@ export function FashionWorkspace({
         {grades && <FashionGrades value={value} notify={notify} />}
         <div style={{ display: grades ? "none" : "contents" }}>
           <div className="pattern-toolbar">
-            <div className="pattern-tools">
+            <div
+              className="pattern-tools"
+              role="group"
+              aria-label="Pattern editing tools"
+            >
               <button
                 aria-label="Arrange pattern pieces"
                 aria-pressed={tool === "move"}
                 onClick={() => setTool("move")}
               >
                 <MousePointer2 size={16} />
+                <b>Arrange</b>
               </button>
               <button
                 aria-label="Edit pattern shape"
@@ -802,6 +1083,7 @@ export function FashionWorkspace({
                 onClick={() => setTool("shape")}
               >
                 <SlidersHorizontal size={16} />
+                <b>Shape</b>
               </button>
               <button
                 aria-label="Pan pattern board"
@@ -809,6 +1091,7 @@ export function FashionWorkspace({
                 onClick={() => setTool("pan")}
               >
                 <Hand size={16} />
+                <b>Pan</b>
               </button>
               <span />
               <button
@@ -819,7 +1102,11 @@ export function FashionWorkspace({
                 <Grid2X2 size={16} />
               </button>
             </div>
-            <div className="pattern-tools">
+            <div
+              className="pattern-tools"
+              role="group"
+              aria-label="Pattern navigation"
+            >
               <button aria-label="Zoom pattern out" onClick={() => zoom(1.2)}>
                 <Minus size={15} />
               </button>
@@ -998,13 +1285,21 @@ export function FashionWorkspace({
         <div className="fashion-tabs">
           <button
             className={right === "design" ? "active" : ""}
-            onClick={() => setRight("design")}
+            aria-pressed={right === "design"}
+            onClick={() => {
+              setRight("design");
+              setWorkflow("fit");
+            }}
           >
             Design & fit
           </button>
           <button
             className={right === "export" ? "active" : ""}
-            onClick={() => setRight("export")}
+            aria-pressed={right === "export"}
+            onClick={() => {
+              setRight("export");
+              setWorkflow("output");
+            }}
           >
             Print & export
           </button>
@@ -1277,6 +1572,25 @@ export function FashionWorkspace({
                 Vector curves, matching marks, grainlines and seam allowances.
                 Export uses the current draft and saved manual pieces.
               </p>
+              <div
+                className="fashion-output-routes"
+                aria-label="Pattern output destination"
+              >
+                <button
+                  aria-pressed={exportType === "pdf"}
+                  onClick={() => setExportType("pdf")}
+                >
+                  <b>Print & assemble</b>
+                  <span>Tiled PDF for your home printer</span>
+                </button>
+                <button
+                  aria-pressed={exportType === "svg"}
+                  onClick={() => setExportType("svg")}
+                >
+                  <b>Edit at full size</b>
+                  <span>SVG curves in millimeters</span>
+                </button>
+              </div>
               <label className="fashion-text-field">
                 FORMAT
                 <select
@@ -1315,6 +1629,28 @@ export function FashionWorkspace({
                   </div>
                 </>
               )}
+              <details className="fashion-print-note" open>
+                <summary>
+                  <b>Cutting pattern preflight</b>
+                </summary>
+                <p>
+                  {name} · {value.profile} · {draft?.pieces.length ?? 0} pieces
+                  · millimeters
+                </p>
+                <p>
+                  {exportType === "pdf"
+                    ? `${value.paper.toUpperCase()}, ${pages} pages, 100% scale, 5 mm overlap.`
+                    : "Full-size SVG: one user unit is one millimeter. Verify your receiving application's imported size."}
+                </p>
+                {draft &&
+                  patternPreflight(draft, value).map((issue, i) => (
+                    <p key={i}>{issue}</p>
+                  ))}
+                <p>
+                  Physical print and sample fit are not verified. Check the
+                  calibration square and sew a test sample before final fabric.
+                </p>
+              </details>
               <button
                 className="primary fashion-export-button"
                 disabled={!draft}
@@ -1330,6 +1666,19 @@ export function FashionWorkspace({
                   × 50 mm. Turn off “fit to page.”
                 </p>
               </div>
+              <details className="fashion-details fashion-handoff-route">
+                <summary>Sending a design to a manufacturer?</summary>
+                <p className="fashion-caption">
+                  Create garment flats, size specifications and construction
+                  instructions in a vector pack.
+                </p>
+                <button
+                  className="wide-button"
+                  onClick={() => setVectorOpen(true)}
+                >
+                  Prepare manufacturer pack →
+                </button>
+              </details>
               <h4>Cut list</h4>
               {draft?.pieces.map((p) => (
                 <div className="fashion-cut-row" key={p.id}>
@@ -1347,8 +1696,9 @@ export function FashionWorkspace({
           <div className="fashion-toile">
             <b>First fitting draft</b>
             <p>
-              Designed for knit fabric. Sew a toile to check fit, sleeve
-              matching and neckband recovery before cutting your final fabric.
+              {(value.design ?? "teagan") === "teagan"
+                ? "Designed for knit fabric. Sew a toile to check fit, sleeve matching and neckband recovery before cutting your final fabric."
+                : "Check this design’s fabric and construction requirements. Sew a toile and verify the joining seams, allowances and finished measurements before cutting your final fabric."}
             </p>
           </div>
         </fieldset>

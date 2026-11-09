@@ -10,11 +10,11 @@ test("garment catalog, profiles, size series and interchange", async ({
   await page.getByRole("button", { name: "Fashion", exact: true }).click();
   await page.getByLabel("Garment design").selectOption("titan");
   await expect(
-    page.getByText("Enter required measurements:", { exact: false }),
+    page.getByRole("img", { name: "Sewing pattern canvas" }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Add missing sample measurements" })
-    .click();
+  await expect(
+    page.getByRole("button", { name: "Add missing sample measurements" }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("img", { name: "Sewing pattern canvas" }),
   ).toBeVisible();

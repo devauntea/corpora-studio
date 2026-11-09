@@ -1,0 +1,697 @@
+/* Form Studio / Paper & Ink. Shared tokens for desktop and future portfolio. */
+:root {
+  --fs-paper: #f4f1e9;
+  --fs-panel: #fbf9f4;
+  --fs-ink: #242521;
+  --fs-muted: #66665d;
+  --fs-border: #d5d1c7;
+  --fs-soft: #eae7de;
+  --fs-stage: #242626;
+  --fs-on-stage: #f4f1e9;
+  --fs-serif: Georgia, "Times New Roman", serif;
+  --fs-space-1: 4px;
+  --fs-space-2: 8px;
+  --fs-space-3: 12px;
+  --fs-space-4: 16px;
+  --fs-space-6: 24px;
+  --fs-space-8: 32px;
+  --fs-radius: 6px;
+  --fs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --fs-fast: 160ms;
+  --fs-reveal: 240ms;
+  --studio-paper: var(--fs-paper);
+  --studio-ink: var(--fs-ink);
+  --studio-muted: var(--fs-muted);
+  --studio-border: var(--fs-border);
+  color: var(--fs-ink);
+  background: var(--fs-paper);
+}
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+button {
+  transition:
+    background var(--fs-fast),
+    color var(--fs-fast),
+    border-color var(--fs-fast);
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid #79613c;
+  outline-offset: 3px;
+}
+button.primary {
+  background: var(--fs-ink);
+  color: var(--fs-panel);
+}
+button.primary:not(:disabled):hover {
+  background: #45473e;
+}
+.app-shell {
+  background: var(--fs-paper);
+}
+.topbar {
+  background: #20221f;
+  border-bottom: 1px solid #41433b;
+  height: 54px;
+}
+.brand {
+  letter-spacing: 2.6px;
+  font-size: 12px;
+}
+.studio-switch {
+  background: #2c2e29;
+  border-color: #626457;
+}
+.studio-switch button {
+  font-size: 12px;
+}
+.studio-switch button.active {
+  background: var(--fs-paper);
+  color: var(--fs-ink);
+}
+.projectbar {
+  background: var(--fs-panel);
+  height: 64px;
+  min-height: 64px;
+  border-color: var(--fs-border);
+}
+.project-name input {
+  font-family: var(--fs-serif);
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.6px;
+}
+.breadcrumb {
+  font-size: 9px;
+  letter-spacing: 1.7px;
+  color: var(--fs-muted);
+}
+.project-actions > button,
+.project-actions .save-split button {
+  min-height: 36px;
+  font-size: 12px;
+}
+.project-actions .review-room-trigger {
+  background: var(--fs-paper);
+  border-color: var(--fs-border);
+}
+.workspace-nav {
+  background: var(--fs-paper);
+  border-color: var(--fs-border);
+  min-height: 44px;
+}
+.workspace-nav .task-path button,
+.workspace-nav nav button {
+  font-size: 12px;
+}
+.workspace-nav .task-path button.active,
+.workspace-nav nav button.active {
+  background: var(--fs-soft);
+}
+.workspace-nav .task-path button span {
+  background: var(--fs-soft);
+  color: var(--fs-muted);
+}
+.workspace:not(.studio-hidden) {
+  grid-template-columns: 224px minmax(360px, 1fr) 310px;
+}
+.library,
+.inspector {
+  background: var(--fs-panel);
+  border-color: var(--fs-border);
+}
+.library,
+.inspector-scroll {
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+.library > * {
+  flex-shrink: 0;
+}
+.panel-title,
+.section-label {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  color: var(--fs-muted);
+}
+.body-card {
+  background: var(--fs-paper);
+  border-color: var(--fs-border);
+  margin-bottom: 20px;
+}
+.body-card small {
+  font-size: 11px;
+  color: var(--fs-muted);
+}
+.layer-search {
+  background: var(--fs-paper);
+  border-color: var(--fs-border);
+}
+.layer-search input {
+  font-size: 12px;
+}
+.layer-row {
+  border-radius: var(--fs-radius);
+  margin: 5px 0;
+}
+.layer-row.selected {
+  background: var(--fs-soft);
+  border-color: #a29f91;
+  box-shadow: inset 2px 0 var(--fs-ink);
+}
+.layer-row .layer-info strong {
+  font-size: 12px;
+}
+.layer-row .layer-info small {
+  font-size: 11px;
+}
+.import-button,
+.image-studio-entry {
+  min-height: 52px;
+  background: var(--fs-panel);
+  border-color: #bcb9ae;
+  font-size: 12px;
+}
+.library-bottom p {
+  font-size: 11px;
+  color: var(--fs-muted);
+  line-height: 1.6;
+}
+.library-bottom .asset-thumb {
+  background: var(--fs-paper);
+}
+.inspector-tabs {
+  background: var(--fs-panel);
+  border-color: var(--fs-border);
+}
+.inspector-tabs button {
+  min-height: 48px;
+  font-size: 12px;
+}
+.inspector-scroll {
+  padding: 20px 20px 32px;
+}
+.inspector-heading h2 {
+  font-family: var(--fs-serif);
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: -0.6px;
+}
+.inspector-heading p,
+.field-note,
+.inspector .select-field,
+.inspector .number-field label,
+.toggle-label {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fs-muted);
+}
+.inspector-section {
+  margin-top: 22px;
+  padding-bottom: 22px;
+  border-color: var(--fs-border);
+}
+.inspector-section input,
+.inspector-section select {
+  font-size: 12px;
+  min-height: 36px;
+  background-color: #fffefa;
+  border-color: var(--fs-border);
+}
+.inspector-section input[type="range"] {
+  background: transparent;
+}
+.inspector-section .section-label {
+  margin-bottom: 14px;
+}
+.artwork-preview {
+  height: 130px;
+  border-color: var(--fs-border);
+}
+.artwork-preview img {
+  max-height: 112px;
+}
+.artwork-preview > span {
+  font-size: 9px;
+}
+.skin-swatches {
+  gap: 10px;
+  padding: 5px 2px;
+}
+.skin-swatches button {
+  width: 28px;
+  height: 28px;
+  border-color: var(--fs-panel);
+}
+.skin-swatches button.active {
+  box-shadow: 0 0 0 2px var(--fs-ink);
+}
+.ink-palette {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 10px 0 18px;
+}
+.ink-palette button {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--fs-panel);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #bcb9ae;
+}
+.ink-palette button[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--fs-ink);
+}
+/* Stage chrome stays peripheral; the model is the center of the composition. */
+.viewport-heading {
+  top: 22px;
+  left: 24px;
+}
+.viewport-heading h1 {
+  font-family: var(--fs-serif);
+  font-size: 28px;
+  font-weight: 400;
+}
+.viewport-heading .eyebrow {
+  font-size: 10px;
+  color: #c4c4b9;
+}
+.viewport-heading p {
+  font-size: 11px;
+  color: #c4c4b9;
+}
+.approx-badge {
+  font-size: 10px;
+}
+.view-tools {
+  top: 135px;
+  background: #252724ed;
+  border: 1px solid #73756a;
+  padding: 5px;
+  gap: 4px;
+  box-shadow: 0 8px 24px #0002;
+}
+.view-tools .icon-button {
+  width: 34px;
+  height: 34px;
+  color: #e0e0d6;
+}
+.view-tools .icon-button.active {
+  background: var(--fs-paper);
+  color: var(--fs-ink);
+}
+.view-tools .icon-button:hover:not(:disabled) {
+  background: #4b4d44;
+  color: white;
+}
+.canvas-context {
+  left: 76px;
+  bottom: auto;
+  top: 92px;
+  transform: none;
+  max-width: calc(100% - 100px);
+  font-size: 11px;
+  padding: 7px 10px;
+  border-color: #62655b;
+  background: #262824d9;
+}
+.canvas-context small {
+  font-size: 11px;
+}
+.camera-tabs {
+  background: #252724ed;
+  border-color: #73756a;
+  box-shadow: none;
+}
+.camera-tabs button {
+  color: #e0e0d6;
+  font-size: 11px;
+  min-height: 32px;
+}
+.camera-tabs button.selected {
+  background: var(--fs-paper);
+  color: var(--fs-ink);
+}
+.camera-tabs button:not(:disabled):hover {
+  background: #4b4d44;
+  color: white;
+}
+.surface-filter {
+  background: #252724ed;
+  border-color: #73756a;
+}
+.surface-filter button {
+  color: #e0e0d6;
+  font-size: 11px;
+}
+.surface-filter button.active {
+  background: var(--fs-paper);
+  color: var(--fs-ink);
+}
+.surface-brush {
+  top: 146px;
+  left: 76px;
+  border-radius: 6px;
+}
+.view-bottom p {
+  font-size: 10px;
+  color: #d0d0c5;
+}
+.statusbar {
+  background: var(--fs-soft);
+  color: #57594f;
+  font-size: 10px;
+  border-color: var(--fs-border);
+}
+/* Editorial launchpad: large type belongs in discovery, not in dense editing forms. */
+.studio-home {
+  background: var(--fs-panel);
+  border-color: var(--fs-border);
+  border-radius: 10px;
+}
+.studio-home > header {
+  background: var(--fs-ink);
+  color: var(--fs-paper);
+  border: 0;
+}
+.home-wordmark {
+  letter-spacing: 2.5px;
+}
+.home-wordmark span {
+  color: #c4c4b9;
+  font-size: 10px;
+}
+.studio-home > header button:hover {
+  background: #45473e;
+}
+.home-intro {
+  padding: 32px;
+}
+.home-intro h1 {
+  font-family: var(--fs-serif);
+  font-size: clamp(38px, 4vw, 54px);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -1.7px;
+}
+.home-intro .eyebrow {
+  font-size: 10px;
+  color: var(--fs-muted);
+}
+.home-resume {
+  background: var(--fs-paper);
+  border-color: var(--fs-border);
+  border-radius: 4px;
+}
+.home-resume small {
+  font-size: 10px;
+}
+.home-task-grid {
+  gap: 20px;
+}
+.home-task {
+  border-radius: 5px;
+  border-color: var(--fs-border);
+  background: var(--fs-panel);
+}
+.home-task:hover {
+  background: var(--fs-panel) !important;
+  transform: translateY(-2px);
+}
+.home-task-art {
+  height: 180px;
+  background: var(--fs-soft);
+}
+.home-task-art.pattern,
+.home-task-art.flat {
+  background-color: var(--fs-soft);
+}
+.home-task-copy {
+  padding: 20px;
+}
+.home-task-copy h2 {
+  font-family: var(--fs-serif);
+  font-size: 25px;
+  font-weight: 400;
+}
+.home-task-copy small {
+  font-size: 11px;
+  color: var(--fs-muted);
+}
+.home-task-copy p {
+  min-height: 60px;
+}
+.home-task-index {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  padding: 5px 8px;
+  border: 1px solid #85877e;
+  background: #fbf9f4df;
+  color: var(--fs-ink);
+  font: 11px monospace;
+}
+.home-lower,
+.home-file {
+  border-color: var(--fs-border);
+}
+.home-file {
+  background: var(--fs-paper);
+}
+.home-file h2 {
+  font-family: var(--fs-serif);
+  font-size: 24px;
+  font-weight: 400;
+}
+.home-section-title button,
+.home-recent small,
+.home-recent time,
+.home-file > small {
+  font-size: 11px;
+}
+/* A shared material treatment for specialist editors. Layout and state stay local. */
+.artwork-studio,
+.tattoo-stencil,
+.tattoo-planning,
+.command-menu,
+.project-library,
+.review-room {
+  background: var(--fs-panel);
+  color: var(--fs-ink);
+  border-color: var(--fs-border);
+}
+.art-studio-header,
+.art-footer,
+.tattoo-stencil > header,
+.tattoo-stencil > footer {
+  background: var(--fs-panel);
+  border-color: var(--fs-border);
+}
+.art-studio-header h2,
+.tattoo-stencil > header h2,
+.project-library h2 {
+  font-family: var(--fs-serif);
+  font-size: 26px;
+  font-weight: 400;
+}
+.art-tools,
+.tattoo-stencil .stencil-body > aside {
+  background: var(--fs-paper);
+}
+.art-tools p,
+.art-footer p {
+  font-size: 12px;
+}
+.art-actions button {
+  background: var(--fs-paper);
+  border-color: var(--fs-border);
+}
+/* Technical flats get the same paper surface without shrinking their artboard. */
+.vector-studio {
+  background: var(--fs-paper);
+}
+.vector-studio .vector-top {
+  padding: 10px 20px !important;
+  background: var(--fs-panel) !important;
+  gap: 12px;
+}
+.vector-top h2 {
+  font-family: var(--fs-serif);
+  font-size: 26px !important;
+}
+.vector-studio .vector-tabs {
+  padding: 5px 20px !important;
+  background: var(--fs-paper);
+  gap: 4px;
+}
+.vector-studio .vector-tabs button {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+.vector-studio .vector-sidebar,
+.vector-studio .vector-inspector {
+  background: var(--fs-panel);
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+.vector-studio .vector-sidebar > *,
+.vector-studio .vector-inspector > * {
+  flex-shrink: 0;
+}
+.vector-studio label,
+.vector-studio .vector-hint {
+  font-size: 12px;
+}
+.vector-studio .vector-toolbar {
+  background: var(--fs-paper);
+}
+.vector-studio .vector-canvas-scroll {
+  background-color: #e8e5db;
+  background-image: radial-gradient(#b7b4a9 0.6px, transparent 0.6px);
+  background-size: 20px 20px;
+}
+.vector-studio .vector-toolbar button,
+.vector-studio .vector-sidebar button {
+  font-size: 12px;
+}
+/* Ink-like reveals use opacity and a short rise, never cursor trails over art. */
+@keyframes fs-reveal {
+  from {
+    transform: translateY(5px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.studio-home,
+.body-library,
+.pattern-catalog-browser,
+.command-menu {
+  animation: fs-reveal var(--fs-reveal) var(--fs-ease) both;
+}
+@media (max-width: 1200px) {
+  .workspace:not(.studio-hidden) {
+    grid-template-columns: 202px minmax(340px, 1fr) 290px;
+  }
+  .project-name input {
+    max-width: 180px;
+  }
+  .project-actions > button {
+    padding: 7px;
+  }
+  .workspace-nav .task-path button {
+    font-size: 11px;
+    padding: 0 9px;
+  }
+  .viewport-heading h1 {
+    font-size: 24px;
+  }
+  .canvas-context strong {
+    max-width: 95px;
+  }
+  .canvas-context > small {
+    display: none;
+  }
+  .home-task-copy h2 {
+    font-size: 21px;
+  }
+  .home-task-art {
+    height: 150px;
+  }
+  .home-task-copy p {
+    min-height: 60px;
+  }
+  .vector-studio .vector-tabs button {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+}
+@media (max-height: 800px) {
+  .topbar {
+    height: 48px;
+  }
+  .projectbar {
+    height: 58px;
+    min-height: 58px;
+  }
+  .workspace-nav {
+    min-height: 40px;
+  }
+  .viewport-heading {
+    top: 16px;
+  }
+  .viewport-heading h1 {
+    margin: 5px 0;
+  }
+  .canvas-context {
+    top: 88px;
+  }
+  .view-tools {
+    top: 124px;
+    gap: 2px;
+  }
+  .view-tools .icon-button {
+    height: 30px;
+  }
+  .view-bottom {
+    bottom: 13px;
+  }
+  .surface-brush {
+    top: 124px;
+  }
+  .home-intro {
+    padding-top: 22px;
+    padding-bottom: 22px;
+  }
+  .vector-top {
+    min-height: 66px;
+  }
+}
+.focus-workspace .workspace:not(.studio-hidden) {
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+.home-task-art > svg {
+  display: none;
+}
+.canvas-context {
+  top: 108px;
+}
+.pattern-source-studio {
+  --ps-line: var(--fs-border);
+  --ps-muted: var(--fs-muted);
+  background: var(--fs-panel);
+  border-radius: 6px;
+}
+.pattern-source-studio .ps-header,
+.pattern-source-studio .ps-footer {
+  background: var(--fs-panel);
+}
+.pattern-source-studio .ps-header h2 {
+  font-family: var(--fs-serif);
+  font-weight: 400;
+  font-size: 28px;
+}
+.pattern-source-studio .ps-inventory {
+  background: var(--fs-paper);
+}
+@media (max-height: 800px) {
+  .canvas-context {
+    top: 88px;
+  }
+}

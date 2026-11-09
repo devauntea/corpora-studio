@@ -108,6 +108,7 @@ test("vector drawings, editable geometry, specifications and manufacturer handof
   await page
     .getByRole("button", { name: "Export vector pack", exact: true })
     .click();
+  await page.getByRole("button", {name: "Export reviewed ZIP", exact: true}).click();
   const zip = info.outputPath("manufacturer.zip");
   const d = await download;
   expect(d.suggestedFilename()).toBe("FS-001-vector-pack.zip");
@@ -183,12 +184,9 @@ test("expanded catalog searches and drafts across garment categories", async ({
     5,
   );
   await page.getByLabel("Garment design").selectOption("hugo");
-  await page
-    .getByRole("button", {
-      name: "Add missing sample measurements",
-      exact: true,
-    })
-    .click();
+  await expect(page.getByRole("button", {
+    name: "Add missing sample measurements", exact: true,
+  })).toHaveCount(0);
   await expect(
     page.getByRole("img", { name: "Sewing pattern canvas" }),
   ).toBeVisible();

@@ -95,19 +95,20 @@ test("replacing one view keeps the other view, sizes and materials; old v11 pack
   );
   expect(next.materials).toEqual(p.materials);
   expect(next.measurements).toEqual(p.measurements);
+  const {groups, sources, ...legacyPack} = templatePack("T-shirt");
   const old = {
     ...blankProject(),
     version: 11,
     fashion: {
       ...newFashion(),
-      vectorPack: { ...templatePack("T-shirt"), version: 1 },
+      vectorPack: { ...legacyPack, version: 1 },
     },
   };
   const migrated = await parseProject(JSON.stringify(old));
-  expect(migrated.version).toBe(12);
-  expect(migrated.fashion!.vectorPack!.version).toBe(2);
+  expect(migrated.version).toBe(19);
+  expect(migrated.fashion!.vectorPack!.version).toBe(4);
   expect(parseVectorPack(JSON.stringify(old.fashion.vectorPack)).version).toBe(
-    2,
+    4,
   );
   await expect(
     parseProject(

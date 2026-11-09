@@ -21,13 +21,11 @@ test("drawing, cancellable trace, calibrated PNG/PDF and groups", async ({
     x.strokeRect(45, 45, 165, 165);
     return c.toDataURL();
   });
-  await page
-    .getByLabel("Artwork file", { exact: true })
-    .setInputFiles({
-      name: "Print test.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(original.split(",")[1], "base64"),
-    });
+  await page.getByLabel("Artwork file", { exact: true }).setInputFiles({
+    name: "Print test.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(original.split(",")[1], "base64"),
+  });
   await page
     .getByRole("button", { name: "Edit source in image studio", exact: false })
     .click();
@@ -70,6 +68,21 @@ test("drawing, cancellable trace, calibrated PNG/PDF and groups", async ({
     index = bytes.indexOf("pHYs");
   expect(index).toBeGreaterThan(0);
   expect(bytes.readUInt32BE(index + 4)).toBe(11811);
+  await stencil.getByLabel("Printer paper stock").fill("QA transfer stock");
+  await stencil.getByLabel("Printer driver settings").fill("100% / no scaling");
+  await stencil.getByRole("button", { name: "Add transfer section" }).click();
+  await stencil.getByLabel("Section name", { exact: true }).fill("Upper panel");
+  await stencil.getByRole("button", { name: "Add transfer section" }).click();
+  await stencil.getByLabel("Section name", { exact: true }).fill("Lower panel");
+  await stencil.getByLabel("Section top (%)").fill("50");
+  await stencil.getByRole("button", { name: "Add registration mark" }).click();
+  await stencil.getByLabel("Mark label").fill("JOIN A");
+  await stencil.getByLabel("Stencil transfer pose").selectOption("arm-bend");
+  await stencil
+    .getByLabel("Transfer notes")
+    .fill(
+      "Top toward shoulder. Match JOIN A before transferring the lower section.",
+    );
   const pdf = page.waitForEvent("download");
   await stencil.getByRole("button", { name: "Export stencil PDF" }).click();
   await (await pdf).saveAs(info.outputPath("stencil.pdf"));
@@ -110,5 +123,40 @@ test("drawing, cancellable trace, calibrated PNG/PDF and groups", async ({
       .edits.drawing,
   ).toHaveLength(1);
   expect(project.groups).toHaveLength(1);
+  expect(project.tattooStudy.stencils[0].plan).toMatchObject({
+    pose: "arm-bend",
+    sections: [
+      { name: "Upper panel", y: 0 },
+      { name: "Lower panel", y: 0.5 },
+    ],
+    marks: [{ name: "JOIN A", x: 0.5, y: 0.5 }],
+    output: {
+      width: 120,
+      printer: {
+        name: "Test printer",
+        measuredX: 49,
+        paper: "QA transfer stock",
+        settings: "100% / no scaling",
+      },
+    },
+  });
+  await page
+    .getByLabel("Project file", { exact: true })
+    .setInputFiles(projectPath);
+  await page.getByLabel("Lock Sleeve study", { exact: true }).uncheck();
+  await page
+    .getByRole("button", { name: "Edit source in image studio", exact: false })
+    .click();
+  await dialog.getByRole("button", { name: "Stencil output" }).click();
+  await expect(
+    stencil.getByLabel("Stencil width (mm)", { exact: true }),
+  ).toHaveValue("120");
+  await expect(stencil.getByLabel("Transfer notes")).toHaveValue(
+    "Top toward shoulder. Match JOIN A before transferring the lower section.",
+  );
+  await expect(
+    stencil.getByLabel("Transfer section", { exact: true }).locator("option"),
+  ).toHaveCount(3);
+
   expect(errors).toEqual([]);
 });

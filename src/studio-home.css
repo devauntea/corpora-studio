@@ -1,0 +1,667 @@
+.studio-home-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 105;
+  background: #17171985;
+  backdrop-filter: blur(9px);
+  display: grid;
+  place-items: center;
+  padding: 30px;
+}
+.studio-home {
+  width: min(1100px, 100%);
+  max-height: calc(100dvh - 60px);
+  overflow: auto;
+  color: #252527;
+  background: #f8f8f6;
+  border: 1px solid #dadad7;
+  border-radius: 18px;
+  box-shadow: 0 30px 110px #0005;
+}
+.studio-home > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 21px 32px;
+  border-bottom: 1px solid #dededb;
+}
+.home-wordmark {
+  font-size: 12px;
+  letter-spacing: 2px;
+  font-weight: 650;
+}
+.home-wordmark span {
+  margin-left: 25px;
+  font-size: 9px;
+  font-weight: 450;
+  letter-spacing: 1.5px;
+  color: #68686b;
+}
+.studio-home > header button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+}
+.home-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 34px 32px 28px;
+}
+.home-intro h1 {
+  font-size: 36px;
+  letter-spacing: -1.3px;
+  font-weight: 500;
+  margin: 10px 0;
+}
+.home-intro p {
+  color: #66666a;
+  margin: 0;
+  line-height: 1.6;
+  font-size: 13px;
+}
+.home-resume {
+  border: 1px solid #d2d2cd;
+  border-radius: 9px;
+  padding: 13px 16px;
+  gap: 24px;
+  text-align: left;
+  max-width: 270px;
+  background: white;
+}
+.home-resume strong,
+.home-resume small {
+  display: block;
+}
+.home-resume strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 190px;
+  white-space: nowrap;
+  font-weight: 550;
+}
+.home-resume small {
+  font-size: 8px;
+  color: #666;
+  letter-spacing: 1.4px;
+  margin-bottom: 7px;
+}
+.home-task-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 0 32px 30px;
+}
+.home-task {
+  display: block;
+  padding: 0;
+  border: 1px solid #d7d7d3;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  text-align: left;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+.home-task:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px #0000000e;
+  background: #fff !important;
+  border-color: #8c8c87;
+}
+.home-task-art {
+  position: relative;
+  height: 154px;
+  background: #e9e8e4;
+  border-bottom: 1px solid #dcdcd7;
+}
+.home-task-art.pattern {
+  background-color: #e9e9e5;
+  background-image:
+    linear-gradient(#aaa2 1px, transparent 1px),
+    linear-gradient(90deg, #aaa2 1px, transparent 1px);
+  background-size: 15px 15px;
+}
+.home-task-art.flat {
+  background: #efefec;
+}
+.home-task-art > svg:first-child {
+  width: 100%;
+  height: 100%;
+}
+.home-task-art > svg:last-child {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  color: #666;
+}
+.home-task-copy {
+  padding: 20px;
+}
+.home-task-copy h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 17px;
+  letter-spacing: -0.5px;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+.home-task-copy p {
+  font-size: 12px;
+  color: #646467;
+  line-height: 1.65;
+  min-height: 60px;
+  margin: 0 0 15px;
+}
+.home-task-copy small {
+  font-size: 10px;
+  color: #4f4f53;
+}
+.home-lower {
+  border-top: 1px solid #ddd;
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+}
+.home-recents {
+  padding: 25px 32px;
+}
+.home-section-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.home-section-title h2 {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 550;
+  margin: 0;
+}
+.home-section-title button {
+  font-size: 10px;
+  color: #626267;
+}
+.home-recent {
+  width: 100%;
+  border-top: 1px solid #e3e3df;
+  padding: 11px 0;
+  text-align: left;
+  gap: 12px;
+}
+.home-recent-icon {
+  width: 33px;
+  height: 33px;
+  display: grid;
+  place-items: center;
+  background: #ecece8;
+  border-radius: 7px;
+}
+.home-recent > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+.home-recent strong,
+.home-recent small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-recent strong {
+  font-size: 12px;
+  font-weight: 550;
+}
+.home-recent small {
+  font-size: 10px;
+  color: #666;
+  margin-top: 4px;
+}
+.home-recent time {
+  font-size: 10px;
+  color: #666;
+}
+.home-no-recents {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 0;
+  color: #666;
+}
+.home-no-recents p {
+  font-size: 12px;
+}
+.home-no-recents small {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+}
+.home-file {
+  border-left: 1px solid #deded9;
+  padding: 27px;
+  background: #efefeb;
+}
+.home-file h2 {
+  font-size: 18px;
+  font-weight: 550;
+  letter-spacing: -0.5px;
+}
+.home-file p {
+  font-size: 12px;
+  line-height: 1.65;
+  color: #666;
+}
+.home-file button {
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 0;
+  border-bottom: 1px solid #bbb;
+  font-weight: 550;
+}
+.home-file > small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.6;
+  color: #666;
+  margin-top: 15px;
+}
+@media (max-width: 1100px) {
+  .home-wordmark span {
+    display: none;
+  }
+  .home-intro h1 {
+    font-size: 30px;
+  }
+  .home-task-copy {
+    padding: 16px;
+  }
+  .home-task-copy h2 {
+    font-size: 15px;
+  }
+  .home-task-copy p {
+    min-height: 80px;
+  }
+}
+
+.home-intro .eyebrow {
+  color: #62625f;
+  font-size: 9px;
+}
+
+.home-source-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 13px;
+  display: block;
+}
+.home-task-art:has(.home-source-preview.tattoo) {
+  background: #222;
+}
+.home-source-preview.tattoo {
+  object-fit: cover;
+  object-position: center 48%;
+  padding: 0;
+}
+.home-source-preview.flat {
+  padding: 5px;
+}
+/* Corpora: anatomy, cloth and ink meet as layered contours. */
+.studio-home.corpora-home {
+  width: min(1180px, 100%);
+  background: var(--fs-paper);
+  color: var(--fs-ink);
+  border-color: var(--fs-border);
+  border-radius: 15px;
+}
+.studio-home.corpora-home > header {
+  padding: 18px 30px;
+  background: var(--fs-panel);
+  color: var(--fs-ink);
+  border-bottom: 1px solid var(--fs-border);
+}
+.corpora-home .home-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--fs-ink);
+  letter-spacing: 2.7px;
+}
+.corpora-home .home-corpora-mark {
+  width: 38px;
+  height: 38px;
+  color: var(--cs-accent, #b53576);
+}
+.corpora-home .home-wordmark > div {
+  display: grid;
+  gap: 2px;
+}
+.corpora-home .home-wordmark strong {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: 4px;
+}
+.corpora-home .home-wordmark small {
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 4px;
+}
+.corpora-home .home-wordmark > span {
+  color: var(--fs-muted);
+  font-size: 9px;
+  margin-left: 14px;
+  letter-spacing: 2px;
+}
+.corpora-home .home-intro {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(270px, 1fr);
+  align-items: stretch;
+  gap: 30px;
+  padding: 32px 30px 27px;
+}
+.corpora-home .home-hero-copy {
+  align-self: center;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+.corpora-home .home-intro .eyebrow {
+  color: var(--cs-accent, #b53576);
+  font-size: 9px;
+  letter-spacing: 2.7px;
+}
+.corpora-home .home-intro h1 {
+  max-width: 620px;
+  font-family: Georgia, serif;
+  font-size: clamp(42px, 4.2vw, 62px);
+  line-height: 1.02;
+  letter-spacing: -2.1px;
+  font-weight: 400;
+  margin: 13px 0 16px;
+  text-wrap: balance;
+}
+.corpora-home .home-intro p {
+  max-width: 440px;
+  color: var(--fs-muted);
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+}
+.corpora-home .home-resume {
+  margin-top: 23px;
+  padding: 12px 15px;
+  gap: 24px;
+  background: var(--fs-panel);
+  color: var(--fs-ink);
+  border: 1px solid var(--fs-border);
+  border-radius: 5px;
+  max-width: 330px;
+}
+.corpora-home .home-resume small {
+  color: var(--fs-muted);
+  font-size: 8px;
+  letter-spacing: 1.7px;
+  margin-bottom: 5px;
+}
+.corpora-home .home-resume strong {
+  max-width: 230px;
+  font-size: 12px;
+}
+.corpora-home .home-resume:hover {
+  border-color: var(--cs-accent, #b53576);
+}
+.corpora-home .home-contour-study {
+  position: relative;
+  overflow: hidden;
+  border-radius: 42% 47% 12px 12px;
+  min-height: 246px;
+  background: var(--cs-blush, #f0d8e5);
+}
+.corpora-home .home-contour-study > img {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  object-fit: cover;
+  object-position: center;
+}
+.corpora-home .home-contour-caption {
+  position: absolute;
+  bottom: 0;
+  inset-inline: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 16px;
+  color: #54223f;
+  background: #f4e7efee;
+  font-size: 8px;
+  letter-spacing: 1.3px;
+}
+.corpora-home .home-collection-heading {
+  margin: 0 30px 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--fs-muted);
+  font-size: 9px;
+  letter-spacing: 1.7px;
+}
+.corpora-home .home-collection-heading > span:last-child {
+  letter-spacing: 0;
+  font:
+    italic 14px Georgia,
+    serif;
+}
+.corpora-home .home-task-grid {
+  gap: 17px;
+  padding: 0 30px 26px;
+}
+.corpora-home .home-task {
+  background: var(--fs-panel);
+  border-color: var(--fs-border);
+  border-radius: 8px;
+}
+.corpora-home .home-task:hover {
+  border-color: var(--cs-accent, #b53576);
+}
+.corpora-home .home-task-art {
+  height: 154px;
+  border-bottom: 1px solid var(--fs-border);
+}
+.corpora-home .home-task-art.pattern,
+.corpora-home .home-task-art.flat {
+  background-color: #f3eaf0;
+}
+.corpora-home .home-task-index {
+  border: 1px solid #ccb5c2;
+  color: #54223f;
+  background: #f7eff4;
+  font-size: 10px;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+.corpora-home .home-task-copy {
+  padding: 18px;
+}
+.corpora-home .home-task-copy h2 {
+  font:
+    24px Georgia,
+    serif;
+  letter-spacing: -0.7px;
+  margin-bottom: 9px;
+}
+.corpora-home .home-task-copy h2 > svg {
+  color: var(--cs-accent, #b53576);
+  flex-shrink: 0;
+}
+.corpora-home .home-task-copy p {
+  color: var(--fs-muted);
+  font-size: 12px;
+  line-height: 1.65;
+  min-height: 40px;
+  margin-bottom: 13px;
+}
+.corpora-home .home-task-copy small {
+  color: var(--fs-muted);
+  font-size: 10px;
+}
+.corpora-home .home-manifesto {
+  margin: 0 30px 26px;
+  border: 1px solid var(--fs-border);
+  border-radius: 8px;
+  background: var(--fs-panel);
+}
+.corpora-home .home-manifesto summary {
+  cursor: pointer;
+  padding: 15px 18px;
+  font:
+    19px Georgia,
+    serif;
+  color: var(--fs-ink);
+}
+.corpora-home .home-manifesto summary::marker {
+  font-size: 13px;
+  color: var(--cs-accent, #b53576);
+}
+.corpora-home .home-manifesto summary:focus-visible {
+  outline: 2px solid var(--cs-accent, #b53576);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+.corpora-home .home-manifesto-prompt {
+  float: right;
+  color: var(--fs-muted);
+  font:
+    12px/22px Georgia,
+    serif;
+}
+.corpora-home .home-manifesto-body {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 30px;
+  border-top: 1px solid var(--fs-border);
+  padding: 25px 32px 28px;
+}
+.corpora-home .home-manifesto-body p {
+  margin: 0;
+  white-space: pre-line;
+  color: var(--fs-ink);
+  font:
+    18px/1.7 Georgia,
+    serif;
+}
+.corpora-home .home-manifesto-signature {
+  color: var(--cs-accent, #b53576);
+  font-size: 9px;
+  line-height: 1.9;
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+.corpora-home .home-lower {
+  border-color: var(--fs-border);
+}
+.corpora-home .home-file {
+  background: var(--fs-panel);
+  border-color: var(--fs-border);
+}
+.corpora-home .home-file > svg {
+  color: var(--cs-accent, #b53576);
+}
+@media (max-width: 1100px) {
+  .studio-home.corpora-home > header {
+    padding: 14px 24px;
+  }
+  .corpora-home .home-wordmark > span {
+    display: block;
+  }
+  .corpora-home .home-intro {
+    padding: 24px;
+    gap: 24px;
+    grid-template-columns: minmax(0, 1.4fr) minmax(240px, 1fr);
+  }
+  .corpora-home .home-intro h1 {
+    font-size: 43px;
+    letter-spacing: -1.7px;
+  }
+  .corpora-home .home-intro p {
+    max-width: 380px;
+    font-size: 12px;
+  }
+  .corpora-home .home-resume {
+    margin-top: 17px;
+  }
+  .corpora-home .home-contour-study {
+    min-height: 220px;
+  }
+  .corpora-home .home-task-grid {
+    padding: 0 24px 24px;
+    gap: 14px;
+  }
+  .corpora-home .home-task-art {
+    height: 135px;
+  }
+  .corpora-home .home-task-copy {
+    padding: 15px;
+  }
+  .corpora-home .home-task-copy h2 {
+    font-size: 21px;
+  }
+  .corpora-home .home-task-copy p {
+    min-height: 60px;
+    font-size: 11px;
+  }
+  .corpora-home .home-collection-heading {
+    margin-inline: 24px;
+  }
+  .corpora-home .home-manifesto {
+    margin-inline: 24px;
+  }
+}
+@media (max-width: 700px) {
+  .corpora-home .home-intro {
+    grid-template-columns: 1fr;
+  }
+  .corpora-home .home-contour-study {
+    display: none;
+  }
+  .corpora-home .home-wordmark > span,
+  .corpora-home .home-manifesto-prompt {
+    display: none;
+  }
+  .corpora-home .home-task-grid {
+    grid-template-columns: 1fr;
+  }
+  .corpora-home .home-lower {
+    grid-template-columns: 1fr;
+  }
+  .corpora-home .home-manifesto-body {
+    display: block;
+    padding: 20px;
+  }
+  .corpora-home .home-manifesto-body p {
+    font-size: 16px;
+  }
+  .corpora-home .home-manifesto-signature {
+    display: block;
+    margin-top: 24px;
+  }
+}
+.studio-home.corpora-home .home-wordmark {
+  color: inherit;
+}
+:root[data-theme="dark"] .corpora-home .home-contour-study {
+  background: #d9bacd;
+}

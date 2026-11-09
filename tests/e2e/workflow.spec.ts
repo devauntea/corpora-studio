@@ -56,6 +56,7 @@ test("editing, local round trip, invalid-file recovery, import and review export
   expect(manifest.layers[0].width).toBe(120);
   expect(manifest.layers[0].rotation).toBe(31);
   await page.getByRole("button", { name: "New project", exact: true }).click();
+  await page.getByRole("button", { name: "Discard", exact: true }).click();
   await expect(page.getByLabel("Project name", { exact: true })).toHaveValue(
     "Untitled composition",
   );

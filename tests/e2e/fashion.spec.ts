@@ -28,14 +28,15 @@ test("fashion drafting, constrained shape editing, history, exports and shared p
     .first();
   const original = await front.getAttribute("d");
   const hips = page.getByRole("spinbutton", { name: "High hips", exact: true });
+  const originalHips = await hips.inputValue();
   await hips.fill("1111");
   await hips.press("Escape");
-  await expect(hips).toHaveValue("1000");
+  await expect(hips).toHaveValue(originalHips);
   await hips.fill("1120");
   await hips.press("Enter");
   await expect(front).not.toHaveAttribute("d", original!);
   await page.getByRole("button", { name: "Undo (⌘Z)", exact: true }).click();
-  await expect(hips).toHaveValue("1000");
+  await expect(hips).toHaveValue(originalHips);
   await expect(front).toHaveAttribute("d", original!);
   await page.getByRole("button", { name: "Edit pattern shape" }).click();
   const handle = page.locator('[data-handle="neck"] circle'),
@@ -100,7 +101,7 @@ test("fashion drafting, constrained shape editing, history, exports and shared p
   await (await save).saveAs(projectPath);
   const stored = JSON.parse(await fs.readFile(projectPath, "utf8"));
   expect(stored.fashion.notes).toBe("Cotton jersey. Test ribbing recovery.");
-  expect(stored.version).toBe(12);
+  expect(stored.version).toBe(19);
   expect(stored.layers).toHaveLength(1);
   await page.screenshot({ path: testInfo.outputPath("fashion-workspace.png") });
   await page.getByRole("button", { name: "Tattoo", exact: true }).click();
@@ -108,6 +109,7 @@ test("fashion drafting, constrained shape editing, history, exports and shared p
     page.getByRole("heading", { name: "Solar botanical" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "New project", exact: true }).click();
+  await page.getByRole("button", { name: "Discard", exact: true }).click();
   await page
     .getByLabel("Project file", { exact: true })
     .setInputFiles(projectPath);

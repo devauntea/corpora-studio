@@ -1,4 +1,4 @@
-import {useDialogReturnFocus} from "./dialog-focus";
+import { useDialogReturnFocus } from "./dialog-focus";
 import { useEffect, useRef, useState } from "react";
 import type { Project } from "./domain";
 import { projectPreview } from "./project-preview";
@@ -26,7 +26,9 @@ export function CheckpointCompare({
     [split, setSplit] = useState(50);
   const dialog = useRef<HTMLElement>(null);
   useEffect(() => {
-    dialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    dialog.current
+      ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+      ?.focus();
   }, []);
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +66,7 @@ export function CheckpointCompare({
       <section
         ref={dialog}
         role="dialog"
+        tabIndex={-1}
         aria-label="Compare checkpoints"
         aria-modal="true"
         onKeyDown={(e) => {

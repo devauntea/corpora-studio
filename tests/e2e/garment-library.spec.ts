@@ -35,6 +35,7 @@ test("imported garment views remain editable through undo, manufacturer export a
     .getByRole("button", { name: "Add pair to front & back", exact: true })
     .click();
   await expect(page.locator("[data-vector-layer]")).toHaveCount(4);
+  await page.getByRole("button", {name: "Edit individual paths", exact:true}).click();
   await expect(page.getByLabel("Vector layer name")).toHaveValue(
     "Hoodie · View 1 · Fabric",
   );
@@ -73,11 +74,12 @@ test("imported garment views remain editable through undo, manufacturer export a
   await page
     .getByRole("button", { name: "Export vector pack", exact: true })
     .click();
+  await page.getByRole("button", {name: "Export reviewed ZIP", exact: true}).click();
   const zipPath = info.outputPath("garment.zip");
   await (await download).saveAs(zipPath);
   const entries = unzipSync(new Uint8Array(await fs.readFile(zipPath)));
   const pack = JSON.parse(strFromU8(entries["editable-vector-pack.json"]));
-  expect(pack.version).toBe(2);
+  expect(pack.version).toBe(4);
   expect(pack.layers).toHaveLength(4);
   expect(pack.layers[0].contours.length).toBeGreaterThan(0);
   expect(strFromU8(entries["front.svg"])).toContain('fill-rule="evenodd"');
@@ -87,7 +89,7 @@ test("imported garment views remain editable through undo, manufacturer export a
   const projectPath = info.outputPath("garment.formstudio");
   await (await saved).saveAs(projectPath);
   const project = JSON.parse(await fs.readFile(projectPath, "utf8"));
-  expect(project.version).toBe(12);
+  expect(project.version).toBe(19);
   expect(project.fashion.vectorPack).toEqual(pack);
   await page.getByRole("button", { name: "Blank canvas", exact: true }).click();
   await expect(page.locator("[data-vector-layer]")).toHaveCount(0);
@@ -154,6 +156,7 @@ test("asset discovery, favorites, four-view accessories and keyboard navigation"
     .getByRole("button", { name: "Add selected view", exact: true })
     .click();
   await expect(page.getByLabel("Active garment view")).toHaveValue("back");
+  await page.getByRole("button", {name: "Edit individual paths", exact:true}).click();
   await expect(page.getByLabel("Vector layer name")).toHaveValue(
     "Hat Trucker · View 4 · Fabric",
   );

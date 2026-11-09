@@ -7,14 +7,25 @@ export async function projectPreview(
 ): Promise<string> {
   if (mode === "pattern") {
     if (!p.fashion) throw new Error("This checkpoint has no fashion draft.");
-    const [{ draftFashion }, { patternSvg }] = await Promise.all([
-      import("./fashion-draft"),
-      import("./fashion-export"),
-    ]);
+    const [{ draftFashion }, { patternSvg }, { withSeamNotches }] =
+      await Promise.all([
+        import("./fashion-draft"),
+        import("./fashion-export"),
+        import("./seam-checks"),
+      ]);
     return URL.createObjectURL(
-      new Blob([patternSvg(draftFashion(p.fashion), p.fashion, p.name)], {
-        type: "image/svg+xml",
-      }),
+      new Blob(
+        [
+          patternSvg(
+            withSeamNotches(draftFashion(p.fashion), p.fashion),
+            p.fashion,
+            p.name,
+          ),
+        ],
+        {
+          type: "image/svg+xml",
+        },
+      ),
     );
   }
   if (mode === "photo") {

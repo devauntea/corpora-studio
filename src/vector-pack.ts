@@ -1,5 +1,8 @@
 import { VectorPackSchema as LegacyVectorPackSchema } from "./legacy-vector-v1";
+import { VectorPackSchema as V2Schema } from "./legacy-vector-v2";
+import { VectorPackSchema as V3Schema } from "./legacy-vector-v3";
 import { z } from "zod";
+import { TextileSchema } from "./textiles";
 const number = (min: number, max: number) =>
   z.number().finite().min(min).max(max);
 const text = (max: number) => z.string().max(max);
@@ -28,6 +31,10 @@ export const VectorLayerSchema = z
     visible: z.boolean(),
     locked: z.boolean(),
     material: text(80),
+    textile: TextileSchema.optional(),
+    fillRule: z.enum(["nonzero", "evenodd"]).optional(),
+    lineCap: z.enum(["butt", "round", "square"]).optional(),
+    lineJoin: z.enum(["miter", "round", "bevel"]).optional(),
   })
   .strict();
 const CalloutSchema = z
@@ -37,11 +44,14 @@ const CalloutSchema = z
     anchor: point,
     label: point,
     text: text(240),
+    layerId: z.string().uuid().optional(),
+    materialId: z.string().uuid().optional(),
+    measurementId: z.string().uuid().optional(),
   })
   .strict();
-export const VectorPackSchema = z
+const PackBaseSchema = z
   .object({
-    version: z.literal(2),
+    version: z.literal(4),
     name: text(100),
     style: text(80),
     revision: text(60),
@@ -52,6 +62,33 @@ export const VectorPackSchema = z
     sizes: z.array(z.string().min(1).max(20)).min(1).max(8),
     layers: z.array(VectorLayerSchema).max(200),
     callouts: z.array(CalloutSchema).max(40),
+    groups: z
+      .array(
+        z
+          .object({
+            id: z.string().uuid(),
+            name: text(80),
+            layerIds: z.array(z.string().uuid()).min(2).max(200),
+          })
+          .strict(),
+      )
+      .max(100),
+    sources: z
+      .array(
+        z
+          .object({
+            id: z.string().uuid(),
+            name: text(180),
+            original: text(500000),
+            width: text(80),
+            height: text(80),
+            viewBox: text(200),
+            sha256: z.string().regex(/^[a-f0-9]{64}$/),
+            conversion: text(400),
+          })
+          .strict(),
+      )
+      .max(8),
     measurements: z
       .array(
         z
@@ -60,6 +97,7 @@ export const VectorPackSchema = z
             name: text(100),
             method: text(240),
             tolerance: number(0, 100),
+            toleranceConfirmed: z.boolean().optional(),
             values: z.array(number(0, 1000).nullable()).max(8),
           })
           .strict(),
@@ -83,8 +121,162 @@ export const VectorPackSchema = z
       )
       .max(60),
   })
+  .strict();
+const RevisionSpecSchema = PackBaseSchema.pick({
+  name: true,
+  style: true,
+  revision: true,
+  season: true,
+  manufacturer: true,
+  notes: true,
+  units: true,
+  sizes: true,
+  measurements: true,
+  materials: true,
+  callouts: true,
+});
+export const DevelopmentSchema = z
+  .object({
+    revisions: z
+      .array(
+        z
+          .object({
+            id: z.string().uuid(),
+            name: z.string().min(1).max(100),
+            createdAt: z.string().datetime(),
+            summary: z.string().max(2000),
+            spec: RevisionSpecSchema,
+            drawingHash: z.string().regex(/^[a-f0-9]{64}$/),
+            drawingSignature: z
+              .string()
+              .regex(/^\d+:[a-f0-9]+:[a-f0-9]+$/)
+              .max(40),
+          })
+          .strict(),
+      )
+      .max(20),
+    samples: z
+      .array(
+        z
+          .object({
+            id: z.string().uuid(),
+            name: z.string().min(1).max(100),
+            revisionId: z.string().uuid(),
+            size: z.string().min(1).max(20),
+            recordedAt: z.string().datetime(),
+            notes: z.string().max(3000),
+            measurements: z
+              .array(
+                z
+                  .object({
+                    measurementId: z.string().uuid(),
+                    value: number(0, 1000).nullable(),
+                    notes: z.string().max(500),
+                  })
+                  .strict(),
+              )
+              .max(60),
+          })
+          .strict(),
+      )
+      .max(40),
+    colorways: z
+      .array(
+        z
+          .object({
+            id: z.string().uuid(),
+            name: z.string().min(1).max(100),
+            materials: z
+              .array(
+                z
+                  .object({
+                    materialId: z.string().uuid(),
+                    color: z.string().max(100),
+                    reference: z.string().max(150),
+                  })
+                  .strict(),
+              )
+              .max(60),
+          })
+          .strict(),
+      )
+      .max(20),
+  })
+  .strict()
+  .superRefine((d, c) => {
+    for (const rows of [d.revisions, d.samples, d.colorways])
+      if (new Set(rows.map((r) => r.id)).size !== rows.length)
+        c.addIssue({
+          code: "custom",
+          message: "Duplicate development record ID",
+        });
+    if (
+      new Set(d.revisions.map((r) => r.spec.revision)).size !==
+      d.revisions.length
+    )
+      c.addIssue({
+        code: "custom",
+        message: "Recorded revision labels must be unique",
+      });
+    for (const r of d.revisions) {
+      if (
+        new Set(r.spec.sizes).size !== r.spec.sizes.length ||
+        r.spec.measurements.some((m) => m.values.length !== r.spec.sizes.length)
+      )
+        c.addIssue({ code: "custom", message: "Invalid revision size table" });
+      for (const rows of [
+        r.spec.measurements,
+        r.spec.materials,
+        r.spec.callouts,
+      ])
+        if (new Set(rows.map((v) => v.id)).size !== rows.length)
+          c.addIssue({
+            code: "custom",
+            message: "Duplicate revision specification ID",
+          });
+    }
+    for (const s of d.samples) {
+      const r = d.revisions.find((r) => r.id === s.revisionId);
+      if (
+        !r ||
+        s.measurements.length !== r.spec.measurements.length ||
+        !r.spec.sizes.includes(s.size) ||
+        s.measurements.some(
+          (m) => !r.spec.measurements.some((p) => p.id === m.measurementId),
+        ) ||
+        new Set(s.measurements.map((m) => m.measurementId)).size !==
+          s.measurements.length
+      )
+        c.addIssue({
+          code: "custom",
+          message:
+            "Sample must refer to an existing revision, size and points of measure",
+        });
+    }
+    for (const w of d.colorways)
+      if (
+        new Set(w.materials.map((m) => m.materialId)).size !==
+        w.materials.length
+      )
+        c.addIssue({ code: "custom", message: "Duplicate colorway material" });
+  });
+export const VectorPackSchema = PackBaseSchema.extend({
+  development: DevelopmentSchema.optional(),
+})
   .strict()
   .superRefine((p, c) => {
+    const members = p.groups.flatMap((g) => g.layerIds);
+    if (
+      new Set(p.groups.map((g) => g.id)).size !== p.groups.length ||
+      new Set(members).size !== members.length ||
+      members.some((id) => !p.layers.some((l) => l.id === id))
+    )
+      c.addIssue({
+        code: "custom",
+        message: "Groups must have unique, existing layer members",
+      });
+    if (new Set(p.sources.map((s) => s.id)).size !== p.sources.length)
+      c.addIssue({ code: "custom", message: "Duplicate SVG source ID" });
     if (new Set(p.sizes).size !== p.sizes.length)
       c.addIssue({ code: "custom", message: "Size names must be unique" });
     for (const rows of [p.layers, p.callouts, p.measurements, p.materials])
@@ -175,7 +367,9 @@ export function layerBounds(l: VectorLayer) {
 }
 export function newVectorPack(): VectorPack {
   return {
-    version: 2,
+    version: 4,
+    groups: [],
+    sources: [],
     name: "Untitled garment",
     style: "STYLE-001",
     revision: "A",
@@ -196,7 +390,11 @@ export function parseVectorPack(raw: string) {
 }
 export function migrateVectorPack(raw: unknown) {
   if (raw && typeof raw === "object" && "version" in raw && raw.version === 1)
-    return { ...LegacyVectorPackSchema.parse(raw), version: 2 };
+    raw = { ...LegacyVectorPackSchema.parse(raw), version: 2 };
+  if (raw && typeof raw === "object" && "version" in raw && raw.version === 2)
+    raw = { ...V2Schema.parse(raw), version: 3, groups: [], sources: [] };
+  if (raw && typeof raw === "object" && "version" in raw && raw.version === 3)
+    return { ...V3Schema.parse(raw), version: 4 };
   return raw;
 }
 export function resizeSizes(pack: VectorPack, sizes: string[]): VectorPack {

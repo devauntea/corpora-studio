@@ -1,3 +1,4 @@
+import { groupSelection, pruneGroups } from "./vector-selection";
 import catalog from "../public/garment-assets/catalog.json";
 import { z } from "zod";
 import {
@@ -111,7 +112,7 @@ export function placeGarment(
   replace: boolean,
 ) {
   const views = new Set(layers.map((l) => l.view));
-  return VectorPackSchema.parse({
+  let next = pruneGroups({
     ...pack,
     layers: [
       ...pack.layers.filter((l) => !replace || !views.has(l.view)),
@@ -119,4 +120,14 @@ export function placeGarment(
     ],
     callouts: pack.callouts.filter((c) => !replace || !views.has(c.view)),
   });
+  for (const view of views) {
+    const members = layers.filter((l) => l.view === view);
+    if (members.length >= 2)
+      next = groupSelection(
+        next,
+        members.map((l) => l.id),
+        members[0].name.split(" · ").slice(0, 2).join(" · ").slice(0, 80),
+      );
+  }
+  return VectorPackSchema.parse(next);
 }

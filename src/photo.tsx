@@ -128,7 +128,7 @@ export async function exportPhoto(project: Project, photo: Photo) {
     x.fillStyle = "#243c31";
     x.font = `${Math.max(14, Math.min(28, c.width / 45))}px sans-serif`;
     x.fillText(
-      `FORM / STUDIO · ${project.name.slice(0, 60)}`,
+      `CORPORA STUDIO · ${project.name.slice(0, 60)}`,
       24,
       source.height + 40,
     );

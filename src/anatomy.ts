@@ -1,6 +1,25 @@
+import {
+  loadSculpt,
+  sculptGeometry,
+  sculptMaterial,
+  sculptRotation,
+  type SculptMesh,
+} from "./sculpt-surface";
+import { detailedMuscleGroups } from "./muscles";
+import { loadSkinMicrodetail } from "./skin-microdetail";
 import { deformBodyPoint } from "./body-fitting";
 import { flexTorso } from "./muscle-pose";
+import { muscleCorrector } from "./pose-correctives";
 import { SurfaceDecals } from "./surface-decals";
+import {
+  decodeCentersOfRotation,
+  decodeRig,
+  skeletonPose,
+  skinPoint,
+  skinPointAboutCentre,
+  type CentersOfRotation,
+  type HumanRig,
+} from "./skeleton";
 import * as THREE from "three";
 import {
   addSculptedSurfaceDetail,
@@ -18,11 +37,14 @@ import {
 } from "./domain";
 
 export type HumanMeshData = {
+  sculpt?: SculptMesh;
   vertices: number[][];
   muscleColors?: Uint8Array;
   muscleIds?: Uint8Array;
   muscleInfluences?: Uint8Array;
   skinOcclusion?: Uint8Array;
+  rig?: HumanRig;
+  centers?: CentersOfRotation;
   detailLandmarks?: DetailLandmarks;
   parts: number[][];
   sectionLegs?: number[][];
@@ -34,6 +56,11 @@ export type HumanMeshData = {
 };
 const sources = new Map<string, Promise<HumanMeshData>>();
 export function loadHuman(body?: HumanBody): Promise<HumanMeshData> {
+  if (body?.model?.sculptId)
+    return loadSculpt(
+      body.model.sculptId,
+      body.model.sculptAppearance === "skin",
+    );
   const name = body?.model
     ? `human-v${body.model.revision}-${body.model.sex}`
     : "human-v1";
@@ -70,6 +97,34 @@ export function loadHuman(body?: HumanBody): Promise<HumanMeshData> {
         if (field.length !== meta.vertexCount * (sculpted ? 12 : 4))
           throw new Error("The muscle atlas does not match this body.");
         let skinOcclusion: Uint8Array | undefined;
+        let rig: HumanRig | undefined;
+        let centers: CentersOfRotation | undefined;
+        if (body!.model!.revision >= 6) {
+          if (!meta.rig) throw new Error("This body is missing its skeleton.");
+          const rigMetaResponse = await fetch(`/anatomy/${meta.rig}`);
+          if (!rigMetaResponse.ok)
+            throw new Error("The body skeleton could not load.");
+          const rigMeta = await rigMetaResponse.json();
+          const rigResponse = await fetch(`/anatomy/${rigMeta.buffer}`);
+          if (!rigResponse.ok)
+            throw new Error("The body skin weights could not load.");
+          rig = decodeRig(
+            rigMeta,
+            await rigResponse.arrayBuffer(),
+            meta.vertexCount,
+          );
+          if (meta.centersOfRotation) {
+            const corResponse = await fetch(
+              `/anatomy/${meta.centersOfRotation.buffer}`,
+            );
+            if (!corResponse.ok)
+              throw new Error("The joint correctives could not load.");
+            centers = decodeCentersOfRotation(
+              await corResponse.arrayBuffer(),
+              meta.vertexCount,
+            );
+          }
+        }
         if (meta.occlusion) {
           const response = await fetch(`/anatomy/${meta.occlusion.buffer}`);
           if (!response.ok)
@@ -78,6 +133,7 @@ export function loadHuman(body?: HumanBody): Promise<HumanMeshData> {
           if (skinOcclusion.length !== meta.vertexCount * 2)
             throw new Error("The skin detail field does not match this body.");
         }
+        if (body!.model!.revision >= 8) await loadSkinMicrodetail();
         return {
           vertices,
           parts: meta.sectionLegParts ? parts.slice(0, 6) : parts,
@@ -90,6 +146,8 @@ export function loadHuman(body?: HumanBody): Promise<HumanMeshData> {
             ? field.subarray(meta.vertexCount * 4)
             : undefined,
           skinOcclusion,
+          rig,
+          centers,
           detailLandmarks: meta.detailLandmarks,
         };
       })().catch((e) => {
@@ -142,11 +200,13 @@ export function muscleAtHit(hit: THREE.Intersection): number | undefined {
     }
   }
   const group = palette.getComponent(a, best);
-  return group < 36 ? group : undefined;
+  return group !== 36 && detailedMuscleGroups[group] ? group : undefined;
 }
 
 export function humanGeometries(data: HumanMeshData, body: HumanBody) {
-  const torsoOnly = body.model?.revision === 5 && body.section === "upper-body";
+  if (data.sculpt) return sculptGeometry(data, body);
+  const torsoOnly =
+    (body.model?.revision ?? 0) >= 5 && body.section === "upper-body";
   const part = (zone: SurfaceZone) =>
     torsoOnly && zone === "trunk" && data.sectionTorso
       ? data.sectionTorso
@@ -183,7 +243,8 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
             .normalize()
             .applyAxisAngle(
               armAxis,
-              body.model?.revision === 5 && body.musclePose === "double-biceps"
+              (body.model?.revision ?? 0) >= 5 &&
+                body.musclePose === "double-biceps"
                 ? (-sign * Math.PI) / 2
                 : 0,
             ),
@@ -193,11 +254,20 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
     };
   });
   const zAxis = new THREE.Vector3(0, 0, 1);
-  for (const v of data.vertices) {
+  const skeleton =
+    data.rig && (body.model?.revision ?? 0) >= 6
+      ? skeletonPose(data.rig, body)
+      : undefined;
+  const centre = new THREE.Vector3();
+  const correctMuscle = skeleton
+    ? muscleCorrector(data.rig!, data.muscleInfluences, body)
+    : undefined;
+  for (let vertex = 0; vertex < data.vertices.length; vertex++) {
+    const v = data.vertices[vertex];
     const rest = vector(v),
       p = vector(
         deformBodyPoint(
-          flexTorso(
+          (skeleton ? (p: number[]) => p : flexTorso)(
             rest
               .clone()
               .addScaledVector(vector(v.slice(3, 6)), body.muscularity)
@@ -209,57 +279,90 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
           body.fitting,
         ),
       );
-    rests.push(rest);
-    for (const rig of rigs) {
-      if (torsoOnly) continue;
-      const {
-        k,
-        shoulder,
-        elbow,
-        knee,
-        armAxis,
-        flexAxis,
-        flex,
-        twist,
-        raise,
-      } = rig;
-      if (body.model && !isLeg && v[k] > 0.1 && flex > 0) {
-        // Small artistic pose corrective, not a force/skin-strain simulation.
-        const offset = p.clone().sub(shoulder),
-          along = offset.dot(armAxis),
-          t = along / rig.upperLength;
-        const radial = offset.addScaledVector(armAxis, -along);
-        if (t > 0 && t < 1 && radial.z > 0)
-          p.addScaledVector(
-            radial,
-            Math.sin(flex) *
-              0.055 *
-              body.muscularity *
-              Math.exp(-(((t - 0.55) / 0.25) ** 2)) *
-              v[k],
-          );
+    rests.push(
+      data.rig && skeleton
+        ? new THREE.Vector3().fromArray(data.rig.chartRest, vertex * 3)
+        : rest,
+    );
+    if (skeleton) {
+      correctMuscle!(p, vertex);
+      const slot = data.centers ? data.centers.slot[vertex] : -1;
+      if (slot >= 0) {
+        // Same bind space as p: morph, then personal fitting.
+        const c = data.centers!,
+          k = slot * 3,
+          m = body.muscularity;
+        centre.fromArray(
+          deformBodyPoint(
+            [0, 1, 2].map(
+              (i) => c.average[k + i] + (c.fit[k + i] - c.average[k + i]) * m,
+            ),
+            v.slice(6),
+            body.fitting,
+          ),
+        );
+        skinPointAboutCentre(
+          p,
+          centre,
+          c.alpha[slot],
+          vertex,
+          data.rig!,
+          skeleton.duals,
+          skeleton.transforms,
+        );
+      } else skinPoint(p, vertex, data.rig!, skeleton.duals);
+    } else
+      for (const rig of rigs) {
+        if (torsoOnly) continue;
+        const {
+          k,
+          shoulder,
+          elbow,
+          knee,
+          armAxis,
+          flexAxis,
+          flex,
+          twist,
+          raise,
+        } = rig;
+        if (body.model && !isLeg && v[k] > 0.1 && flex > 0) {
+          // Small artistic pose corrective, not a force/skin-strain simulation.
+          const offset = p.clone().sub(shoulder),
+            along = offset.dot(armAxis),
+            t = along / rig.upperLength;
+          const radial = offset.addScaledVector(armAxis, -along);
+          if (t > 0 && t < 1 && radial.z > 0)
+            p.addScaledVector(
+              radial,
+              Math.sin(flex) *
+                0.055 *
+                body.muscularity *
+                Math.exp(-(((t - 0.55) / 0.25) ** 2)) *
+                v[k],
+            );
+        }
+        if (!isLeg)
+          blendJoint(p, elbow, armAxis, twist, v[k + 1], !!body.model);
+        blendJoint(
+          p,
+          isLeg ? knee : elbow,
+          flexAxis,
+          flex,
+          v[k + (isLeg ? 2 : 1)],
+          !!body.model,
+        );
+        if (!isLeg) {
+          // A detached arm rotates as a whole at the shoulder. Blending that
+          // rotation into an absent torso bends its cut rim and folds the cap.
+          const weight =
+            (body.model?.revision ?? 0) >= 5 && body.section === "full-arm"
+              ? body.side === (k === 6 ? "left" : "right")
+                ? 1
+                : 0
+              : v[k];
+          blendJoint(p, shoulder, zAxis, raise, weight, !!body.model);
+        }
       }
-      if (!isLeg) blendJoint(p, elbow, armAxis, twist, v[k + 1], !!body.model);
-      blendJoint(
-        p,
-        isLeg ? knee : elbow,
-        flexAxis,
-        flex,
-        v[k + (isLeg ? 2 : 1)],
-        !!body.model,
-      );
-      if (!isLeg) {
-        // A detached arm rotates as a whole at the shoulder. Blending that
-        // rotation into an absent torso bends its cut rim and folds the cap.
-        const weight =
-          body.model?.revision === 5 && body.section === "full-arm"
-            ? body.side === (k === 6 ? "left" : "right")
-              ? 1
-              : 0
-            : v[k];
-        blendJoint(p, shoulder, zAxis, raise, weight, !!body.model);
-      }
-    }
     p.x *= body.build;
     p.z *= body.build;
     points.push(p.multiplyScalar(scale));
@@ -336,7 +439,7 @@ export function humanGeometries(data: HumanMeshData, body: HumanBody) {
       if (!arm && !leg)
         return [
           0.5 + Math.atan2(p.x, p.z + 0.15) / (Math.PI * 2),
-          body.model?.revision === 5
+          (body.model?.revision ?? 0) >= 5
             ? (p.y - 0.6) / 6.4
             : (body.model?.revision ?? 0) >= 4
               ? (p.y - 0.6) / 5.4
@@ -605,6 +708,7 @@ export function drawMuscleGuide(
 
 export class HumanSurface {
   group = new THREE.Group();
+  readonly rigBones: number;
   charts = new Map<
     SurfaceZone,
     {
@@ -615,6 +719,8 @@ export class HumanSurface {
   >();
   decals: SurfaceDecals;
   constructor(data: HumanMeshData, body: HumanBody) {
+    this.rigBones =
+      (body.model?.revision ?? 0) >= 6 ? (data.rig?.bones.length ?? 0) : 0;
     for (const { zone, geometry } of humanGeometries(data, body)) {
       const canvas = document.createElement("canvas");
       canvas.width = canvas.height = 2048;
@@ -622,8 +728,9 @@ export class HumanSurface {
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.wrapS = THREE.RepeatWrapping;
       texture.anisotropy = 8;
-      const material =
-        (body.model?.revision ?? 0) >= 5
+      const material = data.sculpt
+        ? sculptMaterial(data.sculpt, body, texture)
+        : (body.model?.revision ?? 0) >= 5
           ? new THREE.MeshPhysicalMaterial({
               map: texture,
               vertexColors: true,
@@ -640,14 +747,14 @@ export class HumanSurface {
               side: THREE.DoubleSide,
             });
       const mesh = new THREE.Mesh(geometry, material);
-      if ((body.model?.revision ?? 0) >= 3)
+      if (!data.sculpt && (body.model?.revision ?? 0) >= 3)
         addSculptedSurfaceDetail(
           mesh.material as THREE.MeshStandardMaterial,
           body,
           data.joints.L,
           data.detailLandmarks!,
         );
-      else if (body.model)
+      else if (!data.sculpt && body.model)
         addSurfaceDetail(
           mesh.material as THREE.MeshStandardMaterial,
           body,
@@ -658,6 +765,13 @@ export class HumanSurface {
       mesh.receiveShadow = false;
       this.charts.set(zone, { mesh, canvas, texture });
       this.group.add(mesh);
+    }
+    if (data.sculpt) {
+      // Imported sculptures retain their own cut surfaces and native materials.
+      this.decals = new SurfaceDecals(data, body, this.charts);
+      this.group.add(this.decals.group);
+      this.appearance(body);
+      return;
     }
     // Close section cuts with neutral caps. Boundary loops are found across all charts,
     // so shared shoulder edges in an upper body are never capped internally.
@@ -685,6 +799,19 @@ export class HumanSurface {
           else edges.set(id, { a, b, count: 1 });
         }
     }
+    // Section centroid: caps face away from it, so every cap is lit from outside.
+    const sectionCentre = new THREE.Vector3();
+    let sectionCount = 0;
+    for (const { mesh } of this.charts.values()) {
+      const p = mesh.geometry.getAttribute("position");
+      for (let i = 0; i < p.count; i += 7) {
+        sectionCentre.x += p.getX(i);
+        sectionCentre.y += p.getY(i);
+        sectionCentre.z += p.getZ(i);
+        sectionCount++;
+      }
+    }
+    sectionCentre.divideScalar(Math.max(1, sectionCount));
     const remaining = [...edges.values()].filter((e) => e.count === 1),
       capPositions: number[] = [],
       capNormals: number[] = [];
@@ -714,7 +841,9 @@ export class HumanSurface {
           ),
         );
       normal.normalize();
-      if (body.model?.revision === 5) {
+      // A stored normal pointing into the body shades the cap as a dark hole.
+      if (normal.dot(center.clone().sub(sectionCentre)) < 0) normal.negate();
+      if ((body.model?.revision ?? 0) >= 5) {
         // Ear clipping respects a concave axillary rim; a center fan can cross
         // the skin and expose a triangular flap below the shoulder section.
         const u = loop[0].clone().sub(center).normalize();
@@ -725,6 +854,14 @@ export class HumanSurface {
           return new THREE.Vector2(d.dot(u), d.dot(v));
         });
         for (const triangle of THREE.ShapeUtils.triangulateShape(flat, [])) {
+          const [a, b, c] = triangle.map((i) => ring[i]);
+          // Winding agrees with the outward normal (front faces outside).
+          if (
+            new THREE.Vector3()
+              .crossVectors(b.clone().sub(a), c.clone().sub(a))
+              .dot(normal) < 0
+          )
+            triangle.reverse();
           for (const index of triangle) {
             capPositions.push(...ring[index].toArray());
             capNormals.push(...normal.toArray());
@@ -756,8 +893,12 @@ export class HumanSurface {
       caps,
       new THREE.MeshStandardMaterial({
         color: body.anatomy ? "#aaa" : body.skin,
-        roughness: 0.9,
+        roughness: 0.95,
         side: THREE.DoubleSide,
+        // Sit just behind the rim so the skin edge stays crisp.
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1,
       }),
     );
     cap.name = "section-caps";
@@ -766,7 +907,18 @@ export class HumanSurface {
     this.group.add(this.decals.group);
   }
   appearance(body: HumanBody) {
+    this.group.rotation.copy(sculptRotation(body));
+    this.group.updateMatrixWorld(true);
     for (const { mesh } of this.charts.values()) {
+      const material = mesh.material as THREE.MeshStandardMaterial;
+      if (material.userData.sculpt && !material.userData.nativeColor)
+        material.color.set(body.skin);
+      const sculptUniforms = material.userData.sculptAppearanceUniforms;
+      if (sculptUniforms) {
+        sculptUniforms.sculptSkin.value.set(body.skin);
+        sculptUniforms.sculptRecolor.value =
+          body.model?.sculptAppearance === "skin" ? 1 : 0;
+      }
       const uniforms = (mesh.material as THREE.Material).userData
         .surfaceUniforms;
       if (uniforms) {
@@ -780,19 +932,42 @@ export class HumanSurface {
       THREE.BufferGeometry,
       THREE.MeshStandardMaterial
     >;
+    if (!cap) return;
     cap.material.color
       .set(body.skin)
+      // A slightly deeper, matte cut face reads as a section, not a glued disc.
+      .multiplyScalar((body.model?.revision ?? 0) >= 5 ? 0.86 : 1)
       .lerp(
         new THREE.Color("#bdb7a7"),
         body.anatomy ? (body.model?.anatomyOpacity ?? 1) : 0,
       );
+    // The skin shader adds wrap lighting the cap lacks; an emissive floor keeps a
+    // sideways cut (torso shoulder ends) from reading as a dark hole.
+    cap.material.emissive
+      .copy(cap.material.color)
+      .multiplyScalar((body.model?.revision ?? 0) >= 5 ? 0.42 : 0);
   }
   async paint(
     body: HumanBody,
     items: { layer: Layer; image: HTMLCanvasElement; ratio: number }[],
     inspectionLayer?: string,
+    detailZone?: SurfaceZone | "standard",
+    previewSize?: number,
   ) {
     for (const [zone, { canvas, texture }] of this.charts) {
+      const edge =
+        previewSize ??
+        (detailZone && detailZone !== "standard"
+          ? zone === detailZone
+            ? 4096
+            : 1024
+          : 2048);
+      if (canvas.width !== edge) {
+        // WebGL texture storage is immutable once uploaded. Recreate it before
+        // switching between the main chart and lighter comparison resolutions.
+        texture.dispose();
+        canvas.width = canvas.height = edge;
+      }
       const ctx = canvas.getContext("2d")!,
         size = canvas.width;
       ctx.globalAlpha = 1;
@@ -835,7 +1010,10 @@ export class HumanSurface {
     this.decals.dispose();
     for (const { mesh, texture } of this.charts.values()) {
       mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
+      const material = mesh.material as THREE.Material;
+      for (const owned of material.userData.ownedTextures ?? [])
+        (owned as THREE.Texture).dispose();
+      material.dispose();
       texture.dispose();
     }
     this.charts.clear();

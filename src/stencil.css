@@ -226,3 +226,5 @@
   padding: 10px 18px;
   background: #eee;
 }
+.stencil-preflight {max-width:300px; font-size:11px; line-height:1.5;}
+.stencil-preflight p {margin:7px 0;}

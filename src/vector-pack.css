@@ -229,7 +229,7 @@
   outline: none;
 }
 .vector-canvas path[role="button"]:focus {
-  stroke: #28759b;
+  stroke: #303030;
 }
 .vector-canvas.tool-pen,
 .vector-canvas.tool-callout {
@@ -808,5 +808,491 @@
   }
   .garment-gallery-top h3 {
     font-size: 23px;
+  }
+}
+.vector-selectionbar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 7px 12px;
+  border-bottom: 1px solid #ddd;
+  background: #f8f8f8;
+  font-size: 11px;
+}
+.vector-selectionbar label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.vector-selectionbar button {
+  font-size: 11px;
+  padding: 5px 8px;
+}
+.vector-selectionbar span {
+  margin-left: auto;
+  color: #555;
+}
+.vector-review {
+  width: min(720px, calc(100vw - 48px));
+  max-height: 85vh;
+  overflow: auto;
+  border: 1px solid #555;
+  border-radius: 12px;
+  padding: 24px;
+  color: #202020;
+  background: #fff;
+  box-shadow: 0 20px 70px #0006;
+}
+.vector-review::backdrop {
+  background: #0008;
+}
+.vector-review header,
+.vector-review footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.vector-review h2 {
+  font-size: 22px;
+  margin: 0;
+}
+.vector-review p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.vector-review footer {
+  position: sticky;
+  bottom: -24px;
+  background: white;
+  padding: 16px 0;
+  border-top: 1px solid #ddd;
+}
+.vector-review-findings {
+  max-height: 35vh;
+  overflow: auto;
+  padding: 0 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+.vector-review-findings > div {
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+.vector-import-preview {
+  display: block;
+  width: 200px;
+  height: 267px;
+  border: 1px solid #ddd;
+  margin: 12px auto;
+  background: #fafafa;
+}
+.vector-inspector fieldset {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vector-studio .vector-selectionbar label {
+  flex-direction: row;
+  align-items: center;
+}
+.vector-sources {
+  font-size: 11px;
+  line-height: 1.5;
+  border-top: 1px solid #ddd;
+  padding: 12px 0;
+}
+.vector-sources section {
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 10px;
+}
+.vector-sources button {
+  margin: 3px 0;
+  width: 100%;
+}
+.vector-sources strong {
+  overflow-wrap: anywhere;
+}
+
+/* Workflow, active-view context and guided empty states. */
+.vector-studio {
+  background: #f4f4f4;
+}
+.vector-studio .vector-top,
+.vector-studio .vector-sidebar,
+.vector-studio .vector-inspector {
+  background: #fafafa;
+}
+.vector-top {
+  padding: 12px 20px;
+  gap: 14px;
+}
+.vector-export-choice {
+  width: 240px;
+  flex: 0 1 240px;
+}
+.vector-export-choice small {
+  display: block;
+  margin-top: 5px;
+  color: #626262;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.vector-workflow-context {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 22px;
+  border-bottom: 1px solid #d8d8d8;
+  background: #fff;
+}
+.vector-workflow-context > div {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+.vector-workflow-context b {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.vector-workflow-context span {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #626262;
+}
+.vector-view-switch {
+  display: flex;
+  flex: 0 0 auto;
+  padding: 2px;
+  border: 1px solid #d7d7d7;
+  border-radius: 5px;
+  background: #eee;
+}
+.vector-studio .vector-view-switch button {
+  padding: 4px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: 3px;
+  font-size: 10px;
+}
+.vector-studio .vector-view-switch button[aria-pressed="true"] {
+  color: #fff;
+  background: #292929;
+}
+.vector-canvas-scroll {
+  position: relative;
+}
+.vector-empty-canvas {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(390px, 85%);
+  padding: 25px;
+  box-sizing: border-box;
+  border: 1px solid #d5d5d5;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 8px 28px #0000000a;
+  text-align: center;
+}
+.vector-empty-canvas > svg {
+  color: #666;
+  width: 30px;
+  height: 30px;
+}
+.vector-empty-canvas h3 {
+  font-size: 16px;
+  margin: 12px 0 8px;
+}
+.vector-empty-canvas p {
+  font-size: 12px;
+  line-height: 1.65;
+  color: #626262;
+  margin: 0 0 18px;
+}
+.vector-empty-canvas > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+}
+.vector-empty-canvas button:first-child {
+  background: #292929;
+  color: #fff;
+}
+.vector-inspector-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 13px 0;
+}
+.vector-inspector-empty > svg {
+  color: #777;
+}
+.vector-inspector-empty h3 {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+.vector-inspector-empty p {
+  font-size: 11px;
+  color: #626262;
+  line-height: 1.65;
+  margin: 0;
+}
+.vector-inspector-empty details {
+  border-top: 1px solid #dedede;
+  padding-top: 12px;
+  margin-top: 5px;
+}
+.vector-inspector-empty summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: #555;
+  margin-bottom: 8px;
+}
+.vector-studio button:focus-visible,
+.vector-studio summary:focus-visible {
+  outline: 2px solid #252525;
+  outline-offset: 2px;
+}
+@media (max-width: 1200px) {
+  .vector-workflow-context {
+    padding: 9px 15px;
+  }
+  .vector-workflow-context > div {
+    display: block;
+  }
+  .vector-workflow-context span {
+    display: block;
+    margin-top: 3px;
+  }
+  .vector-export-choice {
+    width: 205px;
+    flex-basis: 205px;
+  }
+  .vector-top {
+    gap: 10px;
+  }
+}
+.vector-studio .vector-toolbar {
+  padding: 6px 12px;
+}
+.vector-studio .vector-studio .vector-tabs > .vector-next-stage {
+  margin-left: auto;
+  padding-left: 10px;
+  padding-right: 0;
+  font-size: 10px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.vector-selectionbar .vector-view-switch {
+  margin-right: 4px;
+}
+.vector-canvas-status > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vector-canvas-status > span:last-child {
+  flex-shrink: 0;
+}
+@media (max-width: 1200px) {
+  .vector-studio .vector-tabs {
+    gap: 2px;
+  }
+  .vector-studio .vector-tabs > button {
+    padding-left: 9px;
+    padding-right: 9px;
+    font-size: 10px;
+  }
+  .vector-studio .vector-selectionbar {
+    gap: 5px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .vector-studio .vector-selectionbar > button {
+    padding-left: 5px;
+    padding-right: 5px;
+    font-size: 10px;
+  }
+}
+
+/* A compact workbench, with independent panels instead of a permanently boxed artboard. */
+.vector-studio .vector-top {
+  min-height: 62px;
+  padding: 8px 18px !important;
+  gap: 12px;
+}
+.vector-studio .vector-top h2 {
+  font-size: 22px !important;
+  margin-top: 3px;
+}
+.vector-studio .vector-top > div:nth-child(2) {
+  min-width: 90px;
+}
+.vector-studio .vector-top h2 {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vector-studio .vector-export-choice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 220px;
+  flex: 0 1 220px;
+  position: relative;
+}
+.vector-studio .vector-export-choice select {
+  min-width: 0;
+  font-size: 11px;
+}
+.vector-export-help {
+  flex: none;
+}
+.vector-export-help summary {
+  cursor: pointer;
+  list-style: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 34px;
+  border-radius: 4px;
+  color: var(--fs-muted, #66665d);
+}
+.vector-export-help summary::-webkit-details-marker {
+  display: none;
+}
+.vector-export-help summary:hover {
+  background: var(--fs-soft, #eae7de);
+}
+.vector-export-help small {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  width: 260px;
+  padding: 14px;
+  border: 1px solid var(--fs-border, #d5d1c7);
+  border-radius: 6px;
+  background: var(--fs-panel, #fbf9f4);
+  color: var(--fs-ink, #242521) !important;
+  font-size: 12px !important;
+  line-height: 1.6;
+  box-shadow: 0 8px 30px #0002;
+}
+.vector-panel-controls {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+.vector-studio .vector-panel-controls button {
+  padding: 7px 8px;
+  min-height: 34px;
+  background: var(--fs-panel, #fbf9f4);
+  color: var(--fs-ink, #242521);
+}
+.vector-studio .vector-panel-controls button[aria-expanded="true"] {
+  background: var(--fs-soft, #eae7de);
+  border-color: var(--fs-muted, #66665d);
+}
+.vector-studio .vector-drawing {
+  grid-template-columns: 210px minmax(0, 1fr) 235px;
+}
+.vector-studio .vector-drawing.library-collapsed {
+  grid-template-columns: minmax(0, 1fr) 235px;
+}
+.vector-studio .vector-drawing.inspector-collapsed {
+  grid-template-columns: 210px minmax(0, 1fr);
+}
+.vector-studio .vector-drawing.library-collapsed.inspector-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+.vector-drawing.library-collapsed > .vector-sidebar,
+.vector-drawing.inspector-collapsed > .vector-inspector {
+  display: none;
+}
+.vector-studio .vector-tabs {
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
+  flex: none;
+}
+.vector-studio .vector-tabs button {
+  min-height: 32px;
+}
+.vector-studio .vector-toolbar {
+  gap: 8px;
+  padding: 7px 12px;
+  flex: none;
+}
+.vector-draw-tools {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+.vector-studio .vector-draw-tools button {
+  padding: 7px 9px;
+  min-height: 32px;
+}
+.vector-studio .vector-selectionbar {
+  padding: 5px 12px;
+  min-height: 36px;
+  flex: none;
+}
+.vector-studio .vector-canvas-status {
+  padding: 7px 14px;
+  flex: none;
+}
+.vector-studio .vector-canvas-scroll {
+  padding: 10px 12px;
+}
+.focus-workspace .vector-studio .vector-drawing {
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (max-width: 1200px) {
+  .vector-studio .vector-top {
+    gap: 8px;
+    min-height: 56px;
+  }
+  .vector-studio .vector-top > button:first-child {
+    padding: 8px;
+    font-size: 11px;
+  }
+  .vector-studio .vector-top > .primary {
+    padding: 8px;
+    font-size: 11px;
+  }
+  .vector-panel-controls span {
+    display: none;
+  }
+  .vector-studio .vector-export-choice {
+    width: 205px;
+    flex-basis: 205px;
+  }
+  .vector-studio .vector-drawing {
+    grid-template-columns: 190px minmax(0, 1fr) 220px;
+  }
+  .vector-studio .vector-drawing.library-collapsed {
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
+  .vector-studio .vector-drawing.inspector-collapsed {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+  .vector-studio .vector-drawing.library-collapsed.inspector-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .focus-workspace .vector-studio .vector-drawing {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -40,7 +40,9 @@ export function GarmentPhotoStudio({
   const study = value.photoStudy,
     asset = assets.find((a) => a.id === study?.assetId);
   useEffect(() => {
-    dialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    dialog.current
+      ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+      ?.focus();
   }, []);
   const update = (patch: Partial<GarmentStudy>) =>
     study && change({ ...value, photoStudy: { ...study, ...patch } });
@@ -90,6 +92,7 @@ export function GarmentPhotoStudio({
         className="stencil-studio garment-photo"
         ref={dialog}
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-label="Photo garment measurements"
         onKeyDown={(e) => {

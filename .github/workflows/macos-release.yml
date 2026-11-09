@@ -30,8 +30,8 @@ jobs:
       - run: npx tauri build --bundles app,dmg
       - name: Verify signature and notarization
         run: |
-          codesign --verify --deep --strict 'src-tauri/target/release/bundle/macos/Form Studio.app'
-          xcrun stapler validate 'src-tauri/target/release/bundle/macos/Form Studio.app'
+          codesign --verify --deep --strict 'src-tauri/target/release/bundle/macos/Corpora Studio.app'
+          xcrun stapler validate 'src-tauri/target/release/bundle/macos/Corpora Studio.app'
       - uses: actions/upload-artifact@v4
         with:
           name: signed-macos-release

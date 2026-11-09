@@ -29,6 +29,8 @@ jobs:
       - run: cargo test --manifest-path src-tauri/Cargo.toml
       - run: npx playwright install chromium webkit
       - run: npm run test:e2e
+      - name: Qualify production renderer
+        run: npx playwright test --config playwright.production.config.ts
       - name: Collect target notices
         run: python scripts/dependency-notices.py
       - name: Package unsigned test app

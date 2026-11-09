@@ -1,4 +1,5 @@
 import Clipper from "clipper-lib";
+import { fallbackEdgeIds } from "./pattern-edges";
 import { ConstructionSchema, type Construction } from "./fashion-construction";
 import type { PatternOp, PatternPiece, Point2 } from "./fashion-model";
 const sub = (a: Point2, b: Point2): Point2 => ({ x: a.x - b.x, y: a.y - b.y });
@@ -248,6 +249,7 @@ export function detachPiece(piece: PatternPiece, sa: number): Construction {
   });
   return {
     name: piece.name,
+    edgeIds: [...(piece.edgeIds ?? fallbackEdgeIds(piece.seam))],
     cut: piece.cut,
     seam,
     allowances,
@@ -306,6 +308,7 @@ export function constructPiece(
     width,
     height,
     seam: path(c.seam),
+    edgeIds: c.edgeIds ?? fallbackEdgeIds(c.seam),
     cutline: path(cutline),
     guides: [
       ...c.guides.map(path),
@@ -373,6 +376,10 @@ export function splitSegment(c: Construction, index: number): Construction {
     );
   } else next.seam.splice(index, 0, { type: "line", to: mid });
   next.allowances.splice(index, 0, c.allowances[index]);
+  next.edgeIds ??= fallbackEdgeIds(c.seam);
+  // Splitting changes the referenced edge. Never silently bind a saved seam to
+  // just one half; its missing ID is reported for deliberate reconnection.
+  next.edgeIds.splice(index, 1, crypto.randomUUID(), crypto.randomUUID());
   next.notches = next.notches.map((n) =>
     n.edge < index
       ? n
@@ -390,6 +397,9 @@ export function removeAnchor(c: Construction, index: number): Construction {
     throw new Error("Keep at least three boundary anchors.");
   const next = structuredClone(c);
   next.seam.splice(index, 1);
+  next.edgeIds ??= fallbackEdgeIds(c.seam);
+  next.edgeIds.splice(index, 1);
+  next.edgeIds[index] = crypto.randomUUID();
   next.allowances.splice(index, 1);
   next.notches = next.notches
     .filter((n) => n.edge !== index)

@@ -102,13 +102,19 @@ export async function patternPdf(
   doc.setProperties({
     title: name,
     subject: "Full-scale tiled sewing pattern",
-    creator: "Form Studio 0.8",
+    creator: "Corpora Studio 0.23",
   });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(21);
-  doc.text("FORM / PATTERN STUDIO", 15, 23);
+  doc.text("CORPORA / PATTERN STUDIO", 15, 23);
   doc.setFontSize(13);
-  doc.text(ascii(name).slice(0, 70), 15, 34);
+  let heading = ascii(name);
+  while (
+    heading.length &&
+    doc.getTextWidth(heading) > doc.internal.pageSize.getWidth() - 30
+  )
+    heading = heading.slice(0, -1);
+  doc.text(heading, 15, 34);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   const instructions = [
@@ -320,7 +326,7 @@ export async function patternPdf(
           10,
         );
         doc.text(
-          `Form Studio | ${f.paper.toUpperCase()} | 100% | ${p.allowances ? "Individual edge SA" : `${f.seamAllowance} mm SA`} | 5 mm overlap`,
+          `Corpora Studio | ${f.paper.toUpperCase()} | 100% | ${p.allowances ? "Individual edge SA" : `${f.seamAllowance} mm SA`} | 5 mm overlap`,
           10,
           t.pageHeight - 8,
         );

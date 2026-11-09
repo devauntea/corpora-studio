@@ -1,0 +1,964 @@
+/* Appearance changes editor chrome only. Art, photographs, skin and export paper
+   keep their document colors. No inversion/filter is used. */
+:root {
+  --fs-field: #fffefa;
+  --fs-selected: #242521;
+  --fs-on-selected: #fbf9f4;
+  --fs-board: #e8e5db;
+  --fs-error: #9b3333;
+  --fs-warning: #725829;
+}
+.appearance-control {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #e4e5db;
+  border: 1px solid #626457;
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+.appearance-control select {
+  min-height: 28px;
+  max-width: 88px;
+  background: #20221f;
+  color: #f4f1e9;
+  border: 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+.appearance-control select:focus-visible {
+  outline-color: #d8cbac;
+}
+:root[data-theme="dark"] {
+  --fs-paper: #1c1f1c;
+  --fs-panel: #252925;
+  --fs-ink: #ecefe5;
+  --fs-muted: #bcc2b6;
+  --fs-border: #51594e;
+  --fs-soft: #333a32;
+  --fs-field: #191d19;
+  --fs-selected: #dfe5d6;
+  --fs-on-selected: #1b211a;
+  --fs-board: #171b17;
+  --fs-error: #ffb0a8;
+  --fs-warning: #e5c995;
+  --ps-line: var(--fs-border);
+  --ps-muted: var(--fs-muted);
+  color-scheme: dark;
+}
+:root[data-theme="dark"] body {
+  background: var(--fs-paper);
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"] :is(h1, h2, h3, h4, legend, strong, b, summary) {
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"]
+  :is(
+    p,
+    label,
+    small,
+    time,
+    .eyebrow,
+    .section-label,
+    .field-note,
+    .count,
+    .breadcrumb,
+    .save-state,
+    .workspace-context,
+    .number-field,
+    .toggle-label,
+    .select-field,
+    .vector-hint,
+    .vector-workflow-context,
+    .pattern-selection-info,
+    .fashion-hint,
+    .fashion-credit,
+    .pattern-catalog-toolbar,
+    .pattern-catalog-toolbar > span,
+    .artwork-preview > span,
+    .ps-eyebrow
+  ) {
+  color: var(--fs-muted);
+}
+:root[data-theme="dark"]
+  :is(
+    input:not([type="range"]):not([type="color"]):not([type="checkbox"]):not(
+        [type="radio"]
+      ),
+    select,
+    textarea
+  ) {
+  background-color: var(--fs-field);
+  border-color: var(--fs-border);
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder {
+  color: #a4ad9e;
+  opacity: 1;
+}
+:root[data-theme="dark"] input[type="range"],
+:root[data-theme="dark"] input[type="checkbox"] {
+  accent-color: #c6d3bb;
+}
+:root[data-theme="dark"] :is(button, a) {
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"] button {
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"] button:not(:disabled):hover {
+  background-color: var(--fs-soft);
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"]
+  :is(
+    button.primary,
+    button.active,
+    button[aria-pressed="true"],
+    button.selected,
+    .wide-button.primary,
+    .ps-primary
+  ) {
+  background-color: var(--fs-selected);
+  color: var(--fs-on-selected);
+  border-color: var(--fs-selected);
+}
+:root[data-theme="dark"]
+  :is(
+    button.primary,
+    button.active,
+    button[aria-pressed="true"],
+    button.selected
+  ):not(:disabled):hover {
+  background-color: #c6d3bb;
+  color: #182017;
+}
+:root[data-theme="dark"]
+  :is(
+    button.primary,
+    button.active,
+    button[aria-pressed="true"],
+    button.selected
+  )
+  :is(strong, b, small, span) {
+  color: inherit;
+}
+:root[data-theme="dark"]
+  :is(button, input, textarea, select, a, summary):focus-visible {
+  outline-color: #c6d3bb;
+}
+/* Shell, panels and controls */
+:root[data-theme="dark"]
+  :is(
+    .app-shell,
+    .projectbar,
+    .workspace-nav,
+    .library,
+    .inspector,
+    .inspector-tabs,
+    .inspector-scroll,
+    .photo-library,
+    .statusbar
+  ) {
+  background-color: var(--fs-panel);
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"] :is(.projectbar, .workspace-nav, .statusbar) {
+  background-color: var(--fs-paper);
+}
+:root[data-theme="dark"] .project-name input {
+  background: transparent;
+}
+:root[data-theme="dark"] :is(.topbar, .studio-home > header) {
+  background: #151915;
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"]
+  :is(
+    .studio-switch,
+    .workspace-switch,
+    .surface-filter,
+    .camera-tabs,
+    .view-tools,
+    .inspector-tabs,
+    .segmented,
+    .brush-tabs,
+    .rotation-presets
+  ) {
+  background: var(--fs-paper);
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"] .workspace-switch button {
+  color: var(--fs-muted);
+}
+:root[data-theme="dark"] .workspace-switch button.active {
+  background: var(--fs-selected);
+  color: var(--fs-on-selected);
+}
+:root[data-theme="dark"]
+  :is(
+    .body-card,
+    .layer-search,
+    .layer-row,
+    .import-button,
+    .image-studio-entry,
+    .browse-models-button,
+    .home-resume,
+    .project-actions .review-room-trigger,
+    .accuracy-note,
+    .photo-warp-controls,
+    .recovery-banner,
+    .art-actions button
+  ) {
+  background: var(--fs-paper);
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"] .layer-row.selected {
+  background: var(--fs-soft);
+  border-color: #a6b39d;
+  box-shadow: inset 2px 0 #c6d3bb;
+}
+:root[data-theme="dark"] .layer-row :is(strong, small) {
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"]
+  :is(.workspace-nav nav button, .workspace-nav .task-path button) {
+  color: var(--fs-muted);
+}
+:root[data-theme="dark"]
+  :is(
+    .workspace-nav nav button.active,
+    .workspace-nav .task-path button.active
+  ) {
+  background: var(--fs-soft);
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"] .workspace-nav nav button.active:after {
+  background: #c6d3bb;
+}
+:root[data-theme="dark"] .skin-swatches button {
+  border-color: var(--fs-panel);
+}
+:root[data-theme="dark"] .skin-swatches button.active,
+:root[data-theme="dark"] .ink-palette button[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px #e1e8d7;
+}
+:root[data-theme="dark"] :is(.fit-attention, .accuracy-note, .local-notice) {
+  background: #353024;
+  border-color: #8b7958;
+  color: var(--fs-warning);
+}
+:root[data-theme="dark"] .fit-attention p {
+  color: var(--fs-warning);
+}
+:root[data-theme="dark"] .fit-attention button {
+  background: var(--fs-field);
+}
+/* Stage keeps stable materials and lighting in either theme. */
+:root[data-theme="dark"] .viewport-heading :is(h1, p, .eyebrow) {
+  color: #e5e8df;
+}
+:root[data-theme="dark"]
+  :is(.view-tools, .camera-tabs, .surface-filter, .surface-brush) {
+  background: #222821ed;
+  border-color: #6b7567;
+  color: #e8eee3;
+}
+:root[data-theme="dark"]
+  :is(.view-tools, .camera-tabs, .surface-filter, .surface-brush)
+  button {
+  color: #e8eee3;
+}
+:root[data-theme="dark"]
+  :is(.view-tools, .camera-tabs, .surface-filter, .surface-brush)
+  :is(button.active, button.selected, button[aria-pressed="true"]) {
+  background: var(--fs-selected);
+  color: var(--fs-on-selected);
+}
+:root[data-theme="dark"] .surface-brush label {
+  color: #e8eee3;
+}
+/* Dialog shells, libraries and home */
+:root[data-theme="dark"]
+  :is(
+    .studio-home,
+    .body-library,
+    .body-library-detail,
+    .sculpt-library,
+    .pattern-catalog-dialog,
+    .pattern-catalog-detail,
+    .command-menu,
+    .project-library,
+    .review-room,
+    .stencil-studio,
+    .tattoo-stencil,
+    .tattoo-planning,
+    .artwork-studio,
+    .fashion-development-dialog,
+    .pattern-source-studio,
+    .construction-editor,
+    .vector-review,
+    .modal,
+    .help-modal,
+    .confirm-dialog
+  ) {
+  background: var(--fs-panel);
+  color: var(--fs-ink);
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"]
+  :is(
+    .studio-home,
+    .body-library,
+    .pattern-catalog-dialog,
+    .project-library,
+    .stencil-studio,
+    .tattoo-planning,
+    .fashion-development-dialog,
+    .pattern-source-studio,
+    .vector-review
+  )
+  :is(header, footer) {
+  background-color: var(--fs-panel);
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"]
+  :is(
+    .home-file,
+    .home-recent-icon,
+    .body-library-toolbar,
+    .body-library-tabs,
+    .body-library-search,
+    .body-library-results,
+    .body-library-description,
+    .body-library-options,
+    .pattern-catalog-toolbar,
+    .pattern-catalog-search,
+    .starter-picker,
+    .command-search,
+    .command-menu footer,
+    .command-results,
+    .project-library-tools,
+    .project-library-list
+  ) {
+  background-color: var(--fs-paper);
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"]
+  :is(
+    .home-task,
+    .body-model-card,
+    .body-library-card,
+    .pattern-preview-card,
+    .project-entry,
+    .checkpoint-card,
+    .home-recent,
+    .sculpt-card
+  ) {
+  background: var(--fs-panel);
+  color: var(--fs-ink);
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"]
+  :is(
+    .home-task:hover,
+    .pattern-preview-card.active,
+    .body-library-card.active,
+    .body-model-card.active,
+    .command-results button.current
+  ) {
+  background: var(--fs-soft) !important;
+  border-color: #a6b39d;
+}
+:root[data-theme="dark"]
+  :is(
+    .home-task-copy,
+    .home-task-copy p,
+    .home-task-copy small,
+    .home-file p,
+    .home-file small,
+    .home-resume small,
+    .home-no-recents
+  ) {
+  color: var(--fs-muted);
+}
+:root[data-theme="dark"] .home-task-index {
+  background: #252925ef;
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"] .home-wordmark span {
+  color: var(--fs-muted);
+}
+:root[data-theme="dark"] .home-task-art :is(img, svg) {
+  color: #242521;
+}
+/* Image and stencil editors: checkerboards, photographs and print paper remain unchanged. */
+:root[data-theme="dark"]
+  :is(
+    .art-studio-header,
+    .art-footer,
+    .art-tools,
+    .art-canvas-bar,
+    .art-main,
+    .art-tools .brush-tabs,
+    .tattoo-stencil .stencil-body > aside,
+    .stencil-body > aside,
+    .stencil-status,
+    .photo-measurements > div,
+    .cloth-status,
+    .cloth-export,
+    .planning-controls,
+    .planning-sidebar,
+    .transfer-plan,
+    .transfer-sections
+  ) {
+  background-color: var(--fs-panel);
+  border-color: var(--fs-border);
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"]
+  :is(
+    .art-tools button,
+    .art-actions button,
+    .art-canvas-bar button,
+    .art-footer button,
+    .stencil-studio button,
+    .tattoo-planning button
+  ) {
+  background: var(--fs-field);
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"]
+  :is(.art-tools, .art-actions, .art-footer, .stencil-studio, .tattoo-planning)
+  :is(button.primary, button.active, button[aria-pressed="true"]) {
+  background: var(--fs-selected);
+  color: var(--fs-on-selected);
+}
+:root[data-theme="dark"] :is(.portfolio-preview, .planning-view) {
+  background-color: var(--fs-board);
+}
+/* The stencil preview is the printed sheet: keep it white paper with dark
+   lines in both themes, like the pattern sheet. */
+:root[data-theme="dark"] .stencil-preview {
+  background-color: #fff;
+  color: #222;
+}
+:root[data-theme="dark"] .stencil-preview .stencil-status {
+  background: transparent;
+  color: #555;
+}
+:root[data-theme="dark"] .stencil-studio .stencil-preview p {
+  color: #4a4a4a;
+}
+:root[data-theme="dark"] .stencil-studio .stencil-preview [role="alert"] {
+  color: #9b2342;
+}
+/* Fashion drafting and sizing */
+:root[data-theme="dark"] .fashion-workspace {
+  --fashion-paper: var(--fs-paper);
+  --fashion-panel: var(--fs-panel);
+  --fashion-ink: var(--fs-ink);
+  --fashion-muted: var(--fs-muted);
+  --fashion-border: var(--fs-border);
+}
+:root[data-theme="dark"]
+  :is(
+    .fashion-workspace,
+    .fashion-library,
+    .fashion-inspector,
+    .fashion-heading,
+    .fashion-scroll,
+    .fashion-inspector-content,
+    .fashion-workflow,
+    .fashion-output-routes,
+    .pattern-title,
+    .pattern-toolbar,
+    .pattern-bottom,
+    .fashion-credit,
+    .fashion-tabs,
+    .fashion-inspector-tabs,
+    .fashion-piece-row,
+    .starter-sizing
+  ) {
+  background-color: var(--fs-panel);
+  border-color: var(--fs-border);
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"]
+  :is(
+    .fashion-workflow,
+    .fashion-scroll,
+    .pattern-title,
+    .pattern-bottom,
+    .fashion-credit
+  ) {
+  background-color: var(--fs-paper);
+}
+:root[data-theme="dark"]
+  :is(
+    .fashion-scroll button,
+    .fashion-inspector button,
+    .fashion-workflow button,
+    .fashion-library button,
+    .fashion-tabs button,
+    .fashion-inspector-tabs button,
+    .pattern-toolbar button,
+    .pattern-title button
+  ) {
+  background: var(--fs-field);
+  border-color: var(--fs-border);
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"]
+  .fashion-workspace
+  :is(
+    button.active,
+    button[aria-pressed="true"],
+    button.primary,
+    .fashion-piece-row.active
+  ) {
+  background: var(--fs-selected);
+  color: var(--fs-on-selected);
+}
+:root[data-theme="dark"]
+  .fashion-workspace
+  :is(button.active, button[aria-pressed="true"], button.primary)
+  :is(b, strong, small, span) {
+  color: inherit;
+}
+:root[data-theme="dark"] .fashion-workflow button > span {
+  background: var(--fs-soft);
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"]
+  :is(
+    .fashion-workspace .field-note,
+    .fashion-workspace .fashion-field label,
+    .fashion-workspace .fashion-field small,
+    .fashion-workspace .fashion-heading p,
+    .fashion-workspace .pattern-bottom,
+    .fashion-workspace .fashion-hint
+  ) {
+  color: var(--fs-muted);
+}
+/* Pattern sheet is a light physical-paper preview, not UI chrome. */
+:root[data-theme="dark"] .fashion-workspace .pattern-board {
+  background: #e9e6df;
+  color: #242521;
+}
+:root[data-theme="dark"] .pattern-board :is(text, .pattern-piece-label) {
+  color: #242521;
+}
+/* Vector chrome; SVG fill/stroke and exported artboards deliberately unchanged. */
+:root[data-theme="dark"]
+  :is(
+    .vector-studio,
+    .vector-sidebar,
+    .vector-inspector,
+    .vector-toolbar,
+    .vector-tabs,
+    .vector-top,
+    .vector-canvas-status,
+    .vector-penbar,
+    .vector-data-page,
+    .vector-data-title,
+    .vector-materials article,
+    .vector-style-form,
+    .vector-node-editor,
+    .vector-callout-list,
+    .vector-workflow-context,
+    .garment-library,
+    .garment-sidebar,
+    .garment-detail,
+    .garment-toolbar,
+    .garment-card,
+    .garment-filters,
+    .catalog-filter,
+    .asset-library-entry,
+    .vector-entry,
+    .vector-export-help
+  ) {
+  background-color: var(--fs-panel);
+  color: var(--fs-ink);
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"] .vector-studio .vector-top {
+  background: var(--fs-panel) !important;
+}
+:root[data-theme="dark"]
+  :is(
+    .vector-studio .vector-tabs,
+    .vector-studio .vector-toolbar,
+    .vector-studio .vector-sidebar,
+    .vector-studio .vector-inspector
+  ) {
+  background: var(--fs-panel);
+}
+:root[data-theme="dark"] .vector-studio .vector-canvas-scroll {
+  background-color: var(--fs-board);
+  background-image: radial-gradient(#475142 0.6px, transparent 0.6px);
+}
+:root[data-theme="dark"] .vector-studio :is(button, input, select, textarea) {
+  background: var(--fs-field);
+  border-color: var(--fs-border);
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"]
+  .vector-studio
+  :is(
+    button.primary,
+    button.active,
+    button[aria-pressed="true"],
+    .vector-tabs button.active
+  ) {
+  background: var(--fs-selected) !important;
+  color: var(--fs-on-selected);
+  border-color: var(--fs-selected);
+}
+:root[data-theme="dark"] .vector-studio :is(th, td) {
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"] .vector-studio th {
+  background: var(--fs-soft);
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"] .vector-studio .vector-layer-list > div.selected {
+  background: var(--fs-soft);
+  border-color: #a6b39d;
+}
+:root[data-theme="dark"]
+  :is(
+    .vector-studio .vector-hint,
+    .vector-studio label,
+    .vector-studio .eyebrow,
+    .vector-export-choice small,
+    .vector-tabs > span,
+    .catalog-filter small,
+    .vector-entry span
+  ) {
+  color: var(--fs-muted);
+}
+/* Construction, imported patterns and sample review */
+:root[data-theme="dark"] .pattern-source-studio {
+  --ps-line: var(--fs-border);
+  --ps-muted: var(--fs-muted);
+}
+:root[data-theme="dark"]
+  :is(
+    .ps-header,
+    .ps-footer,
+    .ps-inventory,
+    .ps-inspector,
+    .ps-controls,
+    .ps-tools,
+    .ps-toolbar,
+    .ps-source-card,
+    .ps-empty,
+    .ps-tabs,
+    .ps-settings,
+    .ps-details,
+    .ps-row,
+    .ps-stat,
+    .development-actions,
+    .development-content,
+    .development-tabs,
+    .development-list,
+    .development-form,
+    .seam-list,
+    .seam-inspector,
+    .seam-summary,
+    .sample-card,
+    .revision-card,
+    .review-sidebar,
+    .review-toolbar,
+    .review-notes,
+    .review-summary,
+    .review-cards,
+    .construction-fields
+  ) {
+  background-color: var(--fs-panel);
+  border-color: var(--fs-border);
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"]
+  :is(
+    .pattern-source-studio,
+    .fashion-development-dialog,
+    .construction-editor,
+    .review-room
+  )
+  :is(button, input, select, textarea) {
+  background: var(--fs-field);
+  border-color: var(--fs-border);
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"]
+  :is(.pattern-source-studio, .fashion-development-dialog, .review-room)
+  :is(
+    button.active,
+    button[aria-pressed="true"],
+    button.primary,
+    button.ps-primary
+  ) {
+  background: var(--fs-selected);
+  color: var(--fs-on-selected);
+}
+:root[data-theme="dark"] :is(.ps-error, .error, .vector-error) {
+  color: var(--fs-error);
+}
+:root[data-theme="dark"] .ps-warning {
+  color: var(--fs-warning);
+}
+/* Neutral borders on all shared settings surfaces. */
+:root[data-theme="dark"]
+  :is(
+    .inspector-section,
+    .home-lower,
+    .home-recents,
+    .section-label,
+    .fashion-section,
+    .vector-layer-title,
+    .art-tools section,
+    .stencil-preflight
+  ) {
+  border-color: var(--fs-border);
+}
+@media (max-width: 1200px) {
+  .appearance-control {
+    gap: 3px;
+    padding: 3px 4px;
+  }
+  .appearance-control select {
+    max-width: 73px;
+    font-size: 11px;
+  }
+  .topbar-actions {
+    gap: 9px;
+  }
+}
+/* Paired fields and secondary controls must share their input's surface. */
+:root[data-theme="dark"]
+  :is(
+    .split-button > button,
+    .rotation-steps button,
+    .transform-actions button,
+    .number-field > div,
+    .fashion-field > div,
+    .range-field output,
+    .vector-selectionbar,
+    .asset-library-entry,
+    .save-menu
+  ) {
+  background: var(--fs-field);
+  color: var(--fs-ink);
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"]
+  :is(
+    .number-field > div > span,
+    .fashion-field > span,
+    .fashion-field > div > small,
+    .fashion-catalog summary > span,
+    .starter-sizing > p > span,
+    .fashion-credit > span,
+    .asset-library-entry small,
+    .vector-selectionbar label,
+    .range-field output,
+    .pattern-zoom,
+    .fashion-workflow-status
+  ) {
+  color: var(--fs-muted);
+}
+:root[data-theme="dark"] .inspector-tabs button.active {
+  background: var(--fs-selected);
+  color: var(--fs-on-selected);
+}
+:root[data-theme="dark"] .inspector-tabs button.active:after {
+  background: var(--fs-selected);
+}
+:root[data-theme="dark"] .artwork-preview > span {
+  color: #55594f;
+}
+:root[data-theme="dark"] .workspace-nav nav button span {
+  color: var(--fs-muted);
+  border-color: var(--fs-border);
+  background: var(--fs-soft);
+}
+:root[data-theme="dark"]
+  :is(
+    fieldset,
+    .fashion-field,
+    .fashion-section,
+    .fashion-inspector section,
+    .layer-groups
+  ) {
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"] .fashion-workflow button > span {
+  background: transparent;
+}
+:root[data-theme="dark"] .fashion-workflow button > span:first-child {
+  background: var(--fs-soft);
+}
+:root[data-theme="dark"] .pattern-browser-entry img {
+  background: #fbfaf7;
+  border-radius: 3px;
+  padding: 3px;
+}
+:root[data-theme="dark"] .inspector output {
+  color: var(--fs-ink);
+}
+/* Dark drafting desk; actual printable pieces stay white. */
+:root[data-theme="dark"] .fashion-workspace .pattern-board {
+  background: var(--fs-board);
+}
+:root[data-theme="dark"] .pattern-canvas #fashion-grid-small path {
+  stroke: #343d32;
+}
+:root[data-theme="dark"] .pattern-canvas #fashion-grid > path {
+  stroke: #495444;
+}
+:root[data-theme="dark"] .pattern-piece > text {
+  fill: #d5ddcd;
+}
+:root[data-theme="dark"] .pattern-piece.selected > .piece-bounds {
+  stroke: #b4c6a5;
+}
+:root[data-theme="dark"] .inspector-tabs button.active {
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"] .asset-library-entry {
+  background: var(--fs-field) !important;
+  border-color: var(--fs-border) !important;
+}
+:root[data-theme="dark"] .vector-selectionbar > span {
+  color: var(--fs-muted);
+}
+/* Library and garment-development chrome; preview SVGs retain their paper colors. */
+:root[data-theme="dark"]
+  :is(
+    .garment-categories,
+    .garment-search,
+    .style-development,
+    .style-development section,
+    .style-development aside,
+    .fashion-development-dialog > nav,
+    .seam-pieces article,
+    .seam-walk,
+    .construction-findings,
+    .assembly-editor > article,
+    .construction-handoff dl
+  ) {
+  background: var(--fs-panel);
+  color: var(--fs-ink);
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"]
+  :is(
+    .garment-categories p,
+    .garment-categories nav button span,
+    .garment-gallery-top > span,
+    .garment-card-main span,
+    .garment-collection-note,
+    .style-development p,
+    .style-development .development-limit,
+    .fashion-development-dialog nav span,
+    .fashion-development-dialog p,
+    .fashion-edit-field small,
+    .seam-list button small,
+    .construction-handoff dt,
+    .assembly-number
+  ) {
+  color: var(--fs-muted);
+}
+:root[data-theme="dark"]
+  :is(.garment-gallery-top h3, .garment-collection-note strong) {
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"] .garment-categories nav button.active span {
+  color: var(--fs-on-selected);
+}
+:root[data-theme="dark"]
+  .style-development
+  :is(button, input, select, textarea) {
+  background: var(--fs-field);
+  color: var(--fs-ink);
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"]
+  .style-development
+  :is(button.primary, button[aria-pressed="true"]) {
+  background: var(--fs-selected);
+  color: var(--fs-on-selected);
+}
+:root[data-theme="dark"]
+  .style-development
+  .sample-status[data-status="Outside tolerance"] {
+  color: var(--fs-error);
+}
+:root[data-theme="dark"]
+  :is(
+    .style-development th,
+    .style-development td,
+    .style-development .revision-card,
+    .construction-findings article
+  ) {
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"] .seam-list button.selected {
+  background: var(--fs-field);
+  border-color: var(--fs-selected);
+  box-shadow: inset 3px 0 var(--fs-selected);
+}
+:root[data-theme="dark"] .seam-pieces svg {
+  background: #fbfaf7;
+  border-radius: 4px;
+}
+:root[data-theme="dark"] .seam-walk input {
+  accent-color: var(--fs-selected);
+}
+:root[data-theme="dark"] .vector-studio :is(table, tbody, td) {
+  background: var(--fs-panel);
+}
+:root[data-theme="dark"] .vector-studio td input {
+  background: var(--fs-field);
+}
+:root[data-theme="dark"] .garment-card-main[aria-pressed="true"] span {
+  color: var(--fs-on-selected);
+}
+:root[data-theme="dark"]
+  :is(
+    .vector-workflow-context > div > span,
+    .fashion-workspace .pattern-title > span
+  ) {
+  color: var(--fs-muted);
+}
+:root[data-theme="dark"] .fashion-toile {
+  background: var(--fs-soft);
+  border-color: var(--fs-border);
+}
+:root[data-theme="dark"] .fashion-toile b {
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"] .fashion-toile p {
+  color: var(--fs-muted);
+}
+:root[data-theme="dark"] .statusbar {
+  color: var(--fs-muted);
+}
+/* Current pattern step: the generic dark field rule above paints every step
+   alike, so mark the active one explicitly. */
+:root[data-theme="dark"] .fashion-workflow > button[aria-current="step"] {
+  background: var(--fs-soft);
+  border-color: var(--cs-accent);
+  color: var(--fs-ink);
+}
+:root[data-theme="dark"]
+  .fashion-workflow
+  > button[aria-current="step"]
+  > .fashion-step-number {
+  background: var(--fs-selected);
+  color: var(--fs-on-selected);
+}

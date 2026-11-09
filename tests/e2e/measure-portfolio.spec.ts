@@ -107,7 +107,7 @@ test("keyboard photo measurement, formulas, checkpoint comparison and private po
   await portfolio
     .getByLabel("Portfolio description")
     .fill(
-      "Demonstration studies made in Form Studio: original botanical artwork on body surfaces, alongside a measurement-driven garment draft.",
+      "Demonstration studies made in Corpora Studio: original botanical artwork on body surfaces, alongside a measurement-driven garment draft.",
     );
   expect(
     await portfolio

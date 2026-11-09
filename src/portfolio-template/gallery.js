@@ -2,7 +2,7 @@
   "use strict";
   const data = window.FORM_STUDIO_PORTFOLIO;
   if (!data || !Array.isArray(data.works)) return;
-  document.title = (data.title || "Form Studio") + " — Selected Studies";
+  document.title = (data.title || "Corpora Studio") + " — Selected Studies";
   const title = document.getElementById("title");
   title.textContent = data.title || "Studies in shape & surface.";
   document.getElementById("description").textContent = data.description || "";

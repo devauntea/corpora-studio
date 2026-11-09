@@ -262,6 +262,7 @@ export function ConstructionEditor({
       <section
         className="construction-editor"
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-label="Pattern geometry editor"
       >

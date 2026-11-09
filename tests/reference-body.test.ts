@@ -69,7 +69,7 @@ test("version 9 preserves its original surface and rejects a forged revision 5",
   body.model!.revision = 3;
   const old = { ...blankProject(), version: 9, body };
   const next = await parseProject(JSON.stringify(old));
-  expect(next).toEqual({ ...old, version: 12 });
+  expect(next).toEqual({ ...old, version: 19 });
   body.model!.revision = 5;
   await expect(parseProject(JSON.stringify(old))).rejects.toThrow("version 9");
   expect(
@@ -83,6 +83,7 @@ for (const sex of ["male", "female"] as const) {
     const indices = data.parts.flat();
     const body = humanBody("full-body");
     body.model!.sex = sex;
+    body.model!.revision = 5;
     const cross = (a: number[], b: number[], c: number[]) => {
       const u = b.map((x, k) => x - a[k]),
         v = c.map((x, k) => x - a[k]);
@@ -190,6 +191,7 @@ for (const sex of ["male", "female"] as const) {
     }
     const body = humanBody("upper-body");
     body.model!.sex = sex;
+    body.model!.revision = 5;
     const a = humanGeometries(data, body);
     const b = humanGeometries(data, {
       ...body,
@@ -286,6 +288,7 @@ for (const sex of ["male", "female"] as const) {
     }
     const body = humanBody("upper-body");
     body.model!.sex = sex;
+    body.model!.revision = 5;
     expect(bodyZones(body)).toEqual(["trunk", "neck"]);
     const a = humanGeometries(data, body);
     const b = humanGeometries(data, {

@@ -1,0 +1,58 @@
+import { defineConfig } from "@playwright/test";
+const port = Number(process.env.FORM_PRODUCTION_PORT ?? 4173);
+if (!Number.isInteger(port) || port < 1024 || port > 65535)
+  throw new Error("Invalid production test port");
+export default defineConfig({
+  testDir: "./tests/e2e",
+  testMatch: [
+    "vector-pack.spec.ts",
+    "garment-library.spec.ts",
+    "vector-handoff.spec.ts",
+    "fashion-construction.spec.ts",
+    "recovery.spec.ts",
+    "tattoo-study.spec.ts",
+    "stencil-drawing.spec.ts",
+    "connected-body.spec.ts",
+    "muscle-pose.spec.ts",
+    "body-rig.spec.ts",
+    "sculpt-library.spec.ts",
+    "anatomy-envelope.spec.ts",
+    "surface-drawing.spec.ts",
+    "model-fit-audit.spec.ts",
+    "sculpt-poses.spec.ts",
+    "sculpt-appearance.spec.ts",
+    "rotation-controls.spec.ts",
+    "studio-ux.spec.ts",
+    "identity.spec.ts",
+    "theme.spec.ts",
+    "textile-ui.spec.ts",
+    "textile-handoff.spec.ts",
+    "vector-space.spec.ts",
+    "pattern-preview.spec.ts",
+    "scene-resize.spec.ts",
+    "fashion-ux.spec.ts",
+    "starter-sizing.spec.ts",
+    "pattern-source.spec.ts",
+    "tattoo-ux.spec.ts",
+    "browser-save.spec.ts",
+    "review-room.spec.ts",
+  ],
+  // Direct source-module parser tests run in the development suite; production exercises the actual import UI.
+  grepInvert: /bounded SVG converter/,
+  timeout: 60000,
+  workers: 1,
+  fullyParallel: false,
+  expect: { timeout: 15000 },
+  outputDir: "qa/studio-019/production-tests",
+  use: {
+    baseURL: `http://127.0.0.1:${port}`,
+    viewport: { width: 1440, height: 940 },
+    screenshot: "only-on-failure",
+  },
+  projects: [{ name: "webkit-production", use: { browserName: "webkit" } }],
+  webServer: {
+    command: `npx vite preview --host 127.0.0.1 --port ${port} --strictPort`,
+    url: `http://127.0.0.1:${port}`,
+    reuseExistingServer: false,
+  },
+});

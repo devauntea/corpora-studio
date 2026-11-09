@@ -1,3 +1,18 @@
+import { TextileStudio } from "./TextileStudio";
+import { textilePatternSvg, textilePatternId } from "./textiles";
+import { StyleDevelopment } from "./StyleDevelopment";
+import { VectorReview } from "./VectorReview";
+import { importSvg, placeSvg, type SvgImport } from "./vector-svg-import";
+import { vectorPreflight } from "./vector-preflight";
+import {
+  selectionFor,
+  selectionBounds,
+  pruneGroups,
+  groupSelection,
+  transformSelection,
+  duplicateSelection,
+  reorderSelection,
+} from "./vector-selection";
 import { GarmentAssetLibrary } from "./GarmentAssetLibrary";
 import { placeGarment } from "./garment-library";
 import {
@@ -11,12 +26,16 @@ import {
   ArrowLeft,
   Download,
   Layers,
+  Shirt as ShirtIcon,
   PenTool,
   Plus,
   Copy,
   Trash2,
   Undo2,
   Redo2,
+  PanelLeft,
+  PanelRight,
+  Info,
 } from "lucide-react";
 import type { Fashion } from "./fashion-model";
 import {
@@ -25,7 +44,6 @@ import {
   setContour,
   insertVectorAnchor,
   mapLayer,
-  layerBounds,
   vectorPath,
   resizeSizes,
   convertPackUnits,
@@ -94,6 +112,8 @@ function Num({
 }
 type Props = {
   openLibrary: boolean;
+  openTextiles?: boolean;
+  onTextilesChange?: (open: boolean) => void;
   onLibraryChange: (open: boolean) => void;
   value: Fashion;
   onChange: (f: Fashion) => void;
@@ -111,6 +131,8 @@ type Props = {
 };
 export function VectorPackStudio({
   openLibrary,
+  openTextiles,
+  onTextilesChange,
   onLibraryChange,
   value,
   onChange,
@@ -126,14 +148,63 @@ export function VectorPackStudio({
   exporter,
   close,
 }: Props) {
+  const [reviewExport, setReviewExport] = useState(false);
+  const [svgPreview, setSvgPreview] = useState<SvgImport | null>(null);
+  const [importingSvg, setImportingSvg] = useState(false);
+  const svgFile = useRef<HTMLInputElement>(null);
+  const importGeneration = useRef(0);
+  useEffect(
+    () => () => {
+      importGeneration.current++;
+    },
+    [],
+  );
   const fallback = useRef(templatePack("T-shirt"));
   const pack = value.vectorPack ?? fallback.current;
   const [contour, setContourIndex] = useState(0);
-  const [selected, setSelected] = useState<string | null>(null),
+  const [selected, setSelectedRaw] = useState<string | null>(null),
     [node, setNode] = useState<number | null>(null),
     [view, setView] = useState<VectorView>("front");
+  const [extraSelected, setExtraSelected] = useState<string[]>([]);
+  const [individual, setIndividual] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(true);
+  const [inspectorOpen, setInspectorOpen] = useState(
+    () => window.innerWidth > 1200,
+  );
+
+  const setSelected = (id: string | null) => {
+    setSelectedRaw(id);
+    setExtraSelected([]);
+  };
+  const selectedIds = [selected, ...extraSelected].filter(
+    (id): id is string => !!id && pack.layers.some((l) => l.id === id),
+  );
+  const selectedLayers = pack.layers.filter((l) => selectedIds.includes(l.id));
+  const lockedSelection = selectedLayers.some((l) => l.locked);
+  const chooseIds = (ids: string[]) => {
+    setSelectedRaw(ids[0] ?? null);
+    setExtraSelected(ids.slice(1));
+    setNode(null);
+    setCallout(null);
+  };
+  const choose = (id: string, additive = false) => {
+    const ids = selectionFor(pack, id, individual || tool === "nodes");
+    const next = additive
+      ? ids.every((i) => selectedIds.includes(i))
+        ? selectedIds.filter((i) => !ids.includes(i))
+        : [...new Set([...selectedIds, ...ids])]
+      : ids;
+    chooseIds(next);
+    return next;
+  };
   const [tab, setTab] = useState<
-      "drawing" | "assets" | "specs" | "materials" | "notes"
+      | "drawing"
+      | "fabric"
+      | "assets"
+      | "specs"
+      | "materials"
+      | "notes"
+      | "development"
     >("drawing"),
     [tool, setTool] = useState<"select" | "nodes" | "pen" | "callout">(
       "select",
@@ -141,6 +212,17 @@ export function VectorPackStudio({
   useEffect(() => {
     setTab((t) => (openLibrary ? "assets" : t === "assets" ? "drawing" : t));
   }, [openLibrary]);
+  useEffect(() => {
+    if (openTextiles !== undefined)
+      setTab((current) =>
+        openTextiles ? "fabric" : current === "fabric" ? "drawing" : current,
+      );
+  }, [openTextiles]);
+  const navigateTab = (next: typeof tab) => {
+    setTab(next);
+    if (next === "fabric" && onTextilesChange) onTextilesChange(true);
+    else onLibraryChange(next === "assets");
+  };
   const [template, setTemplate] = useState<FlatTemplate>("T-shirt"),
     [component, setComponent] =
       useState<(typeof componentNames)[number]>("Patch pocket");
@@ -150,12 +232,73 @@ export function VectorPackStudio({
   const [sizes, setSizes] = useState(pack.sizes.join(", ")),
     [zoom, setZoom] = useState(1),
     [callout, setCallout] = useState<string | null>(null);
+  useEffect(() => {
+    // Selecting a path exposes its properties; artists can collapse the panel again.
+    if (selected || callout || tool === "pen") setInspectorOpen(true);
+  }, [selected, callout, tool]);
+  const pageGuidance = {
+    drawing: [
+      "Design the garment",
+      "Build the front and back, then add details and construction callouts.",
+    ],
+    fabric: [
+      "Give the garment its character",
+      "Explore fabric prints and color palettes on your front and back drawings.",
+    ],
+    specs: [
+      "Define the fit",
+      "Record finished garment measurements, size ranges and tolerances.",
+    ],
+    materials: [
+      "Specify every material",
+      "List fabrics, trims and quantities so your sample maker knows what to source.",
+    ],
+    notes: [
+      "Explain the construction",
+      "Give this style an identity and describe how it should be made.",
+    ],
+    development: [
+      "Review the sample",
+      "Track revisions and decisions before preparing the next handoff.",
+    ],
+    assets: [
+      "Choose a starting design",
+      "Add editable garment assets to your technical flats.",
+    ],
+  }[tab];
+  const nextPage = (
+    {
+      drawing: "specs",
+      fabric: "drawing",
+      specs: "materials",
+      materials: "notes",
+      notes: "development",
+      development: "drawing",
+      assets: "drawing",
+    } as const
+  )[tab];
+  const exportDescription = {
+    zip: "Complete handoff: drawings, specifications, materials and editable source.",
+    pdf: "A readable tech pack with drawings, measurements and instructions.",
+    svg: "Editable front and back drawings. Dimensions stay in the size specification.",
+    json: "Editable source for reopening this vector pack in Corpora Studio.",
+  }[format];
+  const toolGuidance = {
+    select: "Select a path to move it. Shift-click to add to the selection.",
+    nodes: selectedLayers.length
+      ? "Select an anchor to edit its position and curve handles."
+      : "Select a path first to reveal its editable anchors.",
+    pen: `Click in the ${view} artboard to place points, then finish the path.`,
+    callout:
+      "Click a garment detail to add a numbered construction instruction.",
+  }[tool];
   const svg = useRef<SVGSVGElement>(null),
     file = useRef<HTMLInputElement>(null);
   const drag = useRef<{
     start: { x: number; y: number };
     pack: VectorPack;
     layer?: string;
+    ids?: string[];
     node?: number;
     contour?: number;
     handle?: "in" | "out";
@@ -167,7 +310,7 @@ export function VectorPackStudio({
   }, []);
   useEffect(() => setSizes(pack.sizes.join(", ")), [pack.sizes.join("|")]);
   const change = (p: VectorPack) => {
-    const checked = VectorPackSchema.safeParse(p);
+    const checked = VectorPackSchema.safeParse(pruneGroups(p));
     if (!checked.success) {
       notify(checked.error.issues[0]?.message ?? "Invalid vector pack", true);
       return;
@@ -231,7 +374,9 @@ export function VectorPackStudio({
     }
   };
   useEffect(() => {
-    exporter.current = exportPack;
+    exporter.current = async () => {
+      setReviewExport(true);
+    };
     return () => {
       exporter.current = null;
     };
@@ -301,11 +446,22 @@ export function VectorPackStudio({
       setCallout(null);
       return;
     }
+    let movingIds: string[] = [];
     if (id) {
-      setSelected(id);
+      movingIds =
+        ni !== undefined
+          ? [id]
+          : !e.shiftKey && selectedIds.includes(id)
+            ? selectedIds
+            : choose(id, e.shiftKey);
+      if (ni !== undefined) setSelected(id);
       setNode(ni ?? null);
       setCallout(null);
-      if (pack.layers.find((l) => l.id === id)?.locked) return;
+      if (
+        pack.layers.some((l) => movingIds.includes(l.id) && l.locked) ||
+        e.shiftKey
+      )
+        return;
     }
     if (ci) {
       setCallout(ci);
@@ -316,6 +472,7 @@ export function VectorPackStudio({
       start: local(e, v),
       pack,
       layer: id,
+      ids: movingIds,
       node: ni,
       contour,
       handle,
@@ -331,8 +488,8 @@ export function VectorPackStudio({
       dx = p.x - g.start.x,
       dy = p.y - g.start.y;
     const shift = (p: { x: number; y: number }) => ({
-      x: Math.max(-500, Math.min(1500, p.x + dx)),
-      y: Math.max(-500, Math.min(1500, p.y + dy)),
+      x: p.x + dx,
+      y: p.y + dy,
     });
     if (g.callout)
       change({
@@ -352,7 +509,7 @@ export function VectorPackStudio({
       change({
         ...g.pack,
         layers: g.pack.layers.map((l) => {
-          if (l.id !== g.layer) return l;
+          if (!g.ids?.includes(l.id)) return l;
           if (g.node === undefined) return mapLayer(l, shift);
           return setContour(
             l,
@@ -378,6 +535,13 @@ export function VectorPackStudio({
       commit();
     }
   };
+  const cancelDrag = () => {
+    if (!drag.current) return;
+    const original = drag.current.pack;
+    drag.current = null;
+    change(original);
+    commit();
+  };
   const finishPen = () => {
     if (pen.length >= 2)
       addLayer({
@@ -395,12 +559,15 @@ export function VectorPackStudio({
   const transform = (
     fn: (p: { x: number; y: number }) => { x: number; y: number },
   ) => {
-    if (layer && !layer.locked) updateLayer(mapLayer(layer, fn));
+    if (!lockedSelection) change(transformSelection(pack, selectedIds, fn));
   };
-  const bounds = layer ? layerBounds(layer) : null;
+  const bounds = selectionBounds(selectedLayers);
   const remove = () => {
-    if (layer && !layer.locked) {
-      change({ ...pack, layers: pack.layers.filter((l) => l.id !== layer.id) });
+    if (layer && !lockedSelection) {
+      change({
+        ...pack,
+        layers: pack.layers.filter((l) => !selectedIds.includes(l.id)),
+      });
       setSelected(null);
     } else if (call) {
       change({
@@ -414,13 +581,169 @@ export function VectorPackStudio({
     <main
       className={`vector-studio ${tab === "assets" ? "assets-open" : ""}`}
       aria-label="Vector pack studio"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          cancelDrag();
+          chooseIds([]);
+          setPen([]);
+          setTool("select");
+        }
+      }}
     >
+      {reviewExport && (
+        <VectorReview
+          title="Review production handoff"
+          close={() => setReviewExport(false)}
+        >
+          <p>
+            <strong>
+              Technical flat · {pack.style || "Untitled style"} · Revision{" "}
+              {pack.revision || "unset"}
+            </strong>
+          </p>
+          <p>
+            Measurements are in <strong>{pack.units}</strong>. SVG/PDF drawings
+            show design intent; use the specification table for dimensions.
+            Export cutting patterns separately from Pattern studio.
+          </p>
+          <p>
+            {format === "zip"
+              ? "Includes SVG views, PDF, measurement/material tables, editable project and a handoff report."
+              : `Export format: ${format.toUpperCase()}. The ZIP also includes the handoff report and editable project.`}
+          </p>
+          <div className="vector-review-findings">
+            {vectorPreflight(pack).length ? (
+              vectorPreflight(pack).map((issue, i) => (
+                <div key={i}>
+                  <p>
+                    <strong>
+                      {issue.severity === "error" ? "Cannot export" : "Review"}:
+                    </strong>{" "}
+                    {issue.message}
+                  </p>
+                  <button
+                    onClick={() => {
+                      navigateTab(issue.section);
+                      setReviewExport(false);
+                    }}
+                  >
+                    Go to{" "}
+                    {issue.section === "specs"
+                      ? "size specification"
+                      : issue.section}
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p>
+                No automated findings. Confirm the specifications and sample
+                with your recipient before production.
+              </p>
+            )}
+          </div>
+          <footer>
+            <button onClick={() => setReviewExport(false)}>Keep editing</button>
+            <button
+              className="primary"
+              disabled={
+                busy ||
+                vectorPreflight(pack).some((i) => i.severity === "error")
+              }
+              onClick={async () => {
+                await exportPack();
+                setReviewExport(false);
+              }}
+            >
+              Export reviewed {format.toUpperCase()}
+            </button>
+          </footer>
+        </VectorReview>
+      )}
+      {svgPreview && (
+        <VectorReview
+          title="Review SVG import"
+          close={() => setSvgPreview(null)}
+        >
+          <p>
+            <strong>{svgPreview.source.name}</strong> ·{" "}
+            {svgPreview.layers.length} editable paths ·{" "}
+            {svgPreview.layers[0].view} view
+          </p>
+          <p>
+            Original size: {svgPreview.source.width} ×{" "}
+            {svgPreview.source.height}. ViewBox:{" "}
+            {svgPreview.source.viewBox || "unspecified"}.
+          </p>
+          <svg
+            className="vector-import-preview"
+            viewBox="0 0 480 640"
+            role="img"
+            aria-label="Converted SVG preview"
+          >
+            <defs
+              dangerouslySetInnerHTML={{
+                __html: svgPreview.layers
+                  .filter((l) => l.textile)
+                  .map((l) =>
+                    textilePatternSvg(l.textile!, `import-fabric-${l.id}`),
+                  )
+                  .join(""),
+              }}
+            />
+            {svgPreview.layers.map((l) => (
+              <path
+                key={l.id}
+                d={vectorPath(l)}
+                fill={
+                  l.textile
+                    ? `url(#${textilePatternId(`import-fabric-${l.id}`)})`
+                    : l.fill
+                }
+                fillRule={l.fillRule}
+                stroke={l.stroke}
+                strokeWidth={l.strokeWidth}
+                strokeLinecap={l.lineCap}
+                strokeLinejoin={l.lineJoin}
+              />
+            ))}
+          </svg>
+          {svgPreview.warnings.map((w) => (
+            <p key={w}>{w}</p>
+          ))}
+          <p>
+            The original SVG and its dimensions are retained in the editable
+            project. No source markup is executed.
+          </p>
+          <footer>
+            <button onClick={() => setSvgPreview(null)}>Cancel import</button>
+            <button
+              className="primary"
+              onClick={() => {
+                try {
+                  const next = placeSvg(pack, svgPreview);
+                  change(next);
+                  chooseIds(svgPreview.layers.map((l) => l.id));
+                  setView(svgPreview.layers[0].view);
+                  setSvgPreview(null);
+                  notify("SVG imported. Undo restores the previous drawing.");
+                } catch (e) {
+                  notify(String(e), true);
+                }
+              }}
+            >
+              Place SVG
+            </button>
+          </footer>
+        </VectorReview>
+      )}
       <header className="vector-top">
         <button onClick={close}>
           <ArrowLeft size={15} /> Pattern studio
         </button>
         <div>
-          <span className="eyebrow">FASHION / VECTOR PACKS</span>
+          <span className="eyebrow">
+            STYLE {pack.style || "UNTITLED"} / REV {pack.revision || "—"}
+          </span>
           <h2>{pack.name || "Untitled garment"}</h2>
         </div>
         <div className="vector-history">
@@ -441,46 +764,119 @@ export function VectorPackStudio({
             <Redo2 size={16} />
           </button>
         </div>
-        <select
-          aria-label="Vector export format"
-          value={format}
-          onChange={(e) => setFormat(e.target.value as typeof format)}
+        {tab === "drawing" && (
+          <div
+            className="vector-panel-controls"
+            role="group"
+            aria-label="Drawing panels"
+          >
+            <button
+              aria-label="Garment library panel"
+              title={
+                libraryOpen ? "Hide garment library" : "Show garment library"
+              }
+              aria-controls="vector-library-panel"
+              aria-expanded={libraryOpen}
+              onClick={() => setLibraryOpen((v) => !v)}
+            >
+              <PanelLeft size={17} />
+              <span>Library</span>
+            </button>
+            <button
+              aria-label="Path inspector panel"
+              title={
+                inspectorOpen ? "Hide path inspector" : "Show path inspector"
+              }
+              aria-controls="vector-inspector-panel"
+              aria-expanded={inspectorOpen}
+              onClick={() => setInspectorOpen((v) => !v)}
+            >
+              <PanelRight size={17} />
+              <span>Inspector</span>
+            </button>
+          </div>
+        )}
+        <div className="vector-export-choice">
+          <select
+            aria-label="Vector export format"
+            aria-describedby="vector-export-intent"
+            value={format}
+            onChange={(e) => setFormat(e.target.value as typeof format)}
+          >
+            <option value="zip">Manufacturer pack · ZIP</option>
+            <option value="pdf">Tech pack · PDF</option>
+            <option value="svg">Editable flats · SVG</option>
+            <option value="json">Editable project · JSON</option>
+          </select>
+          <details className="vector-export-help">
+            <summary aria-label="About this export">
+              <Info size={15} />
+            </summary>
+            <small id="vector-export-intent">{exportDescription}</small>
+          </details>
+        </div>
+        <button
+          className="primary"
+          disabled={busy}
+          onClick={() => setReviewExport(true)}
         >
-          <option value="zip">Manufacturer pack · ZIP</option>
-          <option value="pdf">Tech pack · PDF</option>
-          <option value="svg">Editable flats · SVG</option>
-          <option value="json">Editable project · JSON</option>
-        </select>
-        <button className="primary" disabled={busy} onClick={exportPack}>
           <Download size={15} /> Export vector pack
         </button>
       </header>
       <nav className="vector-tabs" aria-label="Vector pack pages">
-        {(["drawing", "specs", "materials", "notes"] as const).map((t) => (
+        {(
+          [
+            "drawing",
+            "fabric",
+            "specs",
+            "materials",
+            "notes",
+            "development",
+          ] as const
+        ).map((t) => (
           <button
             key={t}
             aria-pressed={tab === t}
             className={tab === t ? "active" : ""}
-            onClick={() => {
-              setTab(t);
-              onLibraryChange(false);
-            }}
+            onClick={() => navigateTab(t)}
           >
             {
               {
                 drawing: "Technical flats",
+                fabric: "Fabric & color",
                 assets: "Asset library",
                 specs: "Size specification",
                 materials: "Materials & trims",
                 notes: "Style & instructions",
+                development: "Samples & revisions",
               }[t]
             }
           </button>
         ))}
-        <span>
-          STYLE {pack.style} / REV {pack.revision}
-        </span>
+        <button
+          className="vector-next-stage"
+          onClick={() => navigateTab(nextPage)}
+        >
+          {
+            {
+              specs: "Next: Define sizes",
+              materials: "Next: Add materials",
+              notes: "Next: Construction notes",
+              development: "Next: Sample review",
+              drawing: "Return to drawing",
+            }[nextPage]
+          }{" "}
+          →
+        </button>
       </nav>
+      {tab !== "assets" && tab !== "drawing" && tab !== "fabric" && (
+        <div className="vector-workflow-context">
+          <div>
+            <b>{pageGuidance[0]}</b>
+            <span>{pageGuidance[1]}</span>
+          </div>
+        </div>
+      )}
       {tab === "assets" ? (
         <GarmentAssetLibrary
           busy={busy}
@@ -494,9 +890,8 @@ export function VectorPackStudio({
             )
               next.name = name;
             change(next);
-            setTab("drawing");
-            onLibraryChange(false);
-            setSelected(layers[0]?.id ?? null);
+            navigateTab("drawing");
+            chooseIds(selectionFor(next, layers[0]?.id ?? ""));
             setView(layers[0]?.view ?? "front");
             setCallout(null);
             setPen([]);
@@ -506,14 +901,29 @@ export function VectorPackStudio({
             );
           }}
         />
+      ) : tab === "fabric" ? (
+        <TextileStudio
+          pack={pack}
+          selectedIds={selectedIds}
+          onSelect={chooseIds}
+          change={change}
+          busy={busy}
+          notify={notify}
+          returnToDrawing={() => navigateTab("drawing")}
+        />
       ) : tab === "drawing" ? (
-        <div className="vector-drawing">
-          <aside className="vector-sidebar">
+        <div
+          className={`vector-drawing${libraryOpen ? "" : " library-collapsed"}${inspectorOpen ? "" : " inspector-collapsed"}`}
+        >
+          <aside
+            id="vector-library-panel"
+            className="vector-sidebar"
+            aria-label="Garment library"
+          >
             <button
               className="asset-library-entry"
               onClick={() => {
-                setTab("assets");
-                onLibraryChange(true);
+                navigateTab("assets");
               }}
             >
               <Layers size={18} />
@@ -619,6 +1029,11 @@ export function VectorPackStudio({
               <small>{pack.layers.filter((l) => l.view === view).length}</small>
             </div>
             <div className="vector-layer-list">
+              {!pack.layers.some((l) => l.view === view) && (
+                <p className="vector-hint">
+                  No {view} paths yet. Add a template or draw a custom path.
+                </p>
+              )}
               {pack.layers
                 .filter((l) => l.view === view)
                 .slice()
@@ -626,11 +1041,11 @@ export function VectorPackStudio({
                 .map((l) => (
                   <div
                     key={l.id}
-                    className={selected === l.id ? "selected" : ""}
+                    className={selectedIds.includes(l.id) ? "selected" : ""}
                   >
                     <button
-                      onClick={() => {
-                        setSelected(l.id);
+                      onClick={(e) => {
+                        choose(l.id, e.shiftKey);
                         setNode(null);
                         setCallout(null);
                       }}
@@ -656,6 +1071,100 @@ export function VectorPackStudio({
                   </div>
                 ))}
             </div>
+            <button
+              disabled={busy || importingSvg}
+              onClick={() => svgFile.current?.click()}
+            >
+              {importingSvg ? "Reading SVG…" : "Import SVG drawing"}
+            </button>
+            <input
+              ref={svgFile}
+              hidden
+              type="file"
+              accept=".svg,image/svg+xml"
+              aria-label="Import SVG file"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (!f) return;
+                const generation = ++importGeneration.current;
+                setImportingSvg(true);
+                try {
+                  if (f.size > 500000) throw new Error("SVG limit is 500 KB.");
+                  const preview = await importSvg(await f.text(), f.name, view);
+                  if (generation === importGeneration.current)
+                    setSvgPreview(preview);
+                } catch (error) {
+                  if (generation === importGeneration.current)
+                    notify(`SVG not imported: ${String(error)}`, true);
+                } finally {
+                  if (generation === importGeneration.current)
+                    setImportingSvg(false);
+                }
+              }}
+            />
+            {pack.sources.length > 0 && (
+              <details className="vector-sources">
+                <summary>Original SVG files ({pack.sources.length}/8)</summary>
+                {pack.sources.map((source) => (
+                  <section key={source.id}>
+                    <p>
+                      <strong>{source.name}</strong>
+                      <br />
+                      {source.width} × {source.height}
+                    </p>
+                    <button
+                      disabled={busy}
+                      onClick={async () => {
+                        setBusy(true);
+                        try {
+                          const bytes = new TextEncoder().encode(
+                            source.original,
+                          );
+                          const digest = Array.from(
+                            new Uint8Array(
+                              await crypto.subtle.digest("SHA-256", bytes),
+                            ),
+                            (b) => b.toString(16).padStart(2, "0"),
+                          ).join("");
+                          if (digest !== source.sha256)
+                            throw new Error(
+                              "Original SVG integrity check failed.",
+                            );
+                          await saveVectorPack(
+                            bytes,
+                            source.name.replace(/\.svg$/i, ""),
+                            "svg",
+                          );
+                        } catch (error) {
+                          notify(String(error), true);
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
+                    >
+                      Save original SVG
+                    </button>
+                    <button
+                      disabled={busy}
+                      onClick={() =>
+                        change({
+                          ...pack,
+                          sources: pack.sources.filter(
+                            (s) => s.id !== source.id,
+                          ),
+                        })
+                      }
+                    >
+                      Remove saved original
+                    </button>
+                  </section>
+                ))}
+                <p>
+                  Removing an original keeps the placed paths. Undo restores it.
+                </p>
+              </details>
+            )}
             <button
               className="vector-import"
               onClick={() => file.current?.click()}
@@ -690,28 +1199,34 @@ export function VectorPackStudio({
           </aside>
           <section className="vector-canvas-area">
             <div className="vector-toolbar">
-              {(["select", "nodes", "pen", "callout"] as const).map((t) => (
-                <button
-                  key={t}
-                  aria-pressed={tool === t}
-                  className={tool === t ? "active" : ""}
-                  onClick={() => {
-                    setTool(t);
-                    setPen([]);
-                    if (t !== "nodes") setNode(null);
-                  }}
-                >
-                  {t === "pen" ? <PenTool size={14} /> : null}
-                  {
+              <div
+                className="vector-draw-tools"
+                role="group"
+                aria-label="Drawing tools"
+              >
+                {(["select", "nodes", "pen", "callout"] as const).map((t) => (
+                  <button
+                    key={t}
+                    aria-pressed={tool === t}
+                    className={tool === t ? "active" : ""}
+                    onClick={() => {
+                      setTool(t);
+                      setPen([]);
+                      if (t !== "nodes") setNode(null);
+                    }}
+                  >
+                    {t === "pen" ? <PenTool size={14} /> : null}
                     {
-                      select: "Select / move",
-                      nodes: "Edit points",
-                      pen: "Draw path",
-                      callout: "Add callout",
-                    }[t]
-                  }
-                </button>
-              ))}
+                      {
+                        select: "Select / move",
+                        nodes: "Edit points",
+                        pen: "Draw path",
+                        callout: "Add callout",
+                      }[t]
+                    }
+                  </button>
+                ))}
+              </div>
               <label className="vector-zoom">
                 Zoom
                 <select
@@ -749,7 +1264,105 @@ export function VectorPackStudio({
                 </button>
               </div>
             )}
+            <div className="vector-selectionbar">
+              <div
+                className="vector-view-switch"
+                aria-label="Working garment view"
+              >
+                {(["front", "back"] as const).map((v) => (
+                  <button
+                    key={v}
+                    aria-label={`Work on ${v} view`}
+                    aria-pressed={view === v}
+                    onClick={() => {
+                      setView(v);
+                      setPen([]);
+                      chooseIds([]);
+                    }}
+                    disabled={busy}
+                  >
+                    {v === "front" ? "Front" : "Back"}
+                  </button>
+                ))}
+              </div>
+
+              <label>
+                <input
+                  type="checkbox"
+                  checked={individual}
+                  onChange={(e) => {
+                    setIndividual(e.target.checked);
+                    setSelected(selected);
+                  }}
+                />{" "}
+                Individual paths
+              </label>
+              <button
+                disabled={busy}
+                onClick={() =>
+                  chooseIds(
+                    pack.layers.filter((l) => l.view === view).map((l) => l.id),
+                  )
+                }
+              >
+                Select {view}
+              </button>
+              <button
+                disabled={busy || selectedIds.length < 2}
+                onClick={() => change(groupSelection(pack, selectedIds))}
+              >
+                Group selection
+              </button>
+              <button
+                disabled={
+                  busy ||
+                  !pack.groups.some((g) =>
+                    g.layerIds.some((id) => selectedIds.includes(id)),
+                  )
+                }
+                onClick={() =>
+                  change({
+                    ...pack,
+                    groups: pack.groups.filter(
+                      (g) => !g.layerIds.some((id) => selectedIds.includes(id)),
+                    ),
+                  })
+                }
+              >
+                Ungroup selection
+              </button>
+              <span aria-live="polite">{selectedIds.length} selected</span>
+            </div>
             <div className="vector-canvas-scroll">
+              {pack.layers.length === 0 &&
+                pack.callouts.length === 0 &&
+                tool === "select" && (
+                  <div className="vector-empty-canvas">
+                    <ShirtIcon />
+                    <h3>Start with a garment shape</h3>
+                    <p>
+                      Choose an editable flat or draw your own outline. Add
+                      front and back views before preparing your handoff.
+                    </p>
+                    <div>
+                      <button
+                        onClick={() => {
+                          navigateTab("assets");
+                        }}
+                      >
+                        Explore garment library
+                      </button>
+                      <button
+                        onClick={() => {
+                          setTool("pen");
+                          setPen([]);
+                        }}
+                      >
+                        Draw from scratch
+                      </button>
+                    </div>
+                  </div>
+                )}
               <svg
                 ref={svg}
                 className={`vector-canvas tool-${tool}`}
@@ -759,9 +1372,19 @@ export function VectorPackStudio({
                 role="group"
                 onPointerMove={move}
                 onPointerUp={finish}
-                onPointerCancel={finish}
+                onPointerCancel={cancelDrag}
                 onLostPointerCapture={finish}
               >
+                <defs
+                  dangerouslySetInnerHTML={{
+                    __html: pack.layers
+                      .filter((l) => l.textile)
+                      .map((l) =>
+                        textilePatternSvg(l.textile!, `canvas-fabric-${l.id}`),
+                      )
+                      .join(""),
+                  }}
+                />
                 <defs>
                   <clipPath id="vector-artboard">
                     <rect width="480" height="640" />
@@ -805,28 +1428,34 @@ export function VectorPackStudio({
                         <g key={l.id} data-vector-layer={l.id}>
                           <path
                             d={vectorPath(l)}
-                            fill={l.fill}
-                            fillRule={l.contours ? "evenodd" : "nonzero"}
+                            fill={
+                              l.textile
+                                ? `url(#${textilePatternId(`canvas-fabric-${l.id}`)})`
+                                : l.fill
+                            }
+                            fillRule={
+                              l.fillRule ?? (l.contours ? "evenodd" : "nonzero")
+                            }
                             stroke={l.stroke}
                             strokeWidth={l.strokeWidth}
                             strokeDasharray={l.dashed ? "5 4" : undefined}
-                            strokeLinejoin="round"
-                            strokeLinecap="round"
+                            strokeLinejoin={l.lineJoin ?? "round"}
+                            strokeLinecap={l.lineCap ?? "round"}
                             onPointerDown={(e) => start(e, v, l.id)}
                             tabIndex={0}
                             role="button"
                             aria-label={`Select ${v} ${l.name}`}
                             onFocus={() => {
-                              setSelected(l.id);
+                              if (!selectedIds.includes(l.id)) choose(l.id);
                               setView(v);
                             }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") {
-                                setSelected(l.id);
+                                choose(l.id, e.shiftKey);
                                 setView(v);
                               }
                               if (
-                                !l.locked &&
+                                !lockedSelection &&
                                 [
                                   "ArrowUp",
                                   "ArrowDown",
@@ -836,32 +1465,38 @@ export function VectorPackStudio({
                               ) {
                                 e.preventDefault();
                                 const d = e.shiftKey ? 10 : 1;
-                                updateLayer(
-                                  mapLayer(l, (p) => ({
-                                    x:
-                                      p.x +
-                                      (e.key === "ArrowLeft"
-                                        ? -d
-                                        : e.key === "ArrowRight"
-                                          ? d
-                                          : 0),
-                                    y:
-                                      p.y +
-                                      (e.key === "ArrowUp"
-                                        ? -d
-                                        : e.key === "ArrowDown"
-                                          ? d
-                                          : 0),
-                                  })),
+                                change(
+                                  transformSelection(
+                                    pack,
+                                    selectedIds.includes(l.id)
+                                      ? selectedIds
+                                      : selectionFor(pack, l.id, individual),
+                                    (p) => ({
+                                      x:
+                                        p.x +
+                                        (e.key === "ArrowLeft"
+                                          ? -d
+                                          : e.key === "ArrowRight"
+                                            ? d
+                                            : 0),
+                                      y:
+                                        p.y +
+                                        (e.key === "ArrowUp"
+                                          ? -d
+                                          : e.key === "ArrowDown"
+                                            ? d
+                                            : 0),
+                                    }),
+                                  ),
                                 );
                               }
                             }}
                           />
-                          {l.id === selected && (
+                          {selectedIds.includes(l.id) && (
                             <path
                               d={vectorPath(l)}
                               fill="none"
-                              stroke="#28759b"
+                              stroke="#303030"
                               strokeWidth="1"
                               strokeDasharray="3 4"
                               pointerEvents="none"
@@ -882,14 +1517,14 @@ export function VectorPackStudio({
                                             y1={n.y}
                                             x2={n[h]!.x}
                                             y2={n[h]!.y}
-                                            stroke="#28759b"
+                                            stroke="#303030"
                                           />
                                           <circle
                                             cx={n[h]!.x}
                                             cy={n[h]!.y}
                                             r="3"
                                             fill="white"
-                                            stroke="#28759b"
+                                            stroke="#303030"
                                             onPointerDown={(e) =>
                                               start(e, v, l.id, i, h)
                                             }
@@ -901,8 +1536,8 @@ export function VectorPackStudio({
                                   cx={n.x}
                                   cy={n.y}
                                   r={i === node ? 4 : 3}
-                                  fill={i === node ? "#28759b" : "white"}
-                                  stroke="#28759b"
+                                  fill={i === node ? "#303030" : "white"}
+                                  stroke="#303030"
                                   data-vector-node={i}
                                   onPointerDown={(e) => start(e, v, l.id, i)}
                                 />
@@ -978,7 +1613,7 @@ export function VectorPackStudio({
                               : ""
                           }
                           fill="none"
-                          stroke="#28759b"
+                          stroke="#303030"
                           strokeWidth="1.5"
                           pointerEvents="none"
                         />
@@ -988,7 +1623,7 @@ export function VectorPackStudio({
                             cx={p.x}
                             cy={p.y}
                             r="3"
-                            fill="#28759b"
+                            fill="#303030"
                             pointerEvents="none"
                           />
                         ))}
@@ -999,19 +1634,214 @@ export function VectorPackStudio({
               </svg>
             </div>
             <footer className="vector-canvas-status">
-              {tool === "nodes"
-                ? "Select an anchor; drag it or its curve handles."
-                : "Select a path to move, recolor or reshape it."}
+              <span aria-live="polite">
+                {tool === "pen" || tool === "callout" || tool === "nodes"
+                  ? toolGuidance
+                  : call
+                    ? "Construction callout selected"
+                    : selectedIds.length
+                      ? `${selectedIds.length === 1 ? layer?.name || "Unnamed path" : `${selectedIds.length} paths`} selected${lockedSelection ? " · Locked" : ""}`
+                      : "Select a path to move it · Shift-click for multiple paths"}
+              </span>
               <span>
-                {pack.layers.length} paths / {pack.callouts.length} callouts
+                {view === "front" ? "Front" : "Back"} · {pack.layers.length}{" "}
+                paths / {pack.callouts.length} callouts
               </span>
             </footer>
           </section>
-          <aside className="vector-inspector">
+          <aside
+            id="vector-inspector-panel"
+            className="vector-inspector"
+            aria-label="Path inspector"
+          >
             <span className="eyebrow">
               {call ? "CONSTRUCTION CALLOUT" : "PATH PROPERTIES"}
             </span>
-            {layer && bounds ? (
+            {selectedIds.length > 1 && bounds ? (
+              <>
+                <h3>
+                  {pack.groups.find(
+                    (g) =>
+                      g.layerIds.length === selectedIds.length &&
+                      g.layerIds.every((id) => selectedIds.includes(id)),
+                  )?.name ?? "Multiple paths"}
+                </h3>
+                {pack.groups
+                  .filter(
+                    (g) =>
+                      g.layerIds.length === selectedIds.length &&
+                      g.layerIds.every((id) => selectedIds.includes(id)),
+                  )
+                  .map((g) => (
+                    <label key={g.id}>
+                      Group name
+                      <input
+                        aria-label="Group name"
+                        maxLength={80}
+                        value={g.name}
+                        onChange={(e) =>
+                          change({
+                            ...pack,
+                            groups: pack.groups.map((a) =>
+                              a.id === g.id
+                                ? { ...a, name: e.target.value }
+                                : a,
+                            ),
+                          })
+                        }
+                      />
+                    </label>
+                  ))}
+                <p>
+                  {selectedIds.length} paths selected. Shift-click adds or
+                  removes a garment.
+                </p>
+                <fieldset disabled={busy || lockedSelection}>
+                  <Num
+                    label="Selection X"
+                    value={bounds.x}
+                    onChange={(x) =>
+                      transform((p) => ({ ...p, x: p.x + x - bounds.x }))
+                    }
+                  />
+                  <Num
+                    label="Selection Y"
+                    value={bounds.y}
+                    onChange={(y) =>
+                      transform((p) => ({ ...p, y: p.y + y - bounds.y }))
+                    }
+                  />
+                  <Num
+                    label="Selection width"
+                    min={1}
+                    value={bounds.width}
+                    onChange={(w) =>
+                      bounds.width &&
+                      transform((p) => ({
+                        ...p,
+                        x: bounds.x + ((p.x - bounds.x) * w) / bounds.width,
+                      }))
+                    }
+                  />
+                  <Num
+                    label="Selection height"
+                    min={1}
+                    value={bounds.height}
+                    onChange={(h) =>
+                      bounds.height &&
+                      transform((p) => ({
+                        ...p,
+                        y: bounds.y + ((p.y - bounds.y) * h) / bounds.height,
+                      }))
+                    }
+                  />
+                  <button
+                    onClick={() =>
+                      transform((p) => ({
+                        ...p,
+                        x: 2 * bounds.x + bounds.width - p.x,
+                      }))
+                    }
+                  >
+                    Mirror selection
+                  </button>
+                  <button
+                    onClick={() => {
+                      const cx = bounds.x + bounds.width / 2,
+                        cy = bounds.y + bounds.height / 2;
+                      transform((p) => ({
+                        x: cx - (p.y - cy),
+                        y: cy + (p.x - cx),
+                      }));
+                    }}
+                  >
+                    Rotate selection 90°
+                  </button>
+                  <button
+                    onClick={() => {
+                      const result = duplicateSelection(pack, selectedIds);
+                      change(result.pack);
+                      chooseIds(result.ids);
+                    }}
+                  >
+                    Duplicate selection
+                  </button>
+                  <button
+                    onClick={() => {
+                      const result = duplicateSelection(
+                        pack,
+                        selectedIds,
+                        view === "front" ? "back" : "front",
+                      );
+                      change(result.pack);
+                      chooseIds(result.ids);
+                      setView(view === "front" ? "back" : "front");
+                    }}
+                  >
+                    Copy selection to other view
+                  </button>
+                  <button
+                    onClick={() =>
+                      change(reorderSelection(pack, selectedIds, true))
+                    }
+                  >
+                    Bring selection forward
+                  </button>
+                  <button
+                    onClick={() =>
+                      change(reorderSelection(pack, selectedIds, false))
+                    }
+                  >
+                    Send selection behind
+                  </button>
+                  <button onClick={remove}>Delete selection</button>
+                </fieldset>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    change({
+                      ...pack,
+                      layers: pack.layers.map((l) =>
+                        selectedIds.includes(l.id)
+                          ? { ...l, locked: !lockedSelection }
+                          : l,
+                      ),
+                    })
+                  }
+                >
+                  {lockedSelection ? "Unlock selection" : "Lock selection"}
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    change({
+                      ...pack,
+                      layers: pack.layers.map((l) =>
+                        selectedIds.includes(l.id)
+                          ? {
+                              ...l,
+                              visible: !selectedLayers.every((l) => l.visible),
+                            }
+                          : l,
+                      ),
+                    })
+                  }
+                >
+                  {selectedLayers.every((l) => l.visible)
+                    ? "Hide selection"
+                    : "Show selection"}
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => {
+                    setIndividual(true);
+                    setSelected(selected);
+                  }}
+                >
+                  Edit individual paths
+                </button>
+              </>
+            ) : layer && bounds ? (
               <>
                 <label>
                   Layer name
@@ -1038,7 +1868,12 @@ export function VectorPackStudio({
                         aria-label="Path fill"
                         type="color"
                         value={layer.fill === "none" ? "#ffffff" : layer.fill}
-                        onChange={(e) => updateLayer({ fill: e.target.value })}
+                        onChange={(e) =>
+                          updateLayer({
+                            fill: e.target.value,
+                            textile: undefined,
+                          })
+                        }
                       />
                     </label>
                     <label>
@@ -1053,6 +1888,9 @@ export function VectorPackStudio({
                       />
                     </label>
                   </div>
+                  <button onClick={() => navigateTab("fabric")}>
+                    Fabric & color{layer.textile ? " · Edit print" : " →"}
+                  </button>
                   <label className="vector-inline">
                     <input
                       type="checkbox"
@@ -1060,6 +1898,7 @@ export function VectorPackStudio({
                       onChange={(e) =>
                         updateLayer({
                           fill: e.target.checked ? "none" : "#f0eee9",
+                          textile: undefined,
                         })
                       }
                     />{" "}
@@ -1435,10 +2274,56 @@ export function VectorPackStudio({
                 <button onClick={remove}>Delete callout</button>
               </>
             ) : (
-              <p className="vector-hint">
-                Select a layer on the drawing or in the layer list. Use Draw
-                path to create your own shapes.
-              </p>
+              <div className="vector-inspector-empty">
+                <Layers size={24} />
+                <h3>
+                  {tool === "pen"
+                    ? "Drawing a new path"
+                    : tool === "callout"
+                      ? "Add a construction note"
+                      : "Choose something to edit"}
+                </h3>
+                <p>
+                  {tool === "pen"
+                    ? "Place at least two points on the active artboard, then choose Finish path."
+                    : tool === "callout"
+                      ? "Click the detail on your drawing. Its numbered note and position appear here."
+                      : "Select a garment path or a layer to change its color, shape and position."}
+                </p>
+                {tool !== "pen" && tool !== "callout" && (
+                  <>
+                    {pack.layers.some((l) => l.view === view && l.visible) && (
+                      <button
+                        onClick={() =>
+                          choose(
+                            pack.layers.find(
+                              (l) => l.view === view && l.visible,
+                            )!.id,
+                          )
+                        }
+                      >
+                        Select first {view} path
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setTool("pen");
+                        setPen([]);
+                      }}
+                    >
+                      Start a custom path
+                    </button>
+                    <details>
+                      <summary>Selection tips</summary>
+                      <p>
+                        Shift-click to select several paths. Turn on Individual
+                        paths to edit part of a group. Use arrow keys to nudge a
+                        selected path.
+                      </p>
+                    </details>
+                  </>
+                )}
+              </div>
             )}
             {pack.callouts.length > 0 && (
               <div className="vector-callout-list">
@@ -1459,6 +2344,8 @@ export function VectorPackStudio({
             )}
           </aside>
         </div>
+      ) : tab === "development" ? (
+        <StyleDevelopment pack={pack} change={change} notify={notify} />
       ) : (
         <section className="vector-data-page">
           {tab === "specs" ? (
@@ -1571,11 +2458,38 @@ export function VectorPackStudio({
                               change({
                                 ...pack,
                                 measurements: pack.measurements.map((r) =>
-                                  r.id === m.id ? { ...r, tolerance: n } : r,
+                                  r.id === m.id
+                                    ? {
+                                        ...r,
+                                        tolerance: n,
+                                        toleranceConfirmed: true,
+                                      }
+                                    : r,
                                 ),
                               })
                             }
                           />
+                          <label>
+                            <input
+                              type="checkbox"
+                              aria-label={`Confirm tolerance ${i + 1}`}
+                              checked={m.toleranceConfirmed ?? false}
+                              onChange={(e) =>
+                                change({
+                                  ...pack,
+                                  measurements: pack.measurements.map((r) =>
+                                    r.id === m.id
+                                      ? {
+                                          ...r,
+                                          toleranceConfirmed: e.target.checked,
+                                        }
+                                      : r,
+                                  ),
+                                })
+                              }
+                            />
+                            Confirmed
+                          </label>
                         </td>
                         {pack.sizes.map((s, j) => (
                           <td key={s}>

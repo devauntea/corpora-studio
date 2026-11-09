@@ -6,9 +6,13 @@ export const PrinterSchema = z
     name: z.string().min(1).max(80),
     measuredX: n(40, 60),
     measuredY: n(40, 60),
+    paper: z.string().max(100).optional(),
+    settings: z.string().max(180).optional(),
   })
   .strict();
 export type PrinterCalibration = z.infer<typeof PrinterSchema>;
+export const printerProfileKey = (p: PrinterCalibration) =>
+  JSON.stringify([p.name, p.paper ?? "", p.settings ?? ""]);
 export type StencilSettings = {
   width: number;
   lineWeight: number;
@@ -17,8 +21,21 @@ export type StencilSettings = {
   paper: "a4" | "letter";
   printer: PrinterCalibration;
 };
+export const StencilSettingsSchema = z
+  .object({
+    width: n(10, 600),
+    lineWeight: n(0.05, 2),
+    dpi: z.union([z.literal(150), z.literal(300), z.literal(600)]),
+    mirror: z.boolean(),
+    paper: z.enum(["a4", "letter"]),
+    printer: PrinterSchema,
+  })
+  .strict();
 export function stencilDimensions(w: number, h: number, s: StencilSettings) {
   if (
+    !Number.isFinite(w) ||
+    !Number.isFinite(h) ||
+    !StencilSettingsSchema.safeParse(s).success ||
     w < 1 ||
     h < 1 ||
     s.width < 10 ||
@@ -43,7 +60,7 @@ export async function calibrationPdf(paper: "a4" | "letter") {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: paper, precision: 5 });
   doc.setFontSize(18);
-  doc.text("FORM / PRINTER CALIBRATION", 20, 25);
+  doc.text("CORPORA / PRINTER CALIBRATION", 20, 25);
   doc.setFontSize(10);
   doc.text(
     [
@@ -98,7 +115,7 @@ export async function stencilPdf(
       if (row || col) doc.addPage();
       doc.setFontSize(8);
       doc.text(
-        `FORM stencil / R${row + 1} C${col + 1} / ${s.width.toFixed(1)} mm / print 100%`,
+        `CORPORA stencil / R${row + 1} C${col + 1} / ${s.width.toFixed(1)} mm / print 100%`,
         10,
         10,
       );
@@ -106,7 +123,7 @@ export async function stencilPdf(
       doc.rect(10, 16, tw, th, null).clip().discardPath();
       const tx = 12 - col * (tw - overlap),
         ty = 18 - row * (th - overlap);
-      doc.setCurrentTransformationMatrix(doc.Matrix(d.sx, 0, 0, d.sy, tx, ty));
+      // Apply correction in top-left millimetres, not raw PDF matrix units.
       doc.setLineWidth(s.lineWeight);
       doc.setLineCap("round");
       doc.setLineJoin("round");
@@ -116,7 +133,10 @@ export async function stencilPdf(
           .path(
             line.points.map(([x, y], i) => ({
               op: i ? ("l" as const) : ("m" as const),
-              c: [(s.mirror ? w - x : x) * d.scale, y * d.scale],
+              c: [
+                tx + (s.mirror ? w - x : x) * d.scale * d.sx,
+                ty + y * d.scale * d.sy,
+              ],
             })),
           )
           .stroke();
