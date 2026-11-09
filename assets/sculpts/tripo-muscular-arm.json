@@ -1,0 +1,33 @@
+{
+  "id": "tripo-muscular-arm",
+  "name": "Flexed muscular arm",
+  "section": "arm",
+  "description": "Bent arm with shoulder, forearm and clenched hand.",
+  "heightMm": 600.0,
+  "circumferenceMm": 310,
+  "chartWidthMm": 310,
+  "chartHeightMm": 600.0,
+  "author": "Devauntae Norman",
+  "source": "",
+  "license": "User-provided Tripo generation",
+  "sourceFile": "muscular arm 3d model.glb",
+  "sha256": "dd49f6582adf391040808937189c17cd2f164a0063a31cb94a5c89f7c3137821",
+  "file": "/sculpts/tripo-muscular-arm.glb",
+  "thumbnail": "/sculpts/tripo-muscular-arm.png",
+  "triangleCount": 10432,
+  "vertexCount": 8523,
+  "dimensionsMm": [
+    638.69,
+    600.0,
+    533.23
+  ],
+  "units": "meters",
+  "upAxis": "Y",
+  "frontAxis": "+Z",
+  "rigged": false,
+  "dimensionsEstimated": true,
+  "bytes": 1559300,
+  "outputSha256": "d941618109e5760d34002086713b0625ec7468d092e61b7babd3614c548a6609",
+  "uvMethod": "source",
+  "provenance": "User states these were made using Tripo. Source contains no license; no third-party CC license is inferred."
+}

@@ -1,7 +1,10 @@
 // Reproducible render review. Run against the local development/preview server.
 import { chromium, expect } from "@playwright/test";
 import fs from "node:fs/promises";
-const output = "qa/body-fidelity";
+const output = process.env.BODY_REVIEW_OUTPUT || "qa/body-fidelity";
+const revision = Number(process.env.BODY_REVISION || 6);
+const started = Date.now();
+const captures = [];
 await fs.mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({
@@ -37,6 +40,7 @@ const capture = async (name) => {
     .locator(".canvas-host")
     .screenshot({ path: `${output}/${name}.png` });
   images.push(name);
+  captures.push({name, body: JSON.parse(await page.locator(".canvas-host").getAttribute("data-rendered-body") || "{}")});
 };
 try {
   await page.goto(process.env.STUDIO_URL || "http://127.0.0.1:1420");
@@ -62,11 +66,11 @@ try {
           exact: true,
         })
         .click();
-      await ready({ model: { revision: 5, sex, physique } });
+      await ready({ model: { revision, sex, physique } });
       for (const section of ["upper-body", "full-arm", "full-leg"]) {
         await page.getByLabel("Body region").selectOption(section);
         await ready({ section });
-        for (const view of ["front", "back", "left"]) {
+        for (const view of ["front", "back", "left", "three-quarter"]) {
           await page
             .locator(".camera-tabs")
             .getByRole("button", { name: view, exact: true })
@@ -121,7 +125,7 @@ try {
     .getByRole("spinbutton", { name: "Anatomy filter opacity" })
     .press("Enter");
   await ready({ anatomy: true, model: { anatomyOpacity: 1 } });
-  for (const view of ["front", "back", "left"]) {
+  for (const view of ["front", "back", "left", "three-quarter"]) {
     await page
       .locator(".camera-tabs")
       .getByRole("button", { name: view, exact: true })
@@ -151,8 +155,14 @@ try {
   await capture("double-biceps-anatomy");
   await fs.writeFile(
     `${output}/render-review.html`,
-    `<!doctype html><meta charset="utf-8"><title>Form Studio body review</title><style>body{background:#161617;color:#eee;font:14px system-ui;margin:32px}main{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}figure{margin:0}img{width:100%}figcaption{padding:10px 0}</style><h1>Body revision 5 — render review</h1><main>${images.map((name) => `<figure><a href="${name}.png"><img src="${name}.png" loading="lazy"></a><figcaption>${name}</figcaption></figure>`).join("")}</main>`,
+    `<!doctype html><meta charset="utf-8"><title>Form Studio body review</title><style>body{background:#161617;color:#eee;font:14px system-ui;margin:32px}main{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}figure{margin:0}img{width:100%}figcaption{padding:10px 0}</style><h1>Body revision ${revision} — render review</h1><main>${images.map((name) => `<figure><a href="${name}.png"><img src="${name}.png" loading="lazy"></a><figcaption>${name}</figcaption></figure>`).join("")}</main>`,
   );
+  await fs.writeFile(`${output}/baseline.json`, JSON.stringify({
+    application: JSON.parse(await fs.readFile("package.json", "utf8")).version,
+    capturedAt: new Date().toISOString(), viewport: {width:1600,height:1100}, deviceScaleFactor:1.5,
+    bodyRevision:revision, elapsedSeconds:(Date.now()-started)/1000, captures,
+    fidelityQualification:"Not measured. Render captures are repeatable comparison evidence, not proof of anatomical accuracy or reference-model equivalence.", errors
+  }, null, 2));
   expect(errors).toEqual([]);
   console.log(JSON.stringify({ images: images.length, errors }));
 } finally {

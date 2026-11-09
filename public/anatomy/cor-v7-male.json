@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "buffer": "cor-v7-male.bin",
+  "sha256": "37fa1e08cc36eeadf4fa71d35f278dbae36bff56a1d46f467429165b6e81e5ce",
+  "count": 12056,
+  "method": "Centres of rotation for elbow/knee transition vertices: centroid of the skin ring with matching child-chain weight (approximation of Le & Hodgins 2016), smoothed along the weight axis, feathered to DQS at weight extremes.",
+  "license": "Derived from CC0 MakeHuman skeleton weights and revision 7 geometry."
+}

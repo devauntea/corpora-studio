@@ -1,0 +1,33 @@
+{
+  "id": "tripo-body-study",
+  "name": "Full body study",
+  "section": "body",
+  "description": "Full male body with head, hands and feet.",
+  "heightMm": 1800.0,
+  "circumferenceMm": 1020,
+  "chartWidthMm": 1020,
+  "chartHeightMm": 1800.0,
+  "author": "Devauntae Norman",
+  "source": "",
+  "license": "User-provided Tripo generation",
+  "sourceFile": "c6c3567f-9e5c-4cad-afba-8bfc2ab968d3.glb",
+  "sha256": "e7978adf52a6fafcad6fe7eb276b1ff35fa8984cbbe10cc68f87d8c209b2391d",
+  "file": "/sculpts/tripo-body-study.glb",
+  "thumbnail": "/sculpts/tripo-body-study.png",
+  "triangleCount": 10624,
+  "vertexCount": 10724,
+  "dimensionsMm": [
+    915.39,
+    1800.0,
+    338.54
+  ],
+  "units": "meters",
+  "upAxis": "Y",
+  "frontAxis": "+Z",
+  "rigged": false,
+  "dimensionsEstimated": true,
+  "bytes": 2666316,
+  "outputSha256": "6ec8f43df59cd698214246f2314274254bc131e6fead57572adf89ceeb8ca194",
+  "uvMethod": "source",
+  "provenance": "User states these were made using Tripo. Source contains no license; no third-party CC license is inferred."
+}

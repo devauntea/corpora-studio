@@ -1,0 +1,205 @@
+{
+  "source": "Form Studio built-in meshes and renderer; no external reference pixels",
+  "previews": [
+    {
+      "name": "upper-body-male-fit.webp",
+      "section": "upper-body",
+      "sex": "male",
+      "physique": "fit",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "full-arm-male-fit.webp",
+      "section": "full-arm",
+      "sex": "male",
+      "physique": "fit",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "full-leg-male-fit.webp",
+      "section": "full-leg",
+      "sex": "male",
+      "physique": "fit",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "full-body-male-fit.webp",
+      "section": "full-body",
+      "sex": "male",
+      "physique": "fit",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "neck-male-fit.webp",
+      "section": "neck",
+      "sex": "male",
+      "physique": "fit",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "upper-body-male-average.webp",
+      "section": "upper-body",
+      "sex": "male",
+      "physique": "average",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "full-arm-male-average.webp",
+      "section": "full-arm",
+      "sex": "male",
+      "physique": "average",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "full-leg-male-average.webp",
+      "section": "full-leg",
+      "sex": "male",
+      "physique": "average",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "full-body-male-average.webp",
+      "section": "full-body",
+      "sex": "male",
+      "physique": "average",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "neck-male-average.webp",
+      "section": "neck",
+      "sex": "male",
+      "physique": "average",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "upper-body-female-fit.webp",
+      "section": "upper-body",
+      "sex": "female",
+      "physique": "fit",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "full-arm-female-fit.webp",
+      "section": "full-arm",
+      "sex": "female",
+      "physique": "fit",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "full-leg-female-fit.webp",
+      "section": "full-leg",
+      "sex": "female",
+      "physique": "fit",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "full-body-female-fit.webp",
+      "section": "full-body",
+      "sex": "female",
+      "physique": "fit",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "neck-female-fit.webp",
+      "section": "neck",
+      "sex": "female",
+      "physique": "fit",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "upper-body-female-average.webp",
+      "section": "upper-body",
+      "sex": "female",
+      "physique": "average",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "full-arm-female-average.webp",
+      "section": "full-arm",
+      "sex": "female",
+      "physique": "average",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "full-leg-female-average.webp",
+      "section": "full-leg",
+      "sex": "female",
+      "physique": "average",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "full-body-female-average.webp",
+      "section": "full-body",
+      "sex": "female",
+      "physique": "average",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    },
+    {
+      "name": "neck-female-average.webp",
+      "section": "neck",
+      "sex": "female",
+      "physique": "average",
+      "revision": 9,
+      "side": "left",
+      "pose": "neutral",
+      "build": 1
+    }
+  ]
+}

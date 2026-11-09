@@ -1,0 +1,33 @@
+{
+  "id": "tripo-full-body",
+  "name": "Full body sculpt",
+  "section": "body",
+  "description": "Alternate full male body with head, hands and feet.",
+  "heightMm": 1800.0,
+  "circumferenceMm": 1020,
+  "chartWidthMm": 1020,
+  "chartHeightMm": 1800.0,
+  "author": "Devauntae Norman",
+  "source": "",
+  "license": "User-provided Tripo generation",
+  "sourceFile": "full body model.glb",
+  "sha256": "7510bc5dd7e87994faf31c8d1cd20cd28a5b33e319569c8210d781f7dcee242c",
+  "file": "/sculpts/tripo-full-body.glb",
+  "thumbnail": "/sculpts/tripo-full-body.png",
+  "triangleCount": 15118,
+  "vertexCount": 13517,
+  "dimensionsMm": [
+    906.6,
+    1800.0,
+    335.03
+  ],
+  "units": "meters",
+  "upAxis": "Y",
+  "frontAxis": "+Z",
+  "rigged": false,
+  "dimensionsEstimated": true,
+  "bytes": 2988484,
+  "outputSha256": "053d84c68e0abdad72239832d0df047ae52b344fb6603b59c5f947ad13ead188",
+  "uvMethod": "source",
+  "provenance": "User states these were made using Tripo. Source contains no license; no third-party CC license is inferred."
+}

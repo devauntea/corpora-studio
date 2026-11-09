@@ -6,9 +6,11 @@ import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 const dir=new URL('../public/anatomy/',import.meta.url);
 const hash=b=>createHash('sha256').update(b).digest('hex');
+const revision=Number(process.env.BODY_REVISION || 5);
+if (![5,6,7,8,9].includes(revision)) throw new Error('Unsupported body revision');
 const samples=32, range=.65;
 for(const sex of ['male','female']) {
-  const meta=JSON.parse(await fs.readFile(new URL(`human-v5-${sex}.json`,dir),'utf8'));
+  const meta=JSON.parse(await fs.readFile(new URL(`human-v${revision}-${sex}.json`,dir),'utf8'));
   const raw=await fs.readFile(new URL(meta.buffer,dir));
   if(hash(raw)!==meta.sha256) throw new Error('Body checksum mismatch');
   const buffer=raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength);
@@ -47,10 +49,10 @@ for(const sex of ['male','female']) {
     geometry.dispose();
     console.log(`${sex} ${fit?'fit':'average'} occlusion baked`);
   }
-  const name=`skin-occlusion-v5-${sex}.bin`;
+  const name=`skin-occlusion-v${revision}-${sex}.bin`;
   await fs.writeFile(new URL(name,dir),output);
   meta.occlusion={buffer:name,sha256:hash(output),bytesPerVertex:2,samples,rangeDm:range,description:'Cosine-weighted short-range rest-space visibility; average and fit uint8 channels. Artistic static shading, not dynamic pose shadows.'};
-  await fs.writeFile(new URL(`human-v5-${sex}.json`,dir),JSON.stringify(meta,null,2)+'\n');
+  await fs.writeFile(new URL(`human-v${revision}-${sex}.json`,dir),JSON.stringify(meta,null,2)+'\n');
 }
 const manifestPath=new URL('../assets/anatomy/hashes.json',import.meta.url);
 const manifest=JSON.parse(await fs.readFile(manifestPath,'utf8'));

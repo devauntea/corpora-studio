@@ -3,6 +3,8 @@ The v1 mesh is deliberately left untouched. All interpolated channels share topo
 """
 import json, math, pathlib, hashlib, array, runpy, sys
 EXTENDED='--full-body' in sys.argv
+RIG_SIDECAR='--rig-sidecar' in sys.argv
+if RIG_SIDECAR and not EXTENDED: raise ValueError('Rig export requires --full-body')
 sculpt_functions=runpy.run_path(str(pathlib.Path(__file__).with_name("surface-sculpt.py")))
 sculpt=sculpt_functions["sculpt"]; bony_landmarks=sculpt_functions["bony_landmarks"]
 R=pathlib.Path(__file__).resolve().parents[1]; S=R/'assets/anatomy/source'; OUT=R/('.tools/anatomy' if EXTENDED else 'public/anatomy')
@@ -72,6 +74,9 @@ def build(sex):
  for name,amount in details.items():
   delta=target(name)
   fit=[[p[c]+delta[i][c]*amount for c in range(3)] for i,p in enumerate(fit)]
+ # Preserve the helper-derived skeleton at both morph endpoints before the
+ # historical chart normalization. These helpers are not visible body vertices.
+ bone_frames=[{name:{end:avg([points[i] for i in sk['joints'][b[end]]]) for end in ['head','tail']} for name,b in sk['bones'].items()} for points in [v,fit]] if RIG_SIDECAR else []
  overrides={}
  if sex=='female':
   # Normalize section landmarks to the shared chart frame. The source female has a
@@ -94,11 +99,22 @@ def build(sex):
    if name.startswith(('lowerarm01','wrist','finger')):
     sh=original['upperarm01.'+name[-1]];p=[sh[c]+(p[c]-sh[c])*1.14 for c in range(3)]
    p[1]=mapy(p[1]);overrides[name]=p
+  for frame in bone_frames:
+   for name,ends in frame.items():
+    side=name[-1]
+    for end,p in ends.items():
+     if side in ['L','R'] and desc(name,'upperarm01.'+side):
+      sh=original['upperarm01.'+side];p=[sh[c]+(p[c]-sh[c])*1.14 for c in range(3)]
+     p[1]=mapy(p[1]);ends[end]=p
  def joint(b):return overrides.get(b) or avg([v[i] for i in sk['joints'][sk['bones'][b]['head']]])
  joints={};hands={}
  for side,k in [('L',0),('R',3)]:
   sh,el,wr,hip,kn,ank=[joint(n+'.'+side) for n in ['upperarm01','lowerarm01','wrist','upperleg01','lowerleg01','foot']]
   a=norm(sub(wr,el));b=norm(sub(el,sh));ax=norm(cross(a,b));angle=math.acos(max(-1,min(1,dot(a,b))))
+  for frame in bone_frames:
+   for name,ends in frame.items():
+    if desc(name,'lowerarm01.'+side):
+     for end,p in ends.items():ends[end]=rot(p,el,ax,angle)
   hands[side]=[[rot(joint(f'finger{f}-{k}.'+side),el,ax,angle) for k in range(1,4)] for f in range(1,6)]
   for i in range(len(v)):
    w=channels[i][k+1]
@@ -108,8 +124,14 @@ def build(sex):
   joints[side]={'shoulder':sh,'elbow':el,'wrist':rot(wr,el,ax,angle),'hip':hip,'knee':kn,'ankle':ank}
  used=sorted(set(i for f in faces for i in f));mapping={i:j for j,i in enumerate(used)}
  data=[v[i]+sub(fit[i],v[i])+channels[i] for i in used];fs=[[mapping[i] for i in f] for f in faces]
+ if RIG_SIDECAR:
+  names=list(sk['bones']);full=[[0.]*len(names) for _ in base]
+  for bone,ws in weights.items():
+   for i,w in ws:full[i][names.index(bone)]=w
+  for row,i in zip(data,used):row.extend(full[i])
  for _ in range(2):data,fs=subdivide(data,fs)
  for vtx in data:
+  if RIG_SIDECAR: vtx.extend(vtx[:6]) # clean source surface before procedural layers
   fitpoint=bony_landmarks(sculpt([vtx[c]+vtx[c+3] for c in range(3)],vtx[6:12],joints,sex),joints,hands)
   vtx[:3]=bony_landmarks(vtx[:3],joints,hands)
   vtx[3:6]=[fitpoint[c]-vtx[c] for c in range(3)]
@@ -118,7 +140,7 @@ def build(sex):
   cut_distance=abs(vtx[1]-7.4) if EXTENDED else min(abs(vtx[1]-1.2),abs(vtx[1]-6.9),abs(vtx[1]-.6))
   t=min(1,cut_distance/.28);vtx[4]*=t*t*(3-2*t)
   # A clean proximal plane removes the hanging axillary sliver made by a weight-only cut.
-  vtx.extend([min(vtx[0]-(joints['L']['shoulder'][0]-.18), (vtx[6]-.04)*3), min(-vtx[0]-(-joints['R']['shoulder'][0]-.18), (vtx[9]-.04)*3)])
+  vtx[12:12]=[min(vtx[0]-(joints['L']['shoulder'][0]-.18), (vtx[6]-.04)*3), min(-vtx[0]-(-joints['R']['shoulder'][0]-.18), (vtx[9]-.04)*3)]
  def clip(poly,channel,cut,sign):
   result=[]
   for a,b in zip(poly,poly[1:]+poly[:1]):
@@ -127,7 +149,7 @@ def build(sex):
    if (da>=0)!=(db>=0):
     t=da/(da-db);result.append([u+(w-u)*t for u,w in zip(a,b)])
   return result
- vs=[];lookup={};parts=[[] for _ in range(6 if EXTENDED else 5)]
+ vs=[];sidecar=[];lookup={};parts=[[] for _ in range(6 if EXTENDED else 5)]
  for f in fs:
   poly=[data[i] for i in f];pieces=[]
   for zone,channel in [(1,12),(2,13)]:
@@ -142,19 +164,32 @@ def build(sex):
      if not EXTENDED and zone==0 and (abs(q[1]-1.2)<1e-5 or abs(q[1]-6.9)<1e-5):q=q[:];q[4]=0
      if not EXTENDED and zone>=3 and abs(q[1]-.6)<1e-5:q=q[:];q[4]=0
      key=tuple(round(x,6) for x in q[:12])
-     if key not in lookup:lookup[key]=len(vs);vs.append(list(key))
+     if key not in lookup:
+      lookup[key]=len(vs);vs.append(list(key))
+      if RIG_SIDECAR:sidecar.append(q[14:])
      parts[zone].append(lookup[key])
  # Float32 interleaved positions/deltas/rig weights, followed by packed Uint32 triangle indices.
  coordinates=array.array('f',[x for v in vs for x in v]);triangles=array.array('I',[x for p in parts for x in p])
  if sys.byteorder!='little':coordinates.byteswap();triangles.byteswap()
  blob=coordinates.tobytes()+triangles.tobytes()
- name=f'human-v4-base-{sex}' if EXTENDED else f'human-v2-{sex}';(OUT/(name+'.bin')).write_bytes(blob)
+ name=f'human-v4-base-{sex}' if EXTENDED else f'human-v2-{sex}'
+ if RIG_SIDECAR:
+  # A hard identity check prevents an accidental nearest-surface weight transfer.
+  assert blob==(OUT/(name+'.bin')).read_bytes(), 'Source topology drifted; do not export misregistered skin weights'
+  import numpy as np
+  np.save(OUT/f'rig-source-{sex}.npy',np.array(sidecar,dtype=np.float64))
+  (OUT/f'rig-source-{sex}.json').write_text(json.dumps({'bones':[{'name':n,'parent':names.index(sk['bones'][n]['parent']) if sk['bones'][n]['parent'] else -1,'average':bone_frames[0][n],'fit':bone_frames[1][n]} for n in names],'vertexCount':len(vs),'sourceSha256':hashlib.sha256(blob).hexdigest()},indent=2)+'\n')
+  print(sex,'rig exported with exact base-mesh identity',len(vs),flush=True)
+  return
+ (OUT/(name+'.bin')).write_bytes(blob)
  meta={'version':4 if EXTENDED else 2,'provenance':'MakeHuman core CC0; '+(S/'revision.txt').read_text().strip(),'vertexCount':len(vs),'partCounts':[len(p) for p in parts],'joints':joints,'buffer':name+'.bin','sha256':hashlib.sha256(blob).hexdigest()}
  (OUT/(name+'.json')).write_text(json.dumps(meta,indent=2)+'\n')
  # Local bake input, never shipped. This lets the anatomical field be regenerated against this exact surface.
  (R/'.tools/anatomy'/(f'{sex}-surface-v4.json' if EXTENDED else f'{sex}-surface.json')).write_text(json.dumps({'vertices':vs,'parts':parts,'joints':joints},separators=(',',':')))
  print(sex,len(vs),'vertices',sum(len(p)//3 for p in parts),'triangles',len(blob),'bytes',flush=True)
-for sex in ['male','female']:build(sex)
-manifest={f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(S.iterdir()) if f.is_file()}
-manifest.update({f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted((R/'public/anatomy').iterdir()) if f.is_file()})
-(R/'assets/anatomy/hashes.json').write_text(json.dumps(manifest,indent=2)+'\n')
+if __name__=='__main__':
+ for sex in ['male','female']:build(sex)
+ if not RIG_SIDECAR:
+  manifest={f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(S.iterdir()) if f.is_file()}
+  manifest.update({f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted((R/'public/anatomy').iterdir()) if f.is_file()})
+  (R/'assets/anatomy/hashes.json').write_text(json.dumps(manifest,indent=2)+'\n')

@@ -1,0 +1,72 @@
+[
+  {
+    "id": "anatomical-arm",
+    "vertices": 1211,
+    "triangles": 2135,
+    "uvCoordinates": 1211,
+    "embeddedImages": 3,
+    "bytes": 4313932,
+    "valid": true,
+    "outputSha256": "fce9768632add381b04ca3ff56de2f5b4604b95c69a908b74c0c1add63a8aa2b"
+  },
+  {
+    "id": "sculpt-arm",
+    "vertices": 77680,
+    "triangles": 150000,
+    "uvCoordinates": 77680,
+    "embeddedImages": 1,
+    "bytes": 4358324,
+    "valid": true,
+    "outputSha256": "3bd7d323b342d69579b5f266c836e1eb03e67eaf6802e841017a20855cae35ce"
+  },
+  {
+    "id": "sculpt-foot",
+    "vertices": 73772,
+    "triangles": 140000,
+    "uvCoordinates": 73772,
+    "embeddedImages": 1,
+    "bytes": 4149368,
+    "valid": true,
+    "outputSha256": "855fdf207b106ca5a9b2f40d47978e4120a0759cab4482bb301d841e91616519"
+  },
+  {
+    "id": "sculpt-hand",
+    "vertices": 64325,
+    "triangles": 120000,
+    "uvCoordinates": 64325,
+    "embeddedImages": 1,
+    "bytes": 2858084,
+    "valid": true,
+    "outputSha256": "f49686d3f26a378cd061bd5e175c756a5ad59e867c45a80b29e7b7d2595bd665"
+  },
+  {
+    "id": "sculpt-leg",
+    "vertices": 94087,
+    "triangles": 180000,
+    "uvCoordinates": 94087,
+    "embeddedImages": 1,
+    "bytes": 5252984,
+    "valid": true,
+    "outputSha256": "4efe958ac40b2e74d093981f36a0fe0de722171058371eb27e683d1d60f2c6ff"
+  },
+  {
+    "id": "sculpt-torso",
+    "vertices": 114676,
+    "triangles": 220000,
+    "uvCoordinates": 114676,
+    "embeddedImages": 1,
+    "bytes": 6824380,
+    "valid": true,
+    "outputSha256": "f2d837537ea426d0778586e3e9dbf8735b48c578aec33fa143dc19976c04cc5b"
+  },
+  {
+    "id": "torso-study",
+    "vertices": 98020,
+    "triangles": 180000,
+    "uvCoordinates": 98020,
+    "embeddedImages": 1,
+    "bytes": 6076456,
+    "valid": true,
+    "outputSha256": "7a7a6e12d7d2f793bc3346d34e70a80a469d5271c8b79c8eda2d7c37ba24355a"
+  }
+]

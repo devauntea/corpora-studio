@@ -1,0 +1,33 @@
+{
+  "id": "tripo-human-anatomy",
+  "name": "Human muscle atlas",
+  "section": "body",
+  "description": "Full body with original colored muscle texture.",
+  "heightMm": 1800.0,
+  "circumferenceMm": 1020,
+  "chartWidthMm": 1020,
+  "chartHeightMm": 1800.0,
+  "author": "Devauntae Norman",
+  "source": "",
+  "license": "User-provided Tripo generation",
+  "sourceFile": "human anatomy model 3d.glb",
+  "sha256": "70aef8c57f369f22a08742e10a5933cae9455b524a47c6e15a3c5117a7d0bd4f",
+  "file": "/sculpts/tripo-human-anatomy.glb",
+  "thumbnail": "/sculpts/tripo-human-anatomy.png",
+  "triangleCount": 32562,
+  "vertexCount": 31038,
+  "dimensionsMm": [
+    1019.15,
+    1800.0,
+    296.34
+  ],
+  "units": "meters",
+  "upAxis": "Y",
+  "frontAxis": "+Z",
+  "rigged": false,
+  "dimensionsEstimated": true,
+  "bytes": 4092680,
+  "outputSha256": "e00ba7e4ce488654ae09a76595f0b1f4ffc6f57695569752397233935ed21735",
+  "uvMethod": "source",
+  "provenance": "User states these were made using Tripo. Source contains no license; no third-party CC license is inferred."
+}

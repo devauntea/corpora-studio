@@ -1,0 +1,385 @@
+{
+  "vertexCount": 156419,
+  "groups": [
+    {
+      "name": "Pectoralis major",
+      "color": "#cb827b"
+    },
+    {
+      "name": "Rectus abdominis",
+      "color": "#be6485"
+    },
+    {
+      "name": "External oblique",
+      "color": "#8582b5"
+    },
+    {
+      "name": "Serratus anterior",
+      "color": "#c78091"
+    },
+    {
+      "name": "Trapezius",
+      "color": "#d18d96"
+    },
+    {
+      "name": "Latissimus dorsi",
+      "color": "#8aa6b8"
+    },
+    {
+      "name": "Infraspinatus",
+      "color": "#98bfb3"
+    },
+    {
+      "name": "Teres major",
+      "color": "#b39cbd"
+    },
+    {
+      "name": "Deltoid",
+      "color": "#b87da8"
+    },
+    {
+      "name": "Biceps brachii",
+      "color": "#9d81c4"
+    },
+    {
+      "name": "Triceps brachii",
+      "color": "#8bb9c5"
+    },
+    {
+      "name": "Brachialis",
+      "color": "#bb93b0"
+    },
+    {
+      "name": "Brachioradialis",
+      "color": "#a4be83"
+    },
+    {
+      "name": "Pronator teres",
+      "color": "#ca9a87"
+    },
+    {
+      "name": "Flexor carpi radialis",
+      "color": "#9c90bb"
+    },
+    {
+      "name": "Flexor carpi ulnaris",
+      "color": "#72ab9e"
+    },
+    {
+      "name": "Palmaris longus",
+      "color": "#d0ad7e"
+    },
+    {
+      "name": "Finger flexors",
+      "color": "#b7a0c5"
+    },
+    {
+      "name": "Extensor digitorum",
+      "color": "#9791bd"
+    },
+    {
+      "name": "Extensor carpi radialis",
+      "color": "#83b8b4"
+    },
+    {
+      "name": "Extensor carpi ulnaris",
+      "color": "#c193a7"
+    },
+    {
+      "name": "Thumb extensors",
+      "color": "#bfad82"
+    },
+    {
+      "name": "Rectus femoris",
+      "color": "#bd849a"
+    },
+    {
+      "name": "Vastus lateralis",
+      "color": "#b6bf7d"
+    },
+    {
+      "name": "Vastus medialis",
+      "color": "#9babc5"
+    },
+    {
+      "name": "Sartorius",
+      "color": "#cd9787"
+    },
+    {
+      "name": "Adductors",
+      "color": "#a894b9"
+    },
+    {
+      "name": "Tensor fasciae latae",
+      "color": "#9fb782"
+    },
+    {
+      "name": "Hamstrings",
+      "color": "#ae8bba"
+    },
+    {
+      "name": "Gastrocnemius",
+      "color": "#ba8195"
+    },
+    {
+      "name": "Soleus",
+      "color": "#8bb8aa"
+    },
+    {
+      "name": "Tibialis anterior",
+      "color": "#879dc2"
+    },
+    {
+      "name": "Fibularis",
+      "color": "#b3ba87"
+    },
+    {
+      "name": "Gluteus",
+      "color": "#c58e85"
+    },
+    {
+      "name": "Sternocleidomastoid",
+      "color": "#8cafb5"
+    },
+    {
+      "name": "Spinal extensors",
+      "color": "#aa9bbf"
+    }
+  ],
+  "license": "CC-BY-SA-4.0",
+  "source": "Z-Anatomy / BodyParts3D",
+  "revision": "679bc9bf746fdc2671398aa3857a8acff263a0fb",
+  "sha256": "e9e611fdab0c296e5c155fad5e9386a34fab9c75d3c20df1feb3b38bdd7d8c0e",
+  "format": 9,
+  "bytesPerVertex": 12,
+  "influenceChannels": "4 uint8 palette indices (36=connective), then 4 uint8 weights per vertex",
+  "modifications": "Existing 36-group parent registration constrained projection of 56 individual Z-Anatomy muscle meshes, with categorical smoothing and normalized weights. Source-derived head borders replace angle-based guesses. Not validated anatomy or non-rigid ICP.",
+  "headGroups": [
+    {
+      "id": 37,
+      "parent": 8,
+      "name": "Deltoid \u00b7 anterior",
+      "color": "#c8879d",
+      "match": "clavicular part of deltoid",
+      "flow": "Clavicle to the front of the upper arm."
+    },
+    {
+      "id": 38,
+      "parent": 8,
+      "name": "Deltoid \u00b7 lateral",
+      "color": "#a891c8",
+      "match": "acromial part of deltoid",
+      "flow": "Acromion to the outer upper arm."
+    },
+    {
+      "id": 39,
+      "parent": 8,
+      "name": "Deltoid \u00b7 posterior",
+      "color": "#8ea8c1",
+      "match": "scapular spinal part of deltoid",
+      "flow": "Scapular spine toward the back of the upper arm."
+    },
+    {
+      "id": 40,
+      "parent": 9,
+      "name": "Biceps \u00b7 long head",
+      "color": "#9c8bca",
+      "match": "long head of biceps brachii",
+      "flow": "Outer anterior upper arm; shortens as the elbow bends."
+    },
+    {
+      "id": 41,
+      "parent": 9,
+      "name": "Biceps \u00b7 short head",
+      "color": "#bf91bb",
+      "match": "short head of biceps brachii",
+      "flow": "Inner anterior upper arm toward the elbow."
+    },
+    {
+      "id": 42,
+      "parent": 10,
+      "name": "Triceps \u00b7 long head",
+      "color": "#8ab6af",
+      "match": "long head of triceps brachii",
+      "flow": "Scapula down the inner back of the upper arm."
+    },
+    {
+      "id": 43,
+      "parent": 10,
+      "name": "Triceps \u00b7 lateral head",
+      "color": "#8aa9c9",
+      "match": "lateral head of triceps brachii",
+      "flow": "Outer posterior upper arm toward the elbow tendon."
+    },
+    {
+      "id": 44,
+      "parent": 10,
+      "name": "Triceps \u00b7 medial head",
+      "color": "#b0bf99",
+      "match": "medial head of triceps brachii",
+      "flow": "Deep head visible near the inner elbow."
+    },
+    {
+      "id": 45,
+      "parent": 4,
+      "name": "Trapezius \u00b7 upper",
+      "color": "#c98f9f",
+      "match": "descending part of trapezius",
+      "flow": "Neck toward the clavicle and acromion."
+    },
+    {
+      "id": 46,
+      "parent": 4,
+      "name": "Trapezius \u00b7 middle",
+      "color": "#b49dbf",
+      "match": "transverse part of trapezius",
+      "flow": "Upper spine horizontally toward the scapula."
+    },
+    {
+      "id": 47,
+      "parent": 4,
+      "name": "Trapezius \u00b7 lower",
+      "color": "#93aabd",
+      "match": "ascending part of trapezius",
+      "flow": "Mid spine diagonally upward toward the scapula."
+    },
+    {
+      "id": 48,
+      "parent": 28,
+      "name": "Hamstrings \u00b7 biceps long head",
+      "color": "#b18db8",
+      "match": "long head of biceps femoris",
+      "flow": "Outer posterior thigh toward the fibular head."
+    },
+    {
+      "id": 49,
+      "parent": 28,
+      "name": "Hamstrings \u00b7 biceps short head",
+      "color": "#8da6bc",
+      "match": "short head of biceps femoris",
+      "flow": "Distal outer thigh; lies beneath the long head."
+    },
+    {
+      "id": 50,
+      "parent": 28,
+      "name": "Hamstrings \u00b7 semitendinosus",
+      "color": "#a4ba8a",
+      "match": "semitendinosus muscle",
+      "flow": "Long medial posterior thigh toward the inner knee."
+    },
+    {
+      "id": 51,
+      "parent": 28,
+      "name": "Hamstrings \u00b7 semimembranosus",
+      "color": "#c49b94",
+      "match": "semimembranosus muscle",
+      "flow": "Broad medial posterior thigh."
+    },
+    {
+      "id": 52,
+      "parent": 29,
+      "name": "Calf \u00b7 medial head",
+      "color": "#c087a4",
+      "match": "medial head of gastrocnemius",
+      "flow": "Inner calf belly converging toward the Achilles."
+    },
+    {
+      "id": 53,
+      "parent": 29,
+      "name": "Calf \u00b7 lateral head",
+      "color": "#979fc3",
+      "match": "lateral head of gastrocnemius",
+      "flow": "Outer calf belly converging toward the Achilles."
+    },
+    {
+      "id": 54,
+      "parent": 26,
+      "name": "Adductor longus",
+      "color": "#ba96b7",
+      "match": "adductor longus",
+      "flow": "Superficial inner thigh from pubis toward femur."
+    },
+    {
+      "id": 55,
+      "parent": 26,
+      "name": "Adductor magnus",
+      "color": "#8caeaa",
+      "match": "adductor magnus",
+      "flow": "Broad inner and posterior thigh."
+    },
+    {
+      "id": 56,
+      "parent": 26,
+      "name": "Gracilis",
+      "color": "#b6b68a",
+      "match": "gracilis muscle",
+      "flow": "Narrow strap along the inner thigh to the knee."
+    },
+    {
+      "id": 57,
+      "parent": 32,
+      "name": "Fibularis longus",
+      "color": "#a1bb91",
+      "match": "fibularis longus muscle",
+      "flow": "Outer lower leg, continuing behind the lateral ankle."
+    },
+    {
+      "id": 58,
+      "parent": 32,
+      "name": "Fibularis brevis",
+      "color": "#a699c1",
+      "match": "fibularis brevis muscle",
+      "flow": "Lower outer leg toward the base of the fifth metatarsal."
+    },
+    {
+      "id": 59,
+      "parent": 33,
+      "name": "Gluteus maximus",
+      "color": "#c78e87",
+      "match": "gluteus maximus muscle",
+      "flow": "Broad diagonal fan across the buttock."
+    },
+    {
+      "id": 60,
+      "parent": 33,
+      "name": "Gluteus medius",
+      "color": "#94b5ac",
+      "match": "gluteus medius muscle",
+      "flow": "Lateral hip fan toward the greater trochanter."
+    },
+    {
+      "id": 61,
+      "parent": 35,
+      "name": "Longissimus thoracis",
+      "color": "#a79ac1",
+      "match": "longissimus thoracis muscle",
+      "flow": "Long column beside the thoracic and lumbar spine."
+    },
+    {
+      "id": 62,
+      "parent": 35,
+      "name": "Iliocostalis lumborum",
+      "color": "#95b3a4",
+      "match": "iliocostalis lumborum muscle",
+      "flow": "Lateral lumbar column toward the lower ribs."
+    },
+    {
+      "id": 63,
+      "parent": 19,
+      "name": "Wrist extensor \u00b7 longus",
+      "color": "#8fb9c0",
+      "match": "extensor carpi radialis longus",
+      "flow": "Radial forearm toward the back of the wrist."
+    },
+    {
+      "id": 64,
+      "parent": 19,
+      "name": "Wrist extensor \u00b7 brevis",
+      "color": "#b7a0c8",
+      "match": "extensor carpi radialis brevis",
+      "flow": "Shorter radial extensor beside the longus."
+    }
+  ],
+  "surfaceRevision": 9,
+  "registrationNote": "Identical r8 52-region registration and source attribution; r9 changes only muscle-surface shape."
+}

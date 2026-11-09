@@ -10,7 +10,7 @@
     "Z-Anatomy \u2014 The libre 3D atlas of anatomy \u2014 CC-BY-SA 4.0",
     "Original model: Kousaku Okubo; Z-Anatomy design, 3D and anatomy: Gauthier Kervyn and contributors"
   ],
-  "adaptations": "Selected superficial muscle meshes registered to male/female skin landmarks and projected into a per-vertex color and identity field. Original palette and connective-tissue masks. No source definitions, organs, brain, ear or kidney models included. Revision 3 adds topology-aware label cleanup and smoothed categorical weights; the original field and sources are retained. Revision 4 extends registered coverage through a continuous pelvis and neck on full-body surfaces, with the same categorical smoothing and original palette. Revision 5 preserves registered labels on the refined skin and interpolates categorical weights at neck, isolated-leg and torso shoulder cuts; inherited shoulder/neck T-junctions are conformed.",
+  "adaptations": "Selected superficial muscle meshes registered to male/female skin landmarks and projected into a per-vertex color and identity field. Original palette and connective-tissue masks. No source definitions, organs, brain, ear or kidney models included. Revision 3 adds topology-aware label cleanup and smoothed categorical weights; the original field and sources are retained. Revision 4 extends registered coverage through a continuous pelvis and neck on full-body surfaces, with the same categorical smoothing and original palette. Revision 5 preserves registered labels on the refined skin and interpolates categorical weights at neck, isolated-leg and torso shoulder cuts; inherited shoulder/neck T-junctions are conformed. Revision 6 preserves revision 5 topology, categorical weights and atlas fields unchanged while refining chest/back skin positions. Revision 7 used parent-field separation grooves and authored landmarks. Revision 8 projects 56 selected muscle meshes into 28 individual-head labels inside the existing parent field, yielding 52 visible regions, and replaces analytical head grooves with source-projected borders. It retains the existing Z-Anatomy-derived CC BY-SA lineage; it is not a BodyParts3D-only license rebase or non-rigid ICP registration. Revision 9 preserves the inherited registered muscle fields and topology while refining the skin surface; its combined body assets retain the same attribution lineage.",
   "derivedFiles": [
     "public/anatomy/muscle-field-v2-male.bin",
     "public/anatomy/muscle-field-v2-male.json",
@@ -27,7 +27,36 @@
     "public/anatomy/muscle-field-v5-male.bin",
     "public/anatomy/muscle-field-v5-male.json",
     "public/anatomy/muscle-field-v5-female.bin",
-    "public/anatomy/muscle-field-v5-female.json"
+    "public/anatomy/muscle-field-v5-female.json",
+    "public/anatomy/muscle-field-v6-male.json",
+    "public/anatomy/muscle-field-v6-male.bin",
+    "public/anatomy/muscle-field-v6-female.json",
+    "public/anatomy/muscle-field-v6-female.bin",
+    "public/anatomy/human-v7-male.bin",
+    "public/anatomy/human-v7-male.json",
+    "public/anatomy/muscle-field-v7-male.bin",
+    "public/anatomy/muscle-field-v7-male.json",
+    "public/anatomy/human-v7-female.bin",
+    "public/anatomy/human-v7-female.json",
+    "public/anatomy/muscle-field-v7-female.bin",
+    "public/anatomy/muscle-field-v7-female.json",
+    "public/anatomy/human-v8-male.bin",
+    "public/anatomy/human-v8-male.json",
+    "public/anatomy/muscle-field-v8-male.bin",
+    "public/anatomy/muscle-field-v8-male.json",
+    "public/anatomy/human-v8-female.bin",
+    "public/anatomy/human-v8-female.json",
+    "public/anatomy/muscle-field-v8-female.bin",
+    "public/anatomy/muscle-field-v8-female.json",
+    "public/anatomy/human-v9-male.json",
+    "public/anatomy/human-v9-male.bin",
+    "public/anatomy/muscle-field-v9-male.json",
+    "public/anatomy/muscle-field-v9-male.bin",
+    "public/anatomy/human-v9-female.json",
+    "public/anatomy/human-v9-female.bin",
+    "public/anatomy/muscle-field-v9-female.json",
+    "public/anatomy/muscle-field-v9-female.bin"
   ],
-  "regeneration": "scripts/bake-muscle-atlas.py; input surfaces from scripts/build-detailed-anatomy.py; revision 3 fields: scripts/refine-body-surfaces.py; revision 4: same pipeline with --full-body (intermediates in .tools/anatomy); revision 5: scripts/build-reference-bodies.py"
+  "regeneration": "scripts/bake-muscle-atlas.py; input surfaces from scripts/build-detailed-anatomy.py; revision 3 fields: scripts/refine-body-surfaces.py; revision 4: same pipeline with --full-body (intermediates in .tools/anatomy); revision 5: scripts/build-reference-bodies.py; revision 6: scripts/build-body-revision6.py; occlusion: BODY_REVISION=6 node scripts/bake-body-occlusion.mjs; revision 8: scripts/bake-muscle-heads.py, scripts/build-body-revision8.py, scripts/polish-body-r8.py, scripts/bake-skin-detail.py, BODY_REVISION=8 node scripts/bake-body-occlusion.mjs; revision 9: scripts/build-body-revision9.py, BODY_REVISION=9 node scripts/bake-body-occlusion.mjs",
+  "revision8Registration": "registration-v8.json"
 }

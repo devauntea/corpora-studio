@@ -7,12 +7,14 @@ Coordinates are decimeters. Reference photographs are not packaged as textures.
 """
 import hashlib
 import json
+import sys
 from collections import defaultdict
 from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'public/anatomy'
+RIG_SIDECAR = '--rig-sidecar' in sys.argv
 
 
 def bell(x, radius):
@@ -154,6 +156,8 @@ def build(sex):
     # Revision 4's terminal ring retained the underside of the chin. Cut below
     # it at an actual neck section, sharing every newly intersected edge vertex.
     vertices = data.tolist()
+    sidecar = np.load(ROOT/f'.tools/anatomy/rig-source-{sex}.npy').tolist() if RIG_SIDECAR else None
+    if sidecar is not None: assert len(sidecar)==len(vertices)
     influences = np.frombuffer(field[n*4:], dtype=np.uint8).reshape(n,8).tolist()
     colors = np.frombuffer(field[:n*3], dtype=np.uint8).reshape(n,3).tolist()
     identities = list(field[n*3:n*4])
@@ -175,6 +179,7 @@ def build(sex):
         if plane=='neck': v[1],v[4] = 7.0,0.0
         index = len(vertices)
         vertices.append(v)
+        if sidecar is not None: sidecar.append([(1-t)*u+t*w for u,w in zip(sidecar[a],sidecar[b])])
         votes = {}
         for i,weight in [(a,1-t),(b,t)]:
             for group,w in zip(influences[i][:4],influences[i][4:]):
@@ -258,6 +263,11 @@ def build(sex):
         assert (np.sum(an[valid]*bn[valid], axis=1)>0).all(), (sex, t, 'inverted face')
     blob = data.astype('<f4').tobytes()+triangles.tobytes()
     name = f'human-v5-{sex}'
+    if RIG_SIDECAR:
+        assert blob==(OUT/f'{name}.bin').read_bytes(), 'Revision 5 topology drifted; skin weights would be misregistered'
+        np.save(ROOT/f'.tools/anatomy/rig-v5-{sex}.npy',np.array(sidecar,dtype=np.float64))
+        print(sex, 'rig propagated through every cut with exact revision 5 identity', n, flush=True)
+        return
     (OUT/f'{name}.bin').write_bytes(blob)
     meta.update(version=5, vertexCount=n, partCounts=[len(p) for p in parts], sectionLegParts=True, sectionTorsoPart=True, buffer=name+'.bin', sha256=hashlib.sha256(blob).hexdigest(),
                 parent=f'human-v4-{sex}',
@@ -277,7 +287,8 @@ def build(sex):
 if __name__ == '__main__':
     for sex in ['male', 'female']:
         build(sex)
-    manifest = {f.name: hashlib.sha256(f.read_bytes()).hexdigest()
-                for folder in [ROOT/'assets/anatomy/source', OUT]
-                for f in sorted(folder.iterdir()) if f.is_file()}
-    (ROOT/'assets/anatomy/hashes.json').write_text(json.dumps(manifest, indent=2)+'\n')
+    if not RIG_SIDECAR:
+        manifest = {f.name: hashlib.sha256(f.read_bytes()).hexdigest()
+                    for folder in [ROOT/'assets/anatomy/source', OUT]
+                    for f in sorted(folder.iterdir()) if f.is_file()}
+        (ROOT/'assets/anatomy/hashes.json').write_text(json.dumps(manifest, indent=2)+'\n')

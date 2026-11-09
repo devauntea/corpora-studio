@@ -1,0 +1,33 @@
+{
+  "id": "tripo-anatomical-human",
+  "name": "Anatomical body study",
+  "section": "body",
+  "description": "Full body anatomy study with original colored muscle texture.",
+  "heightMm": 1800.0,
+  "circumferenceMm": 1020,
+  "chartWidthMm": 1020,
+  "chartHeightMm": 1800.0,
+  "author": "Devauntae Norman",
+  "source": "",
+  "license": "User-provided Tripo generation",
+  "sourceFile": "anatomical human model 3d.glb",
+  "sha256": "8dbd9134b49ce42e8d2d2ebd0e530bb6b01f338f13405fcf779bbec48f90250d",
+  "file": "/sculpts/tripo-anatomical-human.glb",
+  "thumbnail": "/sculpts/tripo-anatomical-human.png",
+  "triangleCount": 32430,
+  "vertexCount": 28290,
+  "dimensionsMm": [
+    1061.36,
+    1800.0,
+    289.3
+  ],
+  "units": "meters",
+  "upAxis": "Y",
+  "frontAxis": "+Z",
+  "rigged": false,
+  "dimensionsEstimated": true,
+  "bytes": 3757624,
+  "outputSha256": "f092d510bc7f139109805ba05ac5af6c271af9d88731d9f9408d59dade4832d3",
+  "uvMethod": "source",
+  "provenance": "User states these were made using Tripo. Source contains no license; no third-party CC license is inferred."
+}

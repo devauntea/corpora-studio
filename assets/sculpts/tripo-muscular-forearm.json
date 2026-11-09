@@ -1,0 +1,33 @@
+{
+  "id": "tripo-muscular-forearm",
+  "name": "Extended muscular arm",
+  "section": "arm",
+  "description": "Extended shoulder-to-hand arm from the supplied forearm file.",
+  "heightMm": 730.0,
+  "circumferenceMm": 310,
+  "chartWidthMm": 310,
+  "chartHeightMm": 730.0,
+  "author": "Devauntae Norman",
+  "source": "",
+  "license": "User-provided Tripo generation",
+  "sourceFile": "muscular forearm 3d model.glb",
+  "sha256": "d37dad890d409e08fed36082c1c8332177deeab229baaa7fea549ca44b08f8fe",
+  "file": "/sculpts/tripo-muscular-forearm.glb",
+  "thumbnail": "/sculpts/tripo-muscular-forearm.png",
+  "triangleCount": 10420,
+  "vertexCount": 8894,
+  "dimensionsMm": [
+    203.63,
+    730.0,
+    179.38
+  ],
+  "units": "meters",
+  "upAxis": "Y",
+  "frontAxis": "+Z",
+  "rigged": false,
+  "dimensionsEstimated": true,
+  "bytes": 1674036,
+  "outputSha256": "54cc1b507f705b2cb97e3252d2ff3caaa1bf94364c8c3e6aa7545f02c920cd62",
+  "uvMethod": "source",
+  "provenance": "User states these were made using Tripo. Source contains no license; no third-party CC license is inferred."
+}
