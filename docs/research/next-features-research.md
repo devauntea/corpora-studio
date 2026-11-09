@@ -1,6 +1,6 @@
 # Form Studio — research for the remaining features
 
-Research notes, 4 November 2026. Nothing here is built. This covers the eight "Remaining original-brief work" items in [studio-completion-status.md](studio-completion-status.md): what already exists that we can reuse, copy ideas from or use as a reference, what each license allows, and a suggested approach. Read [advanced-studio-plan.md](advanced-studio-plan.md) for the earlier research (Procreate, Adobe masking, SMPL-X, MediaPipe), which this note doesn't repeat.
+Research notes, 4 November 2026. Nothing here is built. This covers the eight "Remaining original-brief work" items in [studio-completion-status.md](../studio-completion-status.md): what already exists that we can reuse, copy ideas from or use as a reference, what each license allows, and a suggested approach. Read [advanced-studio-plan.md](../history/advanced-studio-plan.md) for the earlier research (Procreate, Adobe masking, SMPL-X, MediaPipe), which this note doesn't repeat.
 
 **Current stack it has to fit:** Tauri 2 (Rust, `main.rs` only; deps are tauri, serde, rfd, tempfile, base64), React 19, Three.js, FreeSewing 4.10.2 (`@freesewing/core` and `@freesewing/teagan`, both MIT), clipper-lib, jsPDF, zod. Body bases come from MakeHuman CC0; muscle data comes from Z-Anatomy / BodyParts3D under CC BY-SA 4.0. The app has no Web Workers and no Python.
 
@@ -39,7 +39,7 @@ Research notes, 4 November 2026. Nothing here is built. This covers the eight "R
 
 ### Suggested approach
 
-1. Add a generic "design adapter" around the FreeSewing engine (we currently hard-code Teagan in [fashion-draft.ts](../src/fashion-draft.ts)). Then add 3–4 designs that cover the main block types: Titan (trousers), Brian or Breanna (bodice), Sarah (skirt), Simon (woven shirt).
+1. Add a generic "design adapter" around the FreeSewing engine (we currently hard-code Teagan in [fashion-draft.ts](../../src/fashion-draft.ts)). Then add 3–4 designs that cover the main block types: Titan (trousers), Brian or Breanna (bodice), Sarah (skirt), Simon (woven shirt).
 2. Make measurement profiles a first-class document object: named, reusable across projects, with a source note (tape, photo, standard) and ISO 8559-1 names. Import/export `.smis` and FreeSewing JSON.
 3. Grading = draft one design against an ordered list of profiles, then show a nested-outline view and grade-check export. No grade-rule engine.
 4. Fabric record: name, structure (woven/knit), stretch % in both directions, recovery, GSM, fiber, and an "allowed ease" rule that warns when the fabric can't support the design's negative ease. Keep these as labeled inputs, not physics.
@@ -56,7 +56,7 @@ Research notes, 4 November 2026. Nothing here is built. This covers the eight "R
 
 ### Suggested approach
 
-- Build the measurement step, not automatic reconstruction. Flow: capture guidance screen (flat, overhead, smoothed, marker in frame) → detect a printed marker for scale and perspective (OpenCV's ArUco module, Apache 2.0; or our own [photo-warp.ts](../src/photo-warp.ts) four-corner perspective with a manually clicked card) → user places or adjusts measurement points → values are written into an editable pattern.
+- Build the measurement step, not automatic reconstruction. Flow: capture guidance screen (flat, overhead, smoothed, marker in frame) → detect a printed marker for scale and perspective (OpenCV's ArUco module, Apache 2.0; or our own [photo-warp.ts](../../src/photo-warp.ts) four-corner perspective with a manually clicked card) → user places or adjusts measurement points → values are written into an editable pattern.
 - Show "visible vs hidden" assumptions explicitly. A flat-lay photo shows one layer. Seam allowances, darts, hidden facings and the back piece under the front are assumptions the user confirms.
 - Validation data: measure 10–20 garments by tape and by photo, and report the error per measurement. No vendor publishes independent error figures (Bodygram/3DLOOK only make marketing claims; [TechCrunch](https://techcrunch.com/2018/07/02/original-stitchs-new-bodygram-will-measure-your-body)), so our own small benchmark becomes the claim.
 - Automatic key-point detection is optional later. Add it only if it beats manual placement on that benchmark.
@@ -107,7 +107,7 @@ Exponential-map decals for placements (solves cross-seam placement) → per-tria
 
 ### Suggested approach
 
-The plan from [advanced-studio-plan.md](advanced-studio-plan.md) still holds; Anny makes it buildable. Steps: user confirms landmarks on 2+ photos → user enters height (scale) and a few tape measurements → optimize Anny phenotype and local-shape parameters against landmarks, silhouettes and tape values → show per-measurement **residuals** and which inputs were missing. This needs a PyTorch (or ported) optimizer, so it depends on item 8's compute-job design. Validate on a small group measured by tape before claiming accuracy.
+The plan from [advanced-studio-plan.md](../history/advanced-studio-plan.md) still holds; Anny makes it buildable. Steps: user confirms landmarks on 2+ photos → user enters height (scale) and a few tape measurements → optimize Anny phenotype and local-shape parameters against landmarks, silhouettes and tape values → show per-measurement **residuals** and which inputs were missing. This needs a PyTorch (or ported) optimizer, so it depends on item 8's compute-job design. Validate on a small group measured by tape before claiming accuracy.
 
 ---
 
@@ -147,7 +147,7 @@ Lattice warp first (fits our existing four-corner transform), then MLS point war
 - **Background compute jobs.** The app currently has no Web Workers. Two layers: (a) Web Workers for image processing and contour work already in TypeScript (no new dependency); (b) Tauri **sidecar** processes for heavy jobs (Python for Anny fitting, a Rust cloth solver), with progress events, cancellation, resource limits and no network by default. This is the prerequisite for items 3 and 5.
 - **Accessibility.** `@axe-core/playwright` plugs into our existing Playwright suite: `new AxeBuilder({ page }).withTags(["wcag2a","wcag2aa"]).analyze()`. [Example](https://developer.shopware.com/frontends/best-practices/testing/accessibility-testing.html). It scans the Vite build in Chromium/WebKit, not the Tauri window itself. Add manual VoiceOver passes for the native shell.
 - **macOS notarization.** Needs a paid Apple Developer account ($99/yr) and a Developer ID Application certificate. Tauri v2 signs and notarizes during `tauri build` from environment variables (`APPLE_CERTIFICATE`, App Store Connect API key or Apple ID). [Tauri macOS signing](https://v2.tauri.app/fr/distribute/sign/macos/).
-- **Windows qualification.** Tauri v2 documents OV certificates and Azure Key Vault (via `relic` and a custom `signCommand`). Azure Trusted Signing isn't in the official docs but can be wired in through the same `signCommand`. [Tauri Windows signing](https://v2.tauri.app/distribute/sign/windows/). Testing needs a real Windows machine or VM, a separate notice collection (as [dependencies.md](dependencies.md) already notes) and a WebView2 check.
+- **Windows qualification.** Tauri v2 documents OV certificates and Azure Key Vault (via `relic` and a custom `signCommand`). Azure Trusted Signing isn't in the official docs but can be wired in through the same `signCommand`. [Tauri Windows signing](https://v2.tauri.app/distribute/sign/windows/). Testing needs a real Windows machine or VM, a separate notice collection (as [dependencies.md](../dependencies.md) already notes) and a WebView2 check.
 - **Portfolio showcase.** Per the status doc, it's a static site of finished exports. Nothing in the editor needs to change; define an "export to portfolio" bundle (images + metadata JSON) and build the site separately.
 
 ---

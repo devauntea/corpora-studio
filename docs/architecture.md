@@ -2,7 +2,7 @@
 
 Date: 2026-11-03. Scope: first implementation task F01.
 
-Historical baseline. [F02 design and research](advanced-studio-plan.md) documents the current v2 schema, photo workspace and additional templates.
+Historical baseline. [F02 design and research](history/advanced-studio-plan.md) documents the current v2 schema, photo workspace and additional templates.
 
 ## Product boundary
 

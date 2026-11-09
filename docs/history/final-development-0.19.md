@@ -15,16 +15,16 @@ The inherited body revision 9, MakeHuman rig, anatomy guide, seven imported scul
 
 | Area | Result in this milestone | Evidence and qualification |
 | --- | --- | --- |
-| Starter measurements | Six male/female S/M/L starters supply the complete measurement set needed to preview the 65 bundled designs. Published chart anchors are separated from secondary estimates. | 390 design/profile combinations are included in the full unit suite. These are commercial-chart-based drafting examples, not population averages or guaranteed fit. [Sizing record](starter-sizing.md). |
+| Starter measurements | Six male/female S/M/L starters supply the complete measurement set needed to preview the 65 bundled designs. Published chart anchors are separated from secondary estimates. | 390 design/profile combinations are included in the full unit suite. These are commercial-chart-based drafting examples, not population averages or guaranteed fit. [Sizing record](../starter-sizing.md). |
 | Pattern browser | Searchable cards and a larger selected-pattern preview use actual local FreeSewing geometry. Size changes are staged before application. | Existing measurements are backed up; custom construction, layout, notes and profiles are retained. A full profile library causes an explicit refusal rather than overwriting a profile. |
-| Pattern-image inventory | PNG/JPEG originals, multiple references, source notes and permission records remain alongside calibrated editable pieces. | Four measured reference corners correct the flat plane. Clean closed outlines can be detected; manual tracing and correction are available. Text, grain, notches and hidden construction are not inferred. [Workflow and limits](pattern-source-workflow.md). |
+| Pattern-image inventory | PNG/JPEG originals, multiple references, source notes and permission records remain alongside calibrated editable pieces. | Four measured reference corners correct the flat plane. Clean closed outlines can be detected; manual tracing and correction are available. Text, grain, notches and hidden construction are not inferred. [Workflow and limits](../pattern-source-workflow.md). |
 | Approximate garment drafts | A measured flat-lay silhouette and user-confirmed dimensions generate a sleeveless box-top shell or straight pull-on-skirt pieces. | Results use real editable construction geometry and preserve their source calibration and generation recipe. Back shape, construction and fabric assumptions are explicit; a toile is required. |
 | Imported-piece workspace | A selected source study can open on a board containing only its custom pieces. | Existing template parameters and other construction are preserved. Selecting a template returns to the template workflow without deleting the inventory. |
 | Tattoo editor usability | Image/stencil actions, nested keyboard focus, compact-window model selection, pose-study layout and review-room spacing are repaired. | Tested at 1100 × 760, 1280 × 800 and 1440 × 940. The rendering engine and body assets were not rebuilt as part of this UI repair. [Tattoo audit](final-tattoo-audit.md). |
 | Fashion/Home presentation | The fashion sidebar has one usable scroll region; pattern browsing and task navigation are clearer. Home previews use real studio/engine assets. | Preview cards represent actual patterns or available app content, rather than invented finished-garment illustrations. Full automatic 3D garments are not supplied for every catalog design. |
 | Image integrity and budgets | PNG/JPEG inspection validates actual image structure/dimensions and honors the remaining pixel budget before browser decode. HEIC processing honors the remaining budget on the native path. | Original bytes and hashes are preserved. Multi-reference imports decode sequentially. Tests include malformed/truncated data, dimensions and real local HEIC references. |
 | Save semantics and migration | Project format 19 persists source inventory/custom-piece selection and migrates earlier formats. Browser download requests retain the unsaved-change guard. | Native file-save success and an unconfirmed browser download are distinguished. Format-18 measurements, body identity and immutable review fingerprints are covered by migration tests. |
-| Ownership and preparation | User-facing product ownership and package/native metadata identify Devauntae Norman. Publication preparation documents separate code/asset ownership from distribution rights. | Required third-party provenance remains. See [ownership](../OWNERSHIP.md) and [GitHub preparation](github-readiness.md). No publication or history rewrite was performed. |
+| Ownership and preparation | User-facing product ownership and package/native metadata identify Devauntae Norman. Publication preparation documents separate code/asset ownership from distribution rights. | Required third-party provenance remains. See [ownership](../../OWNERSHIP.md) and [GitHub preparation](../github-readiness.md). No publication or history rewrite was performed. |
 
 ### Principal affected files
 
@@ -97,17 +97,17 @@ These captures show rendered application content. QA files are local verificatio
 
 | View | Evidence |
 | --- | --- |
-| Actual pattern browser, large desktop | [WebKit 1440 preview](../qa/final-development/pattern-browser-webkit-1440.png) |
-| Actual pattern browser, compact production window | [Production WebKit 1100 preview](../qa/final-development/pattern-browser-webkit-production-1100.png) |
-| Fashion workspace with measurements and pieces | [WebKit 1100 workspace](../qa/final-development/pattern-workspace-webkit-1100.png) |
-| Calibrated pattern inventory | [Production desktop](../qa/studio-019/screenshots/pattern-inventory.png) |
-| Narrow source inventory with visible study selection | [WebKit 540-pixel view](../qa/studio-019/screenshots/pattern-inventory-narrow.png) |
-| Editable approximate front/back pieces | [WebKit garment reconstruction](../qa/studio-019/screenshots/approximate-garment-draft.png) |
-| Tattoo image editor after layout corrections | [Production WebKit 1100 artwork](../qa/final-ux/tattoo-after/webkit-production-1100-artwork.png) |
-| Stencil preview and controls after layout corrections | [Production WebKit 1100 stencil](../qa/final-ux/tattoo-after/webkit-production-1100-stencil.png) |
-| Body library in a short window | [Production WebKit 1100 model selection](../qa/final-ux/tattoo-after/webkit-production-1100-body-library.png) |
-| Pose study in a short window | [Production WebKit 1100 planning](../qa/final-ux/tattoo-after/webkit-production-1100-planning.png) |
-| Review room in a short window | [Production WebKit 1100 review](../qa/final-ux/tattoo-after/webkit-production-1100-review-room.png) |
+| Actual pattern browser, large desktop | [WebKit 1440 preview](../../qa/final-development/pattern-browser-webkit-1440.png) |
+| Actual pattern browser, compact production window | [Production WebKit 1100 preview](../../qa/final-development/pattern-browser-webkit-production-1100.png) |
+| Fashion workspace with measurements and pieces | [WebKit 1100 workspace](../../qa/final-development/pattern-workspace-webkit-1100.png) |
+| Calibrated pattern inventory | [Production desktop](../../qa/studio-019/screenshots/pattern-inventory.png) |
+| Narrow source inventory with visible study selection | [WebKit 540-pixel view](../../qa/studio-019/screenshots/pattern-inventory-narrow.png) |
+| Editable approximate front/back pieces | [WebKit garment reconstruction](../../qa/studio-019/screenshots/approximate-garment-draft.png) |
+| Tattoo image editor after layout corrections | [Production WebKit 1100 artwork](../../qa/final-ux/tattoo-after/webkit-production-1100-artwork.png) |
+| Stencil preview and controls after layout corrections | [Production WebKit 1100 stencil](../../qa/final-ux/tattoo-after/webkit-production-1100-stencil.png) |
+| Body library in a short window | [Production WebKit 1100 model selection](../../qa/final-ux/tattoo-after/webkit-production-1100-body-library.png) |
+| Pose study in a short window | [Production WebKit 1100 planning](../../qa/final-ux/tattoo-after/webkit-production-1100-planning.png) |
+| Review room in a short window | [Production WebKit 1100 review](../../qa/final-ux/tattoo-after/webkit-production-1100-review-room.png) |
 
 The tattoo audit also retains before captures, but its earliest baseline did not wait for every asynchronous artwork/pose image. Use the completed after captures for content-fidelity assessment. The tests compare relevant dimensions and access to controls, rather than treating a screenshot alone as proof that a workflow works.
 
@@ -148,7 +148,7 @@ These are verified implementation corrections. They do not substitute for the se
 5. **3D clothing:** the existing prepared-panel drape tools remain experimental visual aids. Automatically assembled 3D garments for every catalog item, self-collision and calibrated anisotropic cloth behavior are not delivered.
 6. **Performance:** final native GPU, maximum-budget memory and sustained interaction qualification remain open. Headless software-renderer timing is not a substitute.
 7. **Release and review gates:** native launch is observed, but native save/cancel/open/export completion is unverified after repeated app-control timeouts. The full browser results and restricted review approval are recorded above. Windows/WebView2 qualification, public signing and notarization remain separate distribution work.
-8. **Publication:** rights for the supplied vector-sheet library, the owner's original-code license choice, exact-tree/full-history secret review and final dependency/asset licensing review remain publication concerns. Current status belongs in [GitHub preparation](github-readiness.md), which must be read before publishing.
+8. **Publication:** rights for the supplied vector-sheet library, the owner's original-code license choice, exact-tree/full-history secret review and final dependency/asset licensing review remain publication concerns. Current status belongs in [GitHub preparation](../github-readiness.md), which must be read before publishing.
 
 ## 8. Ownership and GitHub readiness assessment
 
@@ -160,6 +160,6 @@ No repository publication, deployment, destructive history rewrite or overwrite 
 
 ## 9. Local build and review evidence
 
-The packaged candidate is [Form Studio 0.19.0 RC2.app](../releases/Form%20Studio%200.19.0%20RC2.app). Its executable SHA-256 is `98c3f4e9cd81b65ac2caa2738f12cad05b9edd2c1cb082060ef9052ffa0ac31f`. The initial 0.19 candidate and earlier release bundles remain intact; RC2 is separate so the running app was not replaced. No signed/notarized distribution claim is made.
+The packaged candidate is [Form Studio 0.19.0 RC2.app](../../releases/Form%20Studio%200.19.0%20RC2.app). Its executable SHA-256 is `98c3f4e9cd81b65ac2caa2738f12cad05b9edd2c1cb082060ef9052ffa0ac31f`. The initial 0.19 candidate and earlier release bundles remain intact; RC2 is separate so the running app was not replaced. No signed/notarized distribution claim is made.
 
 The final review accepted corrections C01–C09 for restricted local preview: image integrity, accessible units, explicit invalid-input errors, narrow-window inventory access, rejection of unsupported measured suggestions, production CI coverage, predecode/aggregate budgets, browser save protection and original-metadata disclosure. The review relied on reported test evidence, not independent final reruns. The later full-browser and native-launch results in this record are subsequent qualification evidence, not a retroactive expansion of that approval.

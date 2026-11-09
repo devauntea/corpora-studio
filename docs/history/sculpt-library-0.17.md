@@ -10,7 +10,7 @@ The imported models support orbiting, camera presets, uniform sizing, chart artw
 
 Blender separates the authored anatomical groups, joins their mesh fragments, welds duplicate positions, corrects orientation and reduces excessive geometry while retaining the silhouette. The dense torso's 992,908 triangles become 220,000 runtime triangles. Sculpt detail is baked from the dense originals into embedded 4K torso and 2K limb normal maps. Unusable limb UVs are replaced with non-overlapping detail atlases. Artwork charts are separate from these native material UVs.
 
-The anatomical arm's original geometry and textures are preserved. Source downloads remain unchanged in `.tools/sculpts/originals/`. [Provenance](../assets/sculpts/PROVENANCE.md) records authors, source URLs, CC BY 4.0 metadata, adaptations and input/output hashes. These credits are also bundled in the application's notices. [Asset validation](../assets/sculpts/validation.json) records the seven self-contained GLBs.
+The anatomical arm's original geometry and textures are preserved. Source downloads remain unchanged in `.tools/sculpts/originals/`. [Provenance](../../assets/sculpts/PROVENANCE.md) records authors, source URLs, CC BY 4.0 metadata, adaptations and input/output hashes. These credits are also bundled in the application's notices. [Asset validation](../../assets/sculpts/validation.json) records the seven self-contained GLBs.
 
 ## Existing bodies
 

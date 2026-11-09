@@ -14,10 +14,10 @@
 
 Eight screens at1440×940 and1080×720: tattoo, studio home, body picker, image studio, stencil, fashion, pattern picker and vector studio.
 
-- [Before/after comparison gallery](../qa/ui-021/comparison.html)
-- [Before screenshots](../qa/ui-021/before/)
-- [After screenshots](../qa/ui-021/after/)
-- [Source and garment library review](../qa/ui-021/fashion-review/)
+- [Before/after comparison gallery](../../qa/ui-021/comparison.html)
+- [Before screenshots](../../qa/ui-021/before)
+- [After screenshots](../../qa/ui-021/after)
+- [Source and garment library review](../../qa/ui-021/fashion-review)
 - Repeatable capture: `node scripts/capture-ui-021.mjs after` (isolated browser contexts; user's live studies are not touched).
 
 ## Verification record

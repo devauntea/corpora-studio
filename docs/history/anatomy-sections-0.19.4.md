@@ -22,4 +22,4 @@ No Tripo API requests or paid generations were used. The new exports inherit the
 - Desktop 0.19.4 built successfully and its copied release bundle passed ad-hoc signature verification. It is not notarized.
 - Native save/open dialogs are not newly verified in this change; browser save/open and the desktop bundle build are separate checks.
 
-See [the manual Tripo creation brief](tripo-creation-brief.md) for the next useful models and export instructions.
+See [the manual Tripo creation brief](../tripo-creation-brief.md) for the next useful models and export instructions.

@@ -10,7 +10,7 @@ Verified locally on Apple Silicon macOS, 5 November 2026.
 - Handoff exports include editable front/back/combined SVG, vector PDF, three CSV tables, editable JSON and a nine-file ZIP. Per-view clipping prevents drawing outside an artboard from covering the neighboring view. Hidden/locked paths remain in editable JSON.
 - Format 11 freezes and validates format 10 before migration. Formats 1–10 remain readable. A legacy project's first save creates a new copy. Existing tattoo surfaces retain their saved revisions.
 
-Catalog provenance: [FreeSewing's official catalog](https://freesewing.eu/designs/), installed package metadata and package source. The imported packages declare MIT; notices are bundled in `THIRD_PARTY_NOTICES.txt`. Four evaluated engines with unsupported/empty boundaries were excluded, as recorded in the [fashion guide](fashion-workspace.md).
+Catalog provenance: [FreeSewing's official catalog](https://freesewing.eu/designs/), installed package metadata and package source. The imported packages declare MIT; notices are bundled in `THIRD_PARTY_NOTICES.txt`. Four evaluated engines with unsupported/empty boundaries were excluded, as recorded in the [fashion guide](../fashion-workspace.md).
 
 ## Checks passed
 

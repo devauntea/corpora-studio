@@ -17,7 +17,7 @@ Project format 10 reads formats 1–9 through their frozen validators. Revision 
 
 There are 154,838 male and 156,419 female packed vertices, including cut vertices. The continuous body uses 296,174 / 296,436 triangles. Additional index sets provide isolated legs and the torso without modifying the full-body topology. Counts include retained source vertices and are not a claim that every template renders every vertex.
 
-The body base derives from the pinned MakeHuman CC0 graphical assets. The registered muscle identity/color fields remain CC BY-SA adaptations of Z-Anatomy / BodyParts3D; [provenance and adaptation details](../assets/anatomy/atlas/source.json) and bundled notices cover the new interpolated cut vertices. Supplied Tattoo Smart sheets and bodybuilding photographs were used as visual references only and are not included in the application.
+The body base derives from the pinned MakeHuman CC0 graphical assets. The registered muscle identity/color fields remain CC BY-SA adaptations of Z-Anatomy / BodyParts3D; [provenance and adaptation details](../../assets/anatomy/atlas/source.json) and bundled notices cover the new interpolated cut vertices. Supplied Tattoo Smart sheets and bodybuilding photographs were used as visual references only and are not included in the application.
 
 ## Reproduction and review
 
@@ -30,7 +30,7 @@ node scripts/capture-body-reference.mjs
 
 NumPy is needed only for asset generation. The occlusion baker uses the pinned Three.js/BVH packages: 32 deterministic hemisphere samples per vertex for Average and Fit. The sculpt generator rejects inverted faces at Average, midpoint and Fit. It writes a new revision without overwriting old assets.
 
-Local visual review: [render gallery](../qa/body-fidelity/render-review.html). The capture script covers four builds, three sections and three camera sides, chest/back flex variants, anatomy views and double biceps. Captures are actual application renders, not generated concept images.
+Local visual review: [render gallery](../../qa/body-fidelity/render-review.html). The capture script covers four builds, three sections and three camera sides, chest/back flex variants, anatomy views and double biceps. Captures are actual application renders, not generated concept images.
 
 ## Verification
 

@@ -33,7 +33,7 @@ Project Undo/Redo, local recovery, checkpoints, save and reopen include the vect
 
 ## Imported garment assets
 
-Open **Fashion → Asset library** from the workspace tabs. The supplied `vectors.zip` contains **112 PNG sheets**, not Illustrator/SVG source vectors. All originals are preserved byte-for-byte. The collection includes 217 separated garment/accessory views across Tops, Hoodies, Knitwear, Outerwear, Bottoms, Headwear and Accessories.
+Open **Fashion → Garment flats** from the workspace tabs. The supplied `vectors.zip` contains **112 PNG sheets**, not Illustrator/SVG source vectors. All originals are preserved byte-for-byte. The collection includes 217 separated garment/accessory views across Tops, Hoodies, Knitwear, Outerwear, Bottoms, Headwear and Accessories.
 
 Search names, filter categories, or favorite assets for later. Select a sheet, choose a view, and compare **Original** with **Vector trace**. Place a selected view on either artboard, or place a two-view sheet as a front/back pair. **Replace drawings on destination** replaces only the destination drawings and callouts; measurement and material records stay intact. Placement is a single undo step. Generic starter names follow the replacement asset; custom style names remain unchanged.
 
@@ -63,4 +63,4 @@ Vector pack format 2 adds compound contours and reads validated format 1 packs. 
 
 ## Verification
 
-See [garment library and UI verification](garment-library-0.12.md) and [fashion expansion verification](fashion-expansion-0.11.md) for browser, native, geometry and artifact checks. Automated draft checks verify usable numeric output and software behavior, not sewn fit or the correctness of every upstream option combination.
+See [garment library and UI verification](history/garment-library-0.12.md) and [fashion expansion verification](history/fashion-expansion-0.11.md) for browser, native, geometry and artifact checks. Automated draft checks verify usable numeric output and software behavior, not sewn fit or the correctness of every upstream option combination.

@@ -4,7 +4,7 @@ Revision 7 builds on the revision 6 rig. It adds the surface definition revision
 
 ## What changed
 
-- **Muscle separation follows the registered muscle field.** Grooves are cut along the actual borders of the 36-group Z-Anatomy / BodyParts3D field (CC BY-SA 4.0 adaptation), not at hand-placed coordinates. Each pair of neighbouring muscles has its own depth and width (`PAIRS` in [relief.py](../scripts/anatomy6/relief.py)). For example, the deltopectoral groove is 3.2 mm and the biceps/triceps border is 2.0 mm on a fit male. Each groove has slightly raised edges, so the muscle bellies read as rounded instead of carved.
+- **Muscle separation follows the registered muscle field.** Grooves are cut along the actual borders of the 36-group Z-Anatomy / BodyParts3D field (CC BY-SA 4.0 adaptation), not at hand-placed coordinates. Each pair of neighbouring muscles has its own depth and width (`PAIRS` in [relief.py](../../scripts/anatomy6/relief.py)). For example, the deltopectoral groove is 3.2 mm and the biceps/triceps border is 2.0 mm on a fit male. Each groove has slightly raised edges, so the muscle bellies read as rounded instead of carved.
 - **Splits inside single atlas groups:** anterior, lateral and posterior deltoid heads; the triceps long and lateral heads; the bottom of the triceps heads above the tendon plate; and the two gastrocnemius heads. Each is placed by its angle around the limb axis in that limb's joint frame.
 - **Bony landmarks:** patella, patellar tendon, tibial tuberosity, olecranon, medial and lateral epicondyles, and medial and lateral malleoli. Each is a smooth bump of exact authored height, centred on the skin in the CC0 MakeHuman joint frame. That makes them follow body proportions and move with the bone under skinning.
 - **Muscle bellies:** each registered muscle rises from its own atlas borders as a rounded convex form, amplitude × (1 − e^(−(d/r)²)), where d is surface distance to the border. Fit-male amplitudes range from 0.8 mm (sartorius) to 3.2 mm (the vastus medialis "teardrop"). This gives the calves, quads, arms and back rounded volume instead of carved lines.
@@ -45,10 +45,10 @@ BODY_REVISION=7 BODY_REVIEW_OUTPUT=qa/body-016/r7-renders node scripts/capture-b
 
 ## Verification (5 November 2026)
 
-- 198 unit tests passed, including [body-correctives.test.ts](../tests/body-correctives.test.ts), which checks that the bind pose is unchanged, the output is finite and bounded, the bent knee bulges less than with DQS alone, and the new [body-revision7.test.ts](../tests/body-revision7.test.ts). It checks identical topology, index bytes, rig reference, joints, rig/cut channels and muscle field; checks the relief is between 1 mm and 3.5 mm; and confirms revision 6 checksums are unchanged.
+- 198 unit tests passed, including [body-correctives.test.ts](../../tests/body-correctives.test.ts), which checks that the bind pose is unchanged, the output is finite and bounded, the bent knee bulges less than with DQS alone, and the new [body-revision7.test.ts](../../tests/body-revision7.test.ts). It checks identical topology, index bytes, rig reference, joints, rig/cut channels and muscle field; checks the relief is between 1 mm and 3.5 mm; and confirms revision 6 checksums are unchanged.
 - Typecheck is clean.
 - 10 body end-to-end scenarios passed in Chromium and WebKit: whole sections and posed round trip, body library and saved choices, skeleton-backed knee bending and comparison, and torso flex/double biceps with preserved anchors.
-- 63 app renders were captured with no renderer errors: [qa/body-016/r7-renders](../qa/body-016/r7-renders/render-review.html). Compare them with revision 6 in `qa/body-014/rig-renders`.
+- 63 app renders were captured with no renderer errors: [qa/body-016/r7-renders](../../qa/body-016/r7-renders/render-review.html). Compare them with revision 6 in `qa/body-014/rig-renders`.
 
 ## Still required
 

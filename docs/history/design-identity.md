@@ -1,4 +1,4 @@
-> Superseded for current visual identity by [Corpora Studio 0.23](corpora-studio-0.23.md). This document records the earlier Paper & Ink foundation.
+> Superseded for current visual identity by [Corpora Studio 0.23](../corpora-studio-0.23.md). This document records the earlier Paper & Ink foundation.
 
 # Form Studio — Paper & Ink
 

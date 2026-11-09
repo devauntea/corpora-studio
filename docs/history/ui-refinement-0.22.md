@@ -20,11 +20,11 @@ The compact default has 52% more canvas area; the larger default has 9% more. Th
 
 ## Evidence
 
-- [Canvas measurements](../qa/ui-022/vector-layout-metrics.json)
-- [Light/dark comparison gallery](../qa/ui-022/comparison.html)
-- [Dark screenshots](../qa/ui-022/dark/) and [light screenshots](../qa/ui-022/light/) — eight screens at two sizes per theme.
-- [All 65 drafted-pattern previews](../qa/ui-022/patterns/all-65.png)
-- [Theme checks](../qa/ui-022/theme-tests.log), [core audit](../qa/ui-022/theme-audit.json), [specialist audit](../qa/ui-022/theme-specialist.json)
+- [Canvas measurements](../../qa/ui-022/vector-layout-metrics.json)
+- [Light/dark comparison gallery](../../qa/ui-022/comparison.html)
+- [Dark screenshots](../../qa/ui-022/dark) and [light screenshots](../../qa/ui-022/light) — eight screens at two sizes per theme.
+- [All 65 drafted-pattern previews](../../qa/ui-022/patterns/all-65.png)
+- [Theme checks](../../qa/ui-022/theme-tests.log), [core audit](../../qa/ui-022/theme-audit.json), [specialist audit](../../qa/ui-022/theme-specialist.json)
 - Reproducible captures: `node scripts/capture-ui-022.mjs dark`, `node scripts/capture-ui-022.mjs light` with the development server running at port 1420.
 
 ## Validation

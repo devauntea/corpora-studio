@@ -16,9 +16,9 @@ The original vertex order, triangle indices, rig weights, cut boundaries, bone d
 ## Inspect the result
 
 - App: `releases/Form Studio 0.16.0.app`.
-- [Matched before/after gallery](../qa/body-017/comparison/index.html): 24 pairs, with front/back/profile, arms, legs, average torsos, 110° bends and double-biceps poses. The capture uses the same arm-pose preset as the UI.
-- [Render settings and errors](../qa/body-017/comparison/report.json).
-- [Final geometry measurements](../qa/body-017/final-geometry.json).
+- [Matched before/after gallery](../../qa/body-017/comparison/index.html): 24 pairs, with front/back/profile, arms, legs, average torsos, 110° bends and double-biceps poses. The capture uses the same arm-pose preset as the UI.
+- [Render settings and errors](../../qa/body-017/comparison/report.json).
+- [Final geometry measurements](../../qa/body-017/final-geometry.json).
 
 For an older study, open **Body model → Use refined body · retain placements**. Enable **Muscle anatomy guide** to inspect the subdivisions; the guide opacity can be adjusted while placing artwork.
 
@@ -31,7 +31,7 @@ For an older study, open **Body model → Use refined body · retain placements*
 - After the zoom/first-frame fixes, all four library and connected-placement checks passed again in Chromium/WebKit. Three production WebKit checks also passed for the rig, connected anchors/upgrades and muscle poses.
 - 48 matched-camera renders completed without renderer errors. A close-up skin capture supplements the normal-scale views.
 - Geometry checks cover finite values, exact triangle/rig/cut identity, all 28 new head IDs, normalized categorical weights, metadata checksums and all section rims. Build-time checks reject face orientation reversals at five points between average and fit.
-- Production TypeScript/Vite and the macOS app bundle build passed. The copied release's local ad-hoc signature passes `codesign --verify --deep --strict`. [Release identity](../qa/body-017/release.json) records the binary checksum. After the user unlocked the Mac, the packaged 0.16 app launched and its accessibility tree exposed the body library, torso controls, muscle guide and camera controls. Native save/open and screenshot verification remain pending: subsequent app-control calls repeatedly timed out or reported concurrent user changes, and no save dialog completion was observed. A process sample showed the native main thread waiting normally in the AppKit event loop. Browser verification is not represented as native-dialog verification.
+- Production TypeScript/Vite and the macOS app bundle build passed. The copied release's local ad-hoc signature passes `codesign --verify --deep --strict`. [Release identity](../../qa/body-017/release.json) records the binary checksum. After the user unlocked the Mac, the packaged 0.16 app launched and its accessibility tree exposed the body library, torso controls, muscle guide and camera controls. Native save/open and screenshot verification remain pending: subsequent app-control calls repeatedly timed out or reported concurrent user changes, and no save dialog completion was observed. A process sample showed the native main thread waiting normally in the AppKit event loop. Browser verification is not represented as native-dialog verification.
 
 These checks establish implementation behavior and compatibility. They do not establish anatomical accuracy or a near-1:1 match to the supplied reference models.
 
@@ -50,13 +50,13 @@ BODY_REVISION=8 node scripts/bake-body-occlusion.mjs
 python3 scripts/dependency-notices.py
 ```
 
-The host Python needs NumPy/SciPy. Blender includes its own Python and NumPy. The polish script refuses to apply twice; run the r8 builder first when rebuilding. Head projection caches live under `.tools/anatomy/r8/`. Its pinned registration report is in [assets/anatomy/atlas/registration-v8.json](../assets/anatomy/atlas/registration-v8.json). Run `node scripts/capture-body-r8.mjs` against a local Vite server to recapture the gallery images.
+The host Python needs NumPy/SciPy. Blender includes its own Python and NumPy. The polish script refuses to apply twice; run the r8 builder first when rebuilding. Head projection caches live under `.tools/anatomy/r8/`. Its pinned registration report is in [assets/anatomy/atlas/registration-v8.json](../../assets/anatomy/atlas/registration-v8.json). Run `node scripts/capture-body-r8.mjs` against a local Vite server to recapture the gallery images.
 
 ## Provenance and remaining work
 
 This pass uses the existing **Z-Anatomy-derived CC BY-SA 4.0** lineage, including its attribution in the distributed notices. It does not relicense those derivatives based on BodyParts3D's newer terms. Revision 8's modified skin assets explicitly retain that attribution. The independently authored procedural skin tile is CC0; no source photographs or external texture maps were used. Blender is a build tool, not bundled with the app.
 
-The [fidelity research](fidelity-research-1to1.md) remains a broader roadmap. The following are **not completed by this release**:
+The [fidelity research](../research/fidelity-research-1to1.md) remains a broader roadmap. The following are **not completed by this release**:
 
 - BodyParts3D-only rebase, non-rigid ICP and independent landmark accuracy validation. The new head projection uses the inherited segment-landmark mapping, outward-ray intersection and nearest-surface fallback, constrained by the old parent field. Projection distances measure source-to-skin separation, not registration accuracy. Female anatomy remains an adapted guide, not a separate female anatomical dataset.
 - Full tendons, veins, serratus slips and a validated scapular-motion model. Shoulder cuts and armpit transitions still need sculpting and review.

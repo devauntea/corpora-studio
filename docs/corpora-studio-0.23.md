@@ -69,4 +69,12 @@ A design, flow and defect review before the first push to a private GitHub repos
 
 Checks after the fixes: TypeScript build clean; 698 unit tests passed; 67 Chromium end-to-end tests passed (the dark-theme stencil case after a follow-up contrast fix); the production build passed 48 WebKit tests; a known-pattern secret scan of the working tree and history found nothing.
 
-Deferred: Fashion library naming (garment, pattern and asset libraries overlap), stencil form styling, focus return to the opening control in a few dialogs, layout at the 1080 px minimum width, a timed first-run walkthrough of both journeys, and moving version notes into `docs/history/`.
+Follow-up the same day:
+
+- **Fashion names.** Each name now means one thing: the pattern being edited is the **Selected pattern**; the 65 drafted designs are the **Pattern catalog**; the 112 imported garment drawings are **Garment flats** (formerly Asset library and Garment assets); fabric prints are the **Print library**. The duplicate Vector packs card under the pattern was removed; the workspace tab remains.
+- **Stencil studio** controls use the same numbered sections, fields and buttons as the image studio, in both themes.
+- **Project library** returns focus to the button that opened it.
+- **1080 px window.** No clipped or overflowing controls were found; the tattoo step numbers and current-step marker now stay visible at this width.
+- **Docs.** Milestone records moved to `docs/history/`, research to `docs/research/`, with an index in `docs/README.md`.
+
+Still open: a timed first-run walkthrough of both journeys by a person.
