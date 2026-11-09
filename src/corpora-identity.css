@@ -439,6 +439,8 @@
 /* Shown in public checkouts, where garment flats are not installed. */
 :root .garment-library.garment-library-empty {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   place-items: center;
   padding: 48px 24px;
   background: var(--fs-paper);
