@@ -1,6 +1,6 @@
 # Dependency inventory
 
-Generated from package-lock.json and Cargo metadata for aarch64-apple-darwin. Lockfiles pin the resolved graph. This inventory includes build/development dependencies; it is a conservative superset of the shipped code. Runtime core dependencies use MIT, Apache-2.0, ISC, Boost Software License, or permissive dual licensing. The application does not include Seamly, SMPL, third-party model checkpoints, or supplied body-reference imagery. The user-supplied garment PNG collection is bundled locally with byte-preserved originals and generated vector traces; its separate provenance is recorded in `public/garment-assets/provenance.json`. Body bases and morph targets derive from MakeHuman CC0 graphical assets. The registered muscle color/identity and categorical boundary fields are adapted from Z-Anatomy / BodyParts3D and distributed under CC BY-SA 4.0; their source, modifications, attribution and full license are in assets/anatomy/atlas/.
+Generated from package-lock.json and Cargo metadata for aarch64-apple-darwin. Lockfiles pin the resolved graph. This inventory includes build/development dependencies; it is a conservative superset of the shipped code. Runtime core dependencies use MIT, Apache-2.0, ISC, Boost Software License, or permissive dual licensing. The application does not include Seamly, SMPL, third-party model checkpoints, or any supplied reference imagery. Body bases and morph targets derive from MakeHuman CC0 graphical assets. The registered muscle color/identity and categorical boundary fields are adapted from Z-Anatomy / BodyParts3D and distributed under CC BY-SA 4.0; their source, modifications, attribution and full license are in assets/anatomy/atlas/.
 
 Full available license texts are in `THIRD_PARTY_NOTICES.txt`, bundled with the Mac application. Some crates put notices in source headers or external license references rather than top-level files; review the missing-file list before public distribution. Windows and other targets require their own notice collection.
 
@@ -253,7 +253,7 @@ Full available license texts are in `THIRD_PARTY_NOTICES.txt`, bundled with the 
 | cargo | zmij | 1.0.23 | MIT | aarch64-apple-darwin resolved dependency |
 | npm | @axe-core/playwright | 4.14.0 | MPL-2.0 | development |
 | npm | @babel/runtime | 7.29.10 | MIT | runtime |
-| npm | @dimforge/rapier3d-compat | 0.12.0 | Apache-2.0 | development |
+| npm | @dimforge/rapier3d-compat | 0.13.0 | Apache-2.0 | development |
 | npm | @freesewing/aaron | 4.10.2 | MIT | runtime |
 | npm | @freesewing/albert | 4.10.2 | MIT | runtime |
 | npm | @freesewing/ashley | 4.10.2 | MIT | runtime |
