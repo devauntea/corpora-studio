@@ -8,7 +8,7 @@ A local desktop studio for tattoo composition, artwork preparation and measureme
 
 Corpora Studio 0.23 adds an original fabric-print and color workspace, editable repeat size and rotation, and print-aware SVG/PDF/manufacturer exports. The app name and mark are new; existing `.formstudio` projects and local recovery storage remain compatible.
 
-Earlier milestones added chart-based male/female S/M/L pattern starters, actual pattern previews and a local image inventory for calibrated tracing and supported approximate garment drafts. See the [0.19 delivery record](docs/history/final-development-0.19.md) for those workflows and limitations, and [GitHub preparation](docs/github-readiness.md) before any publication.
+Earlier milestones added chart-based male/female S/M/L pattern starters, actual pattern previews and a local image inventory for calibrated tracing and supported approximate garment drafts. See the [0.19 delivery record](docs/history/final-development-0.19.md) for those workflows and limitations.
 
 This is a local preview, not a certified manufacturing or anatomical tool. Physical sample/fit review and native distribution qualification remain open. Earlier release bundles are preserved.
 
@@ -57,7 +57,7 @@ npm ci
 npm run desktop
 ```
 
-Cargo is installed at `/Users/bigbobby/.cargo/bin` on this machine. If needed, run `source /Users/bigbobby/.cargo/env` before the commands below.
+If `cargo` is not on your PATH after installing Rust, run `source "$HOME/.cargo/env"` before the commands below.
 
 ```sh
 npm test
